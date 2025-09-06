@@ -22,6 +22,225 @@ AI を活用したベテラン人材マッチングシステム。経験豊富�
 - **CI/CD**: GitHub Actions + Serverless Framework
 - **リージョン**: 東京リージョン (ap-northeast-1)
 
+## 📊 システム概要図
+
+### 全体アーキテクチャ
+
+```mermaid
+graph TB
+    subgraph "ユーザー"
+        U1[Honda社員<br/>ベテラン]
+        U2[外部リクルーター<br/>企業]
+    end
+
+    subgraph "フロントエンド層"
+        CF[CloudFront<br/>CDN]
+        S3[S3バケット<br/>静的ホスティング]
+        WEB[React SPA<br/>TypeScript]
+    end
+
+    subgraph "API層 (東京リージョン)"
+        AG[API Gateway<br/>REST API]
+        AUTH[Cognito<br/>認証・認可]
+    end
+
+    subgraph "ビジネスロジック層"
+        L1[認証ハンドラー<br/>Lambda]
+        L2[プロフィール管理<br/>Lambda]
+        L3[アンケート処理<br/>Lambda]
+        L4[マッチング処理<br/>Lambda]
+        L5[推薦エンジン<br/>Lambda]
+        L6[外部検索<br/>Lambda]
+    end
+
+    subgraph "AI・機械学習"
+        BR[AWS Bedrock<br/>Claude Sonnet]
+        AI[AI推論エンジン<br/>質問生成・マッチング]
+    end
+
+    subgraph "データ層"
+        DB1[(ユーザー情報<br/>DynamoDB)]
+        DB2[(プロフィール<br/>DynamoDB)]
+        DB3[(アンケート<br/>DynamoDB)]
+        DB4[(推薦結果<br/>DynamoDB)]
+        DB5[(求人情報<br/>DynamoDB)]
+        DB6[(公開プロフィール<br/>DynamoDB)]
+    end
+
+    subgraph "セキュリティ・監視"
+        KMS[KMS<br/>暗号化]
+        CW[CloudWatch<br/>ログ・監視]
+        IAM[IAM<br/>アクセス制御]
+    end
+
+    %% ユーザーフロー
+    U1 --> CF
+    U2 --> CF
+    CF --> S3
+    S3 --> WEB
+    WEB --> AG
+
+    %% API認証フロー
+    AG --> AUTH
+    AUTH --> L1
+
+    %% ビジネスロジックフロー
+    AG --> L2
+    AG --> L3
+    AG --> L4
+    AG --> L5
+    AG --> L6
+
+    %% AI統合
+    L3 --> BR
+    L4 --> BR
+    L5 --> BR
+    BR --> AI
+    AI --> BR
+
+    %% データアクセス
+    L1 --> DB1
+    L2 --> DB2
+    L3 --> DB3
+    L4 --> DB4
+    L5 --> DB4
+    L6 --> DB6
+    L4 --> DB5
+
+    %% セキュリティ統合
+    DB1 --> KMS
+    DB2 --> KMS
+    DB3 --> KMS
+    L1 --> CW
+    L2 --> CW
+    L3 --> CW
+    L4 --> CW
+    L5 --> CW
+    L6 --> CW
+    AG --> IAM
+
+    %% スタイリング
+    classDef userClass fill:#e1f5fe
+    classDef frontendClass fill:#f3e5f5
+    classDef apiClass fill:#e8f5e8
+    classDef lambdaClass fill:#fff3e0
+    classDef aiClass fill:#fce4ec
+    classDef dataClass fill:#e0f2f1
+    classDef securityClass fill:#fff8e1
+
+    class U1,U2 userClass
+    class CF,S3,WEB frontendClass
+    class AG,AUTH apiClass
+    class L1,L2,L3,L4,L5,L6 lambdaClass
+    class BR,AI aiClass
+    class DB1,DB2,DB3,DB4,DB5,DB6 dataClass
+    class KMS,CW,IAM securityClass
+```
+
+### データフロー図
+
+```mermaid
+sequenceDiagram
+    participant U as Honda社員
+    participant W as Webアプリ
+    participant A as API Gateway
+    participant C as Cognito
+    participant L as Lambda
+    participant B as Bedrock
+    participant D as DynamoDB
+
+    Note over U,D: ユーザー登録・ログインフロー
+    U->>W: ログイン要求
+    W->>A: 認証リクエスト
+    A->>C: 認証確認
+    C->>A: JWTトークン
+    A->>W: 認証成功
+    W->>U: ダッシュボード表示
+
+    Note over U,D: AIアンケート生成フロー
+    U->>W: アンケート開始
+    W->>A: アンケート生成要求
+    A->>L: questionnaire_handler
+    L->>D: ユーザー情報取得
+    D->>L: プロフィールデータ
+    L->>B: AI質問生成要求
+    B->>L: パーソナライズ質問
+    L->>D: アンケート保存
+    L->>A: 生成されたアンケート
+    A->>W: アンケート表示
+    W->>U: 質問回答画面
+
+    Note over U,D: マッチング・推薦フロー
+    U->>W: 推薦要求
+    W->>A: マッチング要求
+    A->>L: matching_handler
+    L->>D: ユーザー回答取得
+    L->>B: AI分析・マッチング
+    B->>L: 推薦結果
+    L->>D: 推薦結果保存
+    L->>A: 推薦リスト
+    A->>W: 推薦表示
+    W->>U: キャリア機会提示
+```
+
+### 外部プラットフォーム連携図
+
+```mermaid
+graph LR
+    subgraph "Honda ベテランバンク (外部向け)"
+        EP[外部プラットフォーム<br/>公開サイト]
+        PS[公開検索<br/>機能]
+        PF[プロフィール<br/>表示]
+        CF[コンタクト<br/>フォーム]
+    end
+
+    subgraph "内部システム"
+        IS[内部システム<br/>社員向け]
+        PM[プライバシー<br/>管理]
+        PP[公開設定<br/>制御]
+    end
+
+    subgraph "外部ユーザー"
+        R[リクルーター]
+        C[企業担当者]
+        H[ヘッドハンター]
+    end
+
+    subgraph "データ制御"
+        PUB[(公開プロフィール<br/>DynamoDB)]
+        PRIV[(プライベート情報<br/>暗号化)]
+    end
+
+    %% 外部アクセスフロー
+    R --> EP
+    C --> EP
+    H --> EP
+    EP --> PS
+    PS --> PF
+    PF --> CF
+
+    %% 内部制御フロー
+    IS --> PM
+    PM --> PP
+    PP --> PUB
+
+    %% データ分離
+    PUB --> PS
+    PRIV -.-> PM
+    PRIV -.x PS
+
+    %% スタイリング
+    classDef externalClass fill:#ffebee
+    classDef internalClass fill:#e3f2fd
+    classDef userClass fill:#f1f8e9
+    classDef dataClass fill:#fafafa
+
+    class EP,PS,PF,CF externalClass
+    class IS,PM,PP internalClass
+    class R,C,H userClass
+    class PUB,PRIV dataClass
+```
+
 ## 📋 前提条件
 
 - Python 3.12+
