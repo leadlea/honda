@@ -6,7 +6,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import UserProfile from './components/profile/UserProfile';
 import RecommendationsList from './components/recommendations/RecommendationsList';
 import ApplicationTracker from './components/recommendations/ApplicationTracker';
-import PublicVeteranSearch from './components/public/PublicVeteranSearch';
+import { PublicVeteranSearch } from './components/public';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import './config/amplify';
 import './App.css';
