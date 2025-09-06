@@ -1,14 +1,15 @@
 """Test project structure and basic imports."""
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 
 def test_project_structure():
     """Test that the basic project structure exists."""
     project_root = Path(__file__).parent.parent
-    
+
     # Check main directories exist
     assert (project_root / "src").exists()
     assert (project_root / "src" / "handlers").exists()
@@ -16,12 +17,12 @@ def test_project_structure():
     assert (project_root / "src" / "services").exists()
     assert (project_root / "src" / "repositories").exists()
     assert (project_root / "src" / "utils").exists()
-    
+
     # Check test directories exist
     assert (project_root / "tests").exists()
     assert (project_root / "tests" / "unit").exists()
     assert (project_root / "tests" / "integration").exists()
-    
+
     # Check frontend directory exists
     assert (project_root / "frontend").exists()
     assert (project_root / "frontend" / "src").exists()
@@ -39,13 +40,13 @@ def test_src_package_imports():
     src_path = project_root / "src"
     if str(src_path) not in sys.path:
         sys.path.insert(0, str(src_path))
-    
+
     # Test basic imports work
     try:
         import handlers
         import models
-        import services
         import repositories
+        import services
         import utils
     except ImportError as e:
         pytest.fail(f"Failed to import src packages: {e}")
@@ -54,7 +55,7 @@ def test_src_package_imports():
 def test_configuration_files_exist():
     """Test that essential configuration files exist."""
     project_root = Path(__file__).parent.parent
-    
+
     config_files = [
         "serverless.yml",
         "requirements.txt",
@@ -66,11 +67,13 @@ def test_configuration_files_exist():
         ".pre-commit-config.yaml",
         "Makefile",
         ".env.example",
-        "pytest.ini"
+        "pytest.ini",
     ]
-    
+
     for config_file in config_files:
-        assert (project_root / config_file).exists(), f"Missing configuration file: {config_file}"
+        assert (
+            project_root / config_file
+        ).exists(), f"Missing configuration file: {config_file}"
 
 
 def test_github_workflow_exists():
@@ -84,7 +87,7 @@ def test_frontend_configuration_exists():
     """Test that frontend configuration files exist."""
     project_root = Path(__file__).parent.parent
     frontend_root = project_root / "frontend"
-    
+
     frontend_files = [
         "package.json",
         "tsconfig.json",
@@ -92,8 +95,10 @@ def test_frontend_configuration_exists():
         "src/index.tsx",
         "src/App.tsx",
         "src/App.css",
-        "src/index.css"
+        "src/index.css",
     ]
-    
+
     for frontend_file in frontend_files:
-        assert (frontend_root / frontend_file).exists(), f"Missing frontend file: {frontend_file}"
+        assert (
+            frontend_root / frontend_file
+        ).exists(), f"Missing frontend file: {frontend_file}"

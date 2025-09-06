@@ -4,11 +4,10 @@ AI utility functions and prompt templates for Bedrock Claude integration.
 
 import json
 import logging
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from .bedrock_client import BedrockRequest, BedrockResponse, get_bedrock_client
-
 
 logger = logging.getLogger(__name__)
 
@@ -16,33 +15,34 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PromptTemplate:
     """Template for AI prompts with variable substitution."""
+
     template: str
     required_variables: List[str]
     optional_variables: List[str] = None
-    
+
     def format(self, **kwargs) -> str:
         """
         Format template with provided variables.
-        
+
         Args:
             **kwargs: Variables to substitute in template
-            
+
         Returns:
             Formatted prompt string
-            
+
         Raises:
             ValueError: If required variables are missing
         """
         missing_vars = [var for var in self.required_variables if var not in kwargs]
         if missing_vars:
             raise ValueError(f"Missing required variables: {missing_vars}")
-        
+
         return self.template.format(**kwargs)
 
 
 class AIPrompts:
     """Collection of AI prompt templates for various use cases."""
-    
+
     # Questionnaire generation prompt
     QUESTIONNAIRE_GENERATION = PromptTemplate(
         template="""You are an expert HR consultant creating a personalized questionnaire for a veteran employee to assess their skills, experience, and career interests.
@@ -84,9 +84,9 @@ Return the questionnaire as a JSON object with this structure:
   ]
 }}""",
         required_variables=["name", "department", "years_experience", "current_role"],
-        optional_variables=["previous_responses"]
+        optional_variables=["previous_responses"],
     )
-    
+
     # Business title generation prompt
     BUSINESS_TITLE_GENERATION = PromptTemplate(
         template="""You are an expert career consultant creating unique business titles for veteran employees based on their skills and experience.
@@ -126,9 +126,16 @@ Return the titles as a JSON object:
   "recommended_title": "The most recommended title from the list",
   "reasoning": "Explanation of why the recommended title is best"
 }}""",
-        required_variables=["name", "department", "skills", "experience", "career_interests", "current_role"]
+        required_variables=[
+            "name",
+            "department",
+            "skills",
+            "experience",
+            "career_interests",
+            "current_role",
+        ],
     )
-    
+
     # Profile analysis prompt
     PROFILE_ANALYSIS = PromptTemplate(
         template="""Analyze the following veteran employee profile and provide insights for career matching and recommendations.
@@ -182,9 +189,9 @@ Return analysis as JSON:
     }}
   ]
 }}""",
-        required_variables=["profile_data", "questionnaire_responses"]
+        required_variables=["profile_data", "questionnaire_responses"],
     )
-    
+
     # Opportunity matching prompt
     OPPORTUNITY_MATCHING = PromptTemplate(
         template="""Analyze how well a veteran employee profile matches a specific opportunity and provide detailed matching insights.
@@ -235,34 +242,34 @@ Provide a detailed matching analysis as JSON:
   }},
   "match_summary": "Brief summary of why this is/isn't a good match"
 }}""",
-        required_variables=["veteran_profile", "opportunity_details"]
+        required_variables=["veteran_profile", "opportunity_details"],
     )
 
 
 class AIService:
     """Service class for AI operations using Bedrock Claude."""
-    
+
     def __init__(self):
         self.client = get_bedrock_client()
-    
+
     async def generate_questionnaire(
         self,
         name: str,
         department: str,
         years_experience: int,
         current_role: str,
-        previous_responses: Optional[List[Dict]] = None
+        previous_responses: Optional[List[Dict]] = None,
     ) -> Dict[str, Any]:
         """
         Generate a personalized questionnaire for a veteran employee.
-        
+
         Args:
             name: Employee name
             department: Employee department
             years_experience: Years of experience
             current_role: Current job role
             previous_responses: Previous questionnaire responses
-            
+
         Returns:
             Generated questionnaire as dictionary
         """
@@ -272,31 +279,31 @@ class AIService:
                 department=department,
                 years_experience=years_experience,
                 current_role=current_role,
-                previous_responses=json.dumps(previous_responses or [])
+                previous_responses=json.dumps(previous_responses or []),
             )
-            
+
             request = BedrockRequest(
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=3000,
-                temperature=0.7
+                temperature=0.7,
             )
-            
+
             response = await self.client.invoke_claude(request)
-            
+
             if not response.success:
                 raise Exception(f"AI generation failed: {response.error_message}")
-            
+
             # Parse JSON response
             questionnaire_data = json.loads(response.content)
             return questionnaire_data
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse questionnaire JSON: {e}")
             raise Exception("Failed to generate valid questionnaire format")
         except Exception as e:
             logger.error(f"Questionnaire generation failed: {e}")
             raise
-    
+
     async def generate_business_titles(
         self,
         name: str,
@@ -304,11 +311,11 @@ class AIService:
         skills: List[Dict],
         experience: List[Dict],
         career_interests: List[str],
-        current_role: str
+        current_role: str,
     ) -> Dict[str, Any]:
         """
         Generate business titles for a veteran employee.
-        
+
         Args:
             name: Employee name
             department: Employee department
@@ -316,7 +323,7 @@ class AIService:
             experience: List of experience entries
             career_interests: List of career interests
             current_role: Current job role
-            
+
         Returns:
             Generated business titles as dictionary
         """
@@ -327,110 +334,106 @@ class AIService:
                 skills=json.dumps(skills),
                 experience=json.dumps(experience),
                 career_interests=json.dumps(career_interests),
-                current_role=current_role
+                current_role=current_role,
             )
-            
+
             request = BedrockRequest(
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=2000,
-                temperature=0.8
+                temperature=0.8,
             )
-            
+
             response = await self.client.invoke_claude(request)
-            
+
             if not response.success:
                 raise Exception(f"AI generation failed: {response.error_message}")
-            
+
             # Parse JSON response
             titles_data = json.loads(response.content)
             return titles_data
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse business titles JSON: {e}")
             raise Exception("Failed to generate valid business titles format")
         except Exception as e:
             logger.error(f"Business title generation failed: {e}")
             raise
-    
+
     async def analyze_profile(
-        self,
-        profile_data: Dict[str, Any],
-        questionnaire_responses: List[Dict]
+        self, profile_data: Dict[str, Any], questionnaire_responses: List[Dict]
     ) -> Dict[str, Any]:
         """
         Analyze a veteran profile for insights and recommendations.
-        
+
         Args:
             profile_data: Complete profile data
             questionnaire_responses: Questionnaire responses
-            
+
         Returns:
             Profile analysis as dictionary
         """
         try:
             prompt = AIPrompts.PROFILE_ANALYSIS.format(
                 profile_data=json.dumps(profile_data),
-                questionnaire_responses=json.dumps(questionnaire_responses)
+                questionnaire_responses=json.dumps(questionnaire_responses),
             )
-            
+
             request = BedrockRequest(
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=4000,
-                temperature=0.6
+                temperature=0.6,
             )
-            
+
             response = await self.client.invoke_claude(request)
-            
+
             if not response.success:
                 raise Exception(f"AI analysis failed: {response.error_message}")
-            
+
             # Parse JSON response
             analysis_data = json.loads(response.content)
             return analysis_data
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse profile analysis JSON: {e}")
             raise Exception("Failed to generate valid profile analysis format")
         except Exception as e:
             logger.error(f"Profile analysis failed: {e}")
             raise
-    
+
     async def match_opportunity(
-        self,
-        veteran_profile: Dict[str, Any],
-        opportunity_details: Dict[str, Any]
+        self, veteran_profile: Dict[str, Any], opportunity_details: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Analyze how well a veteran matches an opportunity.
-        
+
         Args:
             veteran_profile: Complete veteran profile
             opportunity_details: Opportunity details
-            
+
         Returns:
             Matching analysis as dictionary
         """
         try:
             prompt = AIPrompts.OPPORTUNITY_MATCHING.format(
                 veteran_profile=json.dumps(veteran_profile),
-                opportunity_details=json.dumps(opportunity_details)
+                opportunity_details=json.dumps(opportunity_details),
             )
-            
+
             request = BedrockRequest(
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=3000,
-                temperature=0.5
+                temperature=0.5,
             )
-            
+
             response = await self.client.invoke_claude(request)
-            
+
             if not response.success:
                 raise Exception(f"AI matching failed: {response.error_message}")
-            
+
             # Parse JSON response
             matching_data = json.loads(response.content)
             return matching_data
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse opportunity matching JSON: {e}")
             raise Exception("Failed to generate valid matching analysis format")
@@ -446,13 +449,13 @@ _ai_service: Optional[AIService] = None
 def get_ai_service() -> AIService:
     """
     Get or create global AI service instance.
-    
+
     Returns:
         AIService instance
     """
     global _ai_service
-    
+
     if _ai_service is None:
         _ai_service = AIService()
-    
+
     return _ai_service
