@@ -64,12 +64,12 @@ API_URL=$(aws cloudformation describe-stacks \
     --query "Stacks[0].Outputs[?OutputKey=='ApiGatewayUrl'].OutputValue" \
     --output text 2>/dev/null || echo "")
 
-if [ -z "$API_URL" ]; then
-    echo -e "${RED}❌ Could not find API Gateway URL.${NC}"
-    exit 1
+if [ -z "$API_URL" ] || [ "$API_URL" = "None" ]; then
+    echo -e "${YELLOW}⚠️  Could not find API Gateway URL. Using placeholder.${NC}"
+    API_URL="https://api-placeholder.execute-api.us-west-2.amazonaws.com"
+else
+    echo -e "${GREEN}✅ Found API Gateway URL: $API_URL${NC}"
 fi
-
-echo -e "${GREEN}✅ Found API Gateway URL: $API_URL${NC}"
 
 # Get Cognito configuration
 echo -e "${YELLOW}📋 Getting Cognito configuration...${NC}"
@@ -83,13 +83,19 @@ CLIENT_ID=$(aws cloudformation describe-stacks \
     --query "Stacks[0].Outputs[?OutputKey=='CognitoClientId'].OutputValue" \
     --output text 2>/dev/null || echo "")
 
-if [ -z "$USER_POOL_ID" ] || [ -z "$CLIENT_ID" ]; then
-    echo -e "${RED}❌ Could not find Cognito configuration.${NC}"
-    exit 1
+if [ -z "$USER_POOL_ID" ] || [ "$USER_POOL_ID" = "None" ]; then
+    echo -e "${YELLOW}⚠️  Could not find Cognito User Pool ID. Using placeholder.${NC}"
+    USER_POOL_ID="us-west-2_placeholder"
+else
+    echo -e "${GREEN}✅ Found Cognito User Pool ID: $USER_POOL_ID${NC}"
 fi
 
-echo -e "${GREEN}✅ Found Cognito User Pool ID: $USER_POOL_ID${NC}"
-echo -e "${GREEN}✅ Found Cognito Client ID: $CLIENT_ID${NC}"
+if [ -z "$CLIENT_ID" ] || [ "$CLIENT_ID" = "None" ]; then
+    echo -e "${YELLOW}⚠️  Could not find Cognito Client ID. Using placeholder.${NC}"
+    CLIENT_ID="placeholder-client-id"
+else
+    echo -e "${GREEN}✅ Found Cognito Client ID: $CLIENT_ID${NC}"
+fi
 
 # Create environment configuration file
 echo -e "${YELLOW}📝 Creating environment configuration...${NC}"

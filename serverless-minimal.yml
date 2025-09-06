@@ -184,6 +184,10 @@ resources:
         Ref: CognitoUserPoolClient
       Export:
         Name: ${self:service}-${self:provider.stage}-cognito-client-id
+    ApiGatewayUrl:
+      Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+      Export:
+        Name: ${self:service}-${self:provider.stage}-api-gateway-url
 
 
 plugins:
