@@ -37,7 +37,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          aws-region: ap-northeast-1
 
       - name: Set deployment stage
         run: |
@@ -86,12 +86,19 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
+      - name: Debug - Check frontend public directory
+        run: |
+          echo "Checking frontend/public directory contents:"
+          ls -la frontend/public/
+          echo "Checking if index.html exists:"
+          test -f frontend/public/index.html && echo "✅ index.html exists" || echo "❌ index.html missing"
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          aws-region: ap-northeast-1
 
       - name: Deploy Frontend using deployment script
         run: |
