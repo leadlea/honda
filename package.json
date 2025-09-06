@@ -1,0 +1,39 @@
+{
+  "name": "honda-veteran-talent-matching",
+  "version": "1.0.0",
+  "description": "AI-powered veteran talent matching system for Honda",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:prod": "serverless deploy --stage prod",
+    "remove": "serverless remove",
+    "logs": "serverless logs -f",
+    "offline": "serverless offline",
+    "test": "cd frontend && npm test",
+    "build": "cd frontend && npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leadlea/honda.git"
+  },
+  "keywords": [
+    "serverless",
+    "aws",
+    "lambda",
+    "veteran",
+    "talent-matching",
+    "ai",
+    "honda"
+  ],
+  "author": "Honda Development Team",
+  "license": "MIT",
+  "devDependencies": {
+    "serverless": "^4.0.0",
+    "serverless-python-requirements": "^6.0.0",
+    "serverless-offline": "^13.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

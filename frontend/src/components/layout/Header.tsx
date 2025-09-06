@@ -1,0 +1,128 @@
+import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import RoleBasedComponent from '../common/RoleBasedComponent';
+import './Header.css';
+
+interface HeaderProps {
+  onNavigate: (page: string) => void;
+  currentPage: string;
+}
+
+const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
+  const { user, logout, isAuthenticated } = useAuth();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setShowUserMenu(false);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  if (!isAuthenticated || !user) {
+    return null;
+  }
+
+  const navigationItems = [
+    {
+      key: 'dashboard',
+      label: 'ダッシュボード',
+      roles: ['veteran', 'admin', 'external_recruiter'] as const,
+    },
+    {
+      key: 'questionnaire',
+      label: '問診',
+      roles: ['veteran'] as const,
+    },
+    {
+      key: 'profile',
+      label: 'プロフィール',
+      roles: ['veteran'] as const,
+    },
+    {
+      key: 'recommendations',
+      label: '推薦',
+      roles: ['veteran'] as const,
+    },
+    {
+      key: 'applications',
+      label: '応募状況',
+      roles: ['veteran'] as const,
+    },
+    {
+      key: 'public-search',
+      label: 'ベテラン検索',
+      roles: ['external_recruiter'] as const,
+    },
+    {
+      key: 'admin',
+      label: '管理',
+      roles: ['admin'] as const,
+    },
+  ];
+
+  return (
+    <header className="app-header">
+      <div className="header-content">
+        <div className="header-left">
+          <h1 className="app-title" onClick={() => onNavigate('dashboard')}>
+            Honda Veteran Talent Bank
+          </h1>
+        </div>
+
+        <nav className="header-nav">
+          {navigationItems.map((item) => (
+            <RoleBasedComponent key={item.key} allowedRoles={item.roles}>
+              <button
+                className={`nav-item ${currentPage === item.key ? 'active' : ''}`}
+                onClick={() => onNavigate(item.key)}
+              >
+                {item.label}
+              </button>
+            </RoleBasedComponent>
+          ))}
+        </nav>
+
+        <div className="header-right">
+          <div className="user-menu">
+            <button
+              className="user-menu-trigger"
+              onClick={() => setShowUserMenu(!showUserMenu)}
+            >
+              <span className="user-name">{user.name}</span>
+              <span className="user-role">
+                {user.role === 'admin' ? '管理者' : 
+                 user.role === 'external_recruiter' ? '外部リクルーター' : 'ベテラン社員'}
+              </span>
+              <span className="dropdown-arrow">▼</span>
+            </button>
+
+            {showUserMenu && (
+              <div className="user-menu-dropdown">
+                <button
+                  className="menu-item"
+                  onClick={() => {
+                    onNavigate('user-profile');
+                    setShowUserMenu(false);
+                  }}
+                >
+                  ユーザー設定
+                </button>
+                <button
+                  className="menu-item logout"
+                  onClick={handleLogout}
+                >
+                  ログアウト
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default Header;
