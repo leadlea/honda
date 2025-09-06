@@ -24,27 +24,27 @@ if ! command -v aws &> /dev/null; then
     exit 1
 fi
 
-# Get the S3 bucket name from CloudFormation stack
+# Use existing S3 bucket configuration
 echo -e "${YELLOW}📋 Getting S3 bucket information...${NC}"
-BUCKET_NAME=$(aws cloudformation describe-stacks \
-    --stack-name "$SERVICE_NAME-$STAGE" \
-    --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" \
-    --output text 2>/dev/null || echo "")
+BUCKET_NAME="${FRONTEND_BUCKET_NAME:-honda-hr-bank}"
+BUCKET_REGION="${FRONTEND_BUCKET_REGION:-ap-northeast-1}"
 
-if [ -z "$BUCKET_NAME" ]; then
-    echo -e "${RED}❌ Could not find S3 bucket. Make sure the backend is deployed first.${NC}"
+# Verify bucket exists
+if ! aws s3 ls "s3://$BUCKET_NAME" --region "$BUCKET_REGION" >/dev/null 2>&1; then
+    echo -e "${RED}❌ S3 bucket '$BUCKET_NAME' not found in region '$BUCKET_REGION'.${NC}"
+    echo -e "${YELLOW}Please verify the bucket name and region are correct.${NC}"
     exit 1
 fi
 
-BUCKET_URL=$(aws cloudformation describe-stacks \
-    --stack-name "$SERVICE_NAME-$STAGE" \
-    --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketUrl'].OutputValue" \
-    --output text 2>/dev/null || echo "")
+# Construct S3 website URL
+BUCKET_URL="http://$BUCKET_NAME.s3-website-$BUCKET_REGION.amazonaws.com"
 
+# Try to get API Gateway URL from CloudFormation, use placeholder if not found
 API_URL=$(aws cloudformation describe-stacks \
     --stack-name "$SERVICE_NAME-$STAGE" \
+    --region "$BUCKET_REGION" \
     --query "Stacks[0].Outputs[?OutputKey=='ApiGatewayUrl'].OutputValue" \
-    --output text 2>/dev/null || echo "")
+    --output text 2>/dev/null || echo "https://api-placeholder.execute-api.$BUCKET_REGION.amazonaws.com")
 
 echo -e "${GREEN}✅ Found S3 bucket: $BUCKET_NAME${NC}"
 echo -e "${GREEN}✅ S3 website URL: $BUCKET_URL${NC}"
@@ -54,7 +54,7 @@ echo -e "${GREEN}✅ API Gateway URL: $API_URL${NC}"
 echo -e "${YELLOW}📝 Creating CloudFront distribution configuration...${NC}"
 
 # Extract domain from S3 website URL
-S3_DOMAIN=$(echo "$BUCKET_URL" | sed 's|http://||' | sed 's|/.*||')
+S3_DOMAIN="$BUCKET_NAME.s3-website-$BUCKET_REGION.amazonaws.com"
 
 cat > "cloudfront-config-$STAGE.json" << EOF
 {
