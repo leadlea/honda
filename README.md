@@ -235,10 +235,18 @@ graph LR
     classDef userClass fill:#f1f8e9
     classDef dataClass fill:#fafafa
 
-    class EP,PS,PF,CONTACT externalClass
-    class IS,PM,PP internalClass
-    class REC,CORP,HEAD userClass
-    class PUB,PRIV dataClass
+    class EP externalClass
+    class PS externalClass
+    class PF externalClass
+    class CONTACT externalClass
+    class IS internalClass
+    class PM internalClass
+    class PP internalClass
+    class REC userClass
+    class CORP userClass
+    class HEAD userClass
+    class PUB dataClass
+    class PRIV dataClass
 ```
 
 ## 📋 前提条件
