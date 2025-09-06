@@ -262,7 +262,9 @@ class BedrockClient:
         )
 
         # Check cache first
-        prompt_hash = hashlib.md5(request.prompt.encode(), usedforsecurity=False).hexdigest()
+        prompt_hash = hashlib.md5(
+            request.prompt.encode(), usedforsecurity=False
+        ).hexdigest()
         cached_response = self.optimizer.get_cached_response(
             prompt_hash, self.model.value
         )
