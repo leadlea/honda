@@ -5,7 +5,6 @@ Unit tests for security audit system.
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-
 from src.utils.security_audit import (
     RiskLevel,
     SecurityAuditor,

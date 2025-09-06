@@ -4,7 +4,6 @@ Unit tests for RBAC (Role-Based Access Control) system.
 
 from unittest.mock import patch
 
-
 from src.utils.rbac import (
     AccessContext,
     Permission,

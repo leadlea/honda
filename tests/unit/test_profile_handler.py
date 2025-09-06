@@ -4,7 +4,6 @@ Unit tests for profile handler
 import json
 from unittest.mock import Mock, patch
 
-
 from src.handlers.profile_handler import (
     create_profile,
     delete_profile,

@@ -5,7 +5,6 @@ Unit tests for Contact Handler
 import json
 from unittest.mock import Mock, patch
 
-
 from src.handlers.contact_handler import ContactHandler
 from src.models.public_profile import ContactRequest
 

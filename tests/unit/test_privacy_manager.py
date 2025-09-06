@@ -3,7 +3,6 @@ Unit tests for privacy manager
 """
 from unittest.mock import Mock
 
-
 from src.models.public_profile import PublicProfile
 from src.models.veteran_profile import VeteranProfile
 from src.services.privacy_manager import PrivacyManager, privacy_manager

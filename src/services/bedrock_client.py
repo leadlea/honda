@@ -15,10 +15,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
-from src.utils.performance import (
-    BedrockOptimizer,
-    performance_timer,
-)
+from src.utils.performance import BedrockOptimizer, performance_timer
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,6 @@ Unit tests for Public Search Handler
 import json
 from unittest.mock import Mock, patch
 
-
 from src.handlers.public_search_handler import PublicSearchHandler
 
 

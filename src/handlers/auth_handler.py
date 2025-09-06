@@ -18,14 +18,8 @@ from src.utils.performance import optimize_lambda_handler
 
 # Import RBAC and security audit modules
 from src.utils.rbac import get_available_roles, rbac_manager, validate_role
-from src.utils.security_audit import (
-    extract_request_info,
-    security_auditor,
-)
-from src.utils.security_headers import (
-    create_secure_response,
-    security_middleware,
-)
+from src.utils.security_audit import extract_request_info, security_auditor
+from src.utils.security_headers import create_secure_response, security_middleware
 
 # Configure logging
 logger = logging.getLogger()
