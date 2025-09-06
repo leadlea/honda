@@ -16,7 +16,6 @@ mypy==1.7.1
 isort==5.12.0
 autopep8==2.0.4
 bandit==1.7.5
-safety==3.0.1
 
 # Development tools
 coverage==7.3.2
