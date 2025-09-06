@@ -47,6 +47,11 @@ jobs:
             echo "STAGE=dev" >> $GITHUB_ENV
           fi
 
+      - name: Cleanup old Lambda versions
+        run: |
+          chmod +x scripts/cleanup-lambda-versions.sh
+          ./scripts/cleanup-lambda-versions.sh || echo "Cleanup failed, continuing with deployment"
+
       - name: Deploy backend services
         run: |
           npx serverless deploy --stage ${{ env.STAGE }} --config serverless-minimal.yml

@@ -9,6 +9,7 @@ provider:
   stage: ${opt:stage, 'dev'}
   memorySize: 512
   timeout: 30
+  versionFunctions: false  # Disable automatic versioning to save storage
   environment:
     STAGE: ${self:provider.stage}
     REGION: ${self:provider.region}
