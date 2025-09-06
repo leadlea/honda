@@ -1,0 +1,238 @@
+.search-filters-panel {
+  background: white;
+  border-radius: 8px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.filters-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e1e8ed;
+}
+
+.filters-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.clear-filters-btn {
+  padding: 6px 12px;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background-color 0.3s ease;
+}
+
+.clear-filters-btn:hover {
+  background: #c0392b;
+}
+
+.filter-section {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.filter-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.filter-section h4 {
+  margin: 0 0 15px 0;
+  color: #34495e;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.experience-range {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.range-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.range-input label {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  min-width: 30px;
+}
+
+.range-input input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 2px solid #e1e8ed;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.3s ease;
+}
+
+.range-input input:focus {
+  outline: none;
+  border-color: #2a5298;
+}
+
+.range-input span {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+.skills-categories {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.skill-category {
+  margin-bottom: 10px;
+}
+
+.category-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #2c3e50;
+  transition: all 0.3s ease;
+}
+
+.category-toggle:hover {
+  background: #e9ecef;
+  border-color: #ced4da;
+}
+
+.category-toggle.expanded {
+  background: #2a5298;
+  color: white;
+  border-color: #2a5298;
+}
+
+.toggle-icon {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.skills-list {
+  margin-top: 8px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.skill-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #2c3e50;
+  transition: color 0.3s ease;
+}
+
+.skill-checkbox:hover {
+  color: #2a5298;
+}
+
+.skill-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #2a5298;
+}
+
+.checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #2c3e50;
+  transition: color 0.3s ease;
+}
+
+.checkbox-item:hover {
+  color: #2a5298;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #2a5298;
+}
+
+.checkbox-item span {
+  user-select: none;
+}
+
+/* Custom scrollbar for skills categories */
+.skills-categories::-webkit-scrollbar,
+.skills-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.skills-categories::-webkit-scrollbar-track,
+.skills-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.skills-categories::-webkit-scrollbar-thumb,
+.skills-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.skills-categories::-webkit-scrollbar-thumb:hover,
+.skills-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .experience-range {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .range-input {
+    width: 100%;
+  }
+  
+  .filters-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .clear-filters-btn {
+    align-self: flex-end;
+  }
+}

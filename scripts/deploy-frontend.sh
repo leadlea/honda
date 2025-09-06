@@ -66,7 +66,7 @@ API_URL=$(aws cloudformation describe-stacks \
 
 if [ -z "$API_URL" ] || [ "$API_URL" = "None" ]; then
     echo -e "${YELLOW}⚠️  Could not find API Gateway URL. Using placeholder.${NC}"
-    API_URL="https://api-placeholder.execute-api.us-west-2.amazonaws.com"
+    API_URL="https://api-placeholder.execute-api.ap-northeast-1.amazonaws.com"
 else
     echo -e "${GREEN}✅ Found API Gateway URL: $API_URL${NC}"
 fi
@@ -85,7 +85,7 @@ CLIENT_ID=$(aws cloudformation describe-stacks \
 
 if [ -z "$USER_POOL_ID" ] || [ "$USER_POOL_ID" = "None" ]; then
     echo -e "${YELLOW}⚠️  Could not find Cognito User Pool ID. Using placeholder.${NC}"
-    USER_POOL_ID="us-west-2_placeholder"
+    USER_POOL_ID="ap-northeast-1_placeholder"
 else
     echo -e "${GREEN}✅ Found Cognito User Pool ID: $USER_POOL_ID${NC}"
 fi
@@ -104,7 +104,7 @@ cat > "$FRONTEND_DIR/.env.production" << EOF
 REACT_APP_API_URL=$API_URL
 REACT_APP_COGNITO_USER_POOL_ID=$USER_POOL_ID
 REACT_APP_COGNITO_CLIENT_ID=$CLIENT_ID
-REACT_APP_REGION=us-west-2
+REACT_APP_REGION=ap-northeast-1
 REACT_APP_STAGE=$STAGE
 GENERATE_SOURCEMAP=false
 EOF

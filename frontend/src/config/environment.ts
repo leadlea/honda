@@ -21,7 +21,7 @@ export const environment: EnvironmentConfig = {
   apiUrl: getEnvVar('REACT_APP_API_URL', 'http://localhost:3001'),
   cognitoUserPoolId: getEnvVar('REACT_APP_COGNITO_USER_POOL_ID', ''),
   cognitoClientId: getEnvVar('REACT_APP_COGNITO_CLIENT_ID', ''),
-  region: getEnvVar('REACT_APP_REGION', 'us-west-2'),
+  region: getEnvVar('REACT_APP_REGION', 'ap-northeast-1'),
   stage: getEnvVar('REACT_APP_STAGE', 'dev'),
   isDevelopment: process.env.NODE_ENV === 'development',
   isProduction: process.env.NODE_ENV === 'production',

@@ -12,8 +12,8 @@ class BedrockConfig:
     """Configuration class for Bedrock settings."""
 
     # Default regions in order of preference
-    DEFAULT_PRIMARY_REGION = BedrockRegion.US_WEST_2
-    DEFAULT_FALLBACK_REGIONS = [BedrockRegion.US_EAST_1, BedrockRegion.EU_WEST_1]
+    DEFAULT_PRIMARY_REGION = BedrockRegion.AP_NORTHEAST_1
+    DEFAULT_FALLBACK_REGIONS = [BedrockRegion.US_WEST_2, BedrockRegion.US_EAST_1]
 
     # Default model settings
     DEFAULT_MODEL = ClaudeModel.CLAUDE_3_5_SONNET

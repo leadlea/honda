@@ -26,6 +26,7 @@ class BedrockRegion(Enum):
     US_WEST_2 = "us-west-2"
     US_EAST_1 = "us-east-1"
     EU_WEST_1 = "eu-west-1"
+    AP_NORTHEAST_1 = "ap-northeast-1"
 
 
 class ClaudeModel(Enum):
