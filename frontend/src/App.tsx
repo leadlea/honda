@@ -8,12 +8,23 @@ import RecommendationsList from './components/recommendations/RecommendationsLis
 import ApplicationTracker from './components/recommendations/ApplicationTracker';
 import PublicVeteranSearch from './components/public/PublicVeteranSearch';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import Verified from './components/Verified';               // ★ 追加
 import './config/amplify';
 import './App.css';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
+
+  // ★ URLのパスで /verified をハンドリング（Router不要）
+  const pathname =
+    typeof window !== 'undefined'
+      ? window.location.pathname.replace(/\/+$/, '')
+      : '';
+
+  if (pathname === '/verified') {
+    return <Verified />; // 認証状態に関係なく表示
+  }
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
@@ -83,7 +94,7 @@ const AppContent: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <AuthPage />;
+    return <AuthPage />; // 通常ログイン/新規登録画面
   }
 
   return (
