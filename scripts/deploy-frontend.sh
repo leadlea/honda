@@ -37,15 +37,17 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
-# Get the S3 bucket name from CloudFormation stack
-echo -e "${YELLOW}📋 Getting S3 bucket name from CloudFormation...${NC}"
-BUCKET_NAME=$(aws cloudformation describe-stacks \
-    --stack-name "$SERVICE_NAME-$STAGE" \
-    --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" \
-    --output text 2>/dev/null || echo "")
+# Use manually created S3 bucket
+echo -e "${YELLOW}📋 Using manually created S3 bucket...${NC}"
+BUCKET_NAME="${FRONTEND_BUCKET_NAME:-honda-veteran-talent-matching-$STAGE-frontend}"
+BUCKET_REGION="${FRONTEND_BUCKET_REGION:-ap-northeast-1}"
 
-if [ -z "$BUCKET_NAME" ]; then
-    echo -e "${RED}❌ Could not find S3 bucket. Make sure the backend is deployed first.${NC}"
+# Verify bucket exists
+if ! aws s3 ls "s3://$BUCKET_NAME" --region "$BUCKET_REGION" >/dev/null 2>&1; then
+    echo -e "${RED}❌ S3 bucket '$BUCKET_NAME' not found in region '$BUCKET_REGION'.${NC}"
+    echo -e "${YELLOW}Please create the bucket manually:${NC}"
+    echo -e "   aws s3 mb s3://$BUCKET_NAME --region $BUCKET_REGION"
+    echo -e "   aws s3 website s3://$BUCKET_NAME --index-document index.html --error-document error.html"
     exit 1
 fi
 
@@ -128,6 +130,7 @@ cd ..
 # Sync build files to S3
 echo -e "${YELLOW}☁️  Uploading files to S3...${NC}"
 aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
+    --region "$BUCKET_REGION" \
     --delete \
     --cache-control "public, max-age=31536000" \
     --exclude "*.html" \
@@ -136,6 +139,7 @@ aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
 
 # Upload HTML files with no-cache
 aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
+    --region "$BUCKET_REGION" \
     --delete \
     --cache-control "no-cache, no-store, must-revalidate" \
     --include "*.html" \
@@ -144,6 +148,7 @@ aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
 
 # Set proper content types
 aws s3 cp "s3://$BUCKET_NAME/index.html" "s3://$BUCKET_NAME/index.html" \
+    --region "$BUCKET_REGION" \
     --metadata-directive REPLACE \
     --content-type "text/html" \
     --cache-control "no-cache, no-store, must-revalidate"
@@ -154,7 +159,7 @@ echo -e "${GREEN}✅ Files uploaded to S3 successfully${NC}"
 WEBSITE_URL=$(aws s3api get-bucket-website --bucket "$BUCKET_NAME" --query 'WebsiteConfiguration.IndexDocument.Suffix' --output text 2>/dev/null || echo "")
 
 if [ "$WEBSITE_URL" != "None" ] && [ -n "$WEBSITE_URL" ]; then
-    WEBSITE_URL="http://$BUCKET_NAME.s3-website-us-west-2.amazonaws.com"
+    WEBSITE_URL="http://$BUCKET_NAME.s3-website-$BUCKET_REGION.amazonaws.com"
     echo -e "${GREEN}🌐 Website URL: $WEBSITE_URL${NC}"
 else
     echo -e "${YELLOW}⚠️  Website hosting not configured. You may need to set up CloudFront manually.${NC}"

@@ -97,6 +97,9 @@ jobs:
         run: |
           chmod +x scripts/deploy-frontend.sh
           ./scripts/deploy-frontend.sh ${{ env.STAGE }}
+        env:
+          FRONTEND_BUCKET_NAME: honda-veteran-talent-matching-${{ env.STAGE }}-frontend
+          FRONTEND_BUCKET_REGION: ap-northeast-1
 
       - name: Prepare CloudFront Configuration
         run: |
