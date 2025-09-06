@@ -37,19 +37,23 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
-# Use manually created S3 bucket
-echo -e "${YELLOW}📋 Using manually created S3 bucket...${NC}"
-BUCKET_NAME="${FRONTEND_BUCKET_NAME:-honda-veteran-talent-matching-$STAGE-frontend}"
+# Use existing S3 bucket and CloudFront
+echo -e "${YELLOW}📋 Using existing S3 bucket and CloudFront...${NC}"
+BUCKET_NAME="${FRONTEND_BUCKET_NAME:-honda-hr-bank}"
 BUCKET_REGION="${FRONTEND_BUCKET_REGION:-ap-northeast-1}"
+CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-E1T3WQ2YHO1BNA}"
+CLOUDFRONT_DOMAIN="${CLOUDFRONT_DOMAIN:-doy5alruji476.cloudfront.net}"
 
 # Verify bucket exists
 if ! aws s3 ls "s3://$BUCKET_NAME" --region "$BUCKET_REGION" >/dev/null 2>&1; then
     echo -e "${RED}❌ S3 bucket '$BUCKET_NAME' not found in region '$BUCKET_REGION'.${NC}"
-    echo -e "${YELLOW}Please create the bucket manually:${NC}"
-    echo -e "   aws s3 mb s3://$BUCKET_NAME --region $BUCKET_REGION"
-    echo -e "   aws s3 website s3://$BUCKET_NAME --index-document index.html --error-document error.html"
+    echo -e "${YELLOW}Please verify the bucket name and region are correct.${NC}"
     exit 1
 fi
+
+echo -e "${GREEN}✅ Found S3 bucket: $BUCKET_NAME${NC}"
+echo -e "${GREEN}✅ CloudFront Distribution: $CLOUDFRONT_DISTRIBUTION_ID${NC}"
+echo -e "${GREEN}✅ CloudFront Domain: $CLOUDFRONT_DOMAIN${NC}"
 
 echo -e "${GREEN}✅ Found S3 bucket: $BUCKET_NAME${NC}"
 
@@ -155,23 +159,34 @@ aws s3 cp "s3://$BUCKET_NAME/index.html" "s3://$BUCKET_NAME/index.html" \
 
 echo -e "${GREEN}✅ Files uploaded to S3 successfully${NC}"
 
-# Get the website URL
-WEBSITE_URL=$(aws s3api get-bucket-website --bucket "$BUCKET_NAME" --query 'WebsiteConfiguration.IndexDocument.Suffix' --output text 2>/dev/null || echo "")
+# Invalidate CloudFront cache
+echo -e "${YELLOW}🔄 Invalidating CloudFront cache...${NC}"
+INVALIDATION_ID=$(aws cloudfront create-invalidation \
+    --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+    --paths "/*" \
+    --query 'Invalidation.Id' \
+    --output text 2>/dev/null || echo "")
 
-if [ "$WEBSITE_URL" != "None" ] && [ -n "$WEBSITE_URL" ]; then
-    WEBSITE_URL="http://$BUCKET_NAME.s3-website-$BUCKET_REGION.amazonaws.com"
-    echo -e "${GREEN}🌐 Website URL: $WEBSITE_URL${NC}"
+if [ -n "$INVALIDATION_ID" ]; then
+    echo -e "${GREEN}✅ CloudFront invalidation created: $INVALIDATION_ID${NC}"
+    echo -e "${YELLOW}⏳ Cache invalidation may take 5-15 minutes to complete${NC}"
 else
-    echo -e "${YELLOW}⚠️  Website hosting not configured. You may need to set up CloudFront manually.${NC}"
+    echo -e "${YELLOW}⚠️  Could not create CloudFront invalidation. You may need to clear cache manually.${NC}"
 fi
+
+# Set website URL to CloudFront domain
+WEBSITE_URL="https://$CLOUDFRONT_DOMAIN"
+echo -e "${GREEN}🌐 Website URL: $WEBSITE_URL${NC}"
 
 echo -e "${GREEN}🎉 Frontend deployment completed successfully!${NC}"
 echo -e "${YELLOW}📋 Deployment Summary:${NC}"
 echo -e "   Stage: $STAGE"
-echo -e "   S3 Bucket: $BUCKET_NAME"
+echo -e "   S3 Bucket: $BUCKET_NAME (Region: $BUCKET_REGION)"
+echo -e "   CloudFront Distribution: $CLOUDFRONT_DISTRIBUTION_ID"
+echo -e "   Website URL: $WEBSITE_URL"
 echo -e "   API URL: $API_URL"
 echo -e "   Cognito User Pool: $USER_POOL_ID"
 echo -e "   Cognito Client: $CLIENT_ID"
-if [ -n "$WEBSITE_URL" ]; then
-    echo -e "   Website URL: $WEBSITE_URL"
+if [ -n "$INVALIDATION_ID" ]; then
+    echo -e "   CloudFront Invalidation: $INVALIDATION_ID"
 fi

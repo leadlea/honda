@@ -98,8 +98,10 @@ jobs:
           chmod +x scripts/deploy-frontend.sh
           ./scripts/deploy-frontend.sh ${{ env.STAGE }}
         env:
-          FRONTEND_BUCKET_NAME: honda-veteran-talent-matching-${{ env.STAGE }}-frontend
+          FRONTEND_BUCKET_NAME: honda-hr-bank
           FRONTEND_BUCKET_REGION: ap-northeast-1
+          CLOUDFRONT_DISTRIBUTION_ID: E1T3WQ2YHO1BNA
+          CLOUDFRONT_DOMAIN: doy5alruji476.cloudfront.net
 
       - name: Prepare CloudFront Configuration
         run: |
