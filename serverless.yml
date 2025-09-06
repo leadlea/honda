@@ -93,10 +93,6 @@ functions:
               - X-Amz-Security-Token
               - X-Amz-User-Agent
             allowCredentials: false
-          authorizer:
-            type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
       - http:
           path: auth/profile
           method: GET
@@ -489,28 +485,12 @@ resources:
           - ADMIN_NO_SRP_AUTH
           - USER_PASSWORD_AUTH
 
-    # API Gateway Authorizer
-    ApiGatewayAuthorizer:
-      Type: AWS::ApiGateway::Authorizer
-      Properties:
-        Name: CognitoAuthorizer
-        Type: COGNITO_USER_POOLS
-        IdentitySource: method.request.header.Authorization
-        RestApiId:
-          Ref: RestApiApigEvent
-        ProviderARNs:
-          - Fn::GetAtt: [CognitoUserPool, Arn]
-
     # API Gateway Usage Plan for Rate Limiting
     ApiGatewayUsagePlan:
       Type: AWS::ApiGateway::UsagePlan
       Properties:
         UsagePlanName: ${self:service}-${self:provider.stage}-usage-plan
         Description: Usage plan for Honda Veteran Talent Matching API
-        ApiStages:
-          - ApiId:
-              Ref: RestApiApigEvent
-            Stage: ${self:provider.stage}
         Throttle:
           BurstLimit: 200
           RateLimit: 100
@@ -536,38 +516,7 @@ resources:
         UsagePlanId:
           Ref: ApiGatewayUsagePlan
 
-    # API Gateway Request Validator
-    ApiGatewayRequestValidator:
-      Type: AWS::ApiGateway::RequestValidator
-      Properties:
-        Name: ${self:service}-${self:provider.stage}-request-validator
-        RestApiId:
-          Ref: RestApiApigEvent
-        ValidateRequestBody: true
-        ValidateRequestParameters: true
 
-    # API Gateway Gateway Response for CORS
-    ApiGatewayGatewayResponse4XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        RestApiId:
-          Ref: RestApiApigEvent
-        ResponseType: DEFAULT_4XX
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
-
-    ApiGatewayGatewayResponse5XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        RestApiId:
-          Ref: RestApiApigEvent
-        ResponseType: DEFAULT_5XX
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
 
     # DynamoDB Tables
     UsersTable:
@@ -823,7 +772,7 @@ resources:
         Name: ${self:service}-${self:provider.stage}-cognito-client-id
     ApiGatewayUrl:
       Value:
-        Fn::Sub: "https://${RestApiApigEvent}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
+        Fn::Sub: "https://${HttpApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
       Export:
         Name: ${self:service}-${self:provider.stage}-api-gateway-url
     ApiGatewayApiKey:

@@ -1,0 +1,171 @@
+service: honda-veteran-talent-matching
+
+frameworkVersion: '4'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: us-west-2
+  stage: ${opt:stage, 'dev'}
+  memorySize: 512
+  timeout: 30
+  environment:
+    STAGE: ${self:provider.stage}
+    REGION: ${self:provider.region}
+    DYNAMODB_TABLE_PREFIX: ${self:service}-${self:provider.stage}
+    BEDROCK_MODEL_ID: anthropic.claude-3-5-sonnet-20241022-v2:0
+    COGNITO_USER_POOL_ID: ${cf:${self:service}-${self:provider.stage}.CognitoUserPoolId, ''}
+    COGNITO_CLIENT_ID: ${cf:${self:service}-${self:provider.stage}.CognitoClientId, ''}
+    KMS_KEY_ID: ${cf:${self:service}-${self:provider.stage}.KMSKeyId, ''}
+    ENCRYPTION_PASSWORD: ${env:ENCRYPTION_PASSWORD, 'default-dev-key'}
+    ENCRYPTION_SALT: ${env:ENCRYPTION_SALT, 'default-dev-salt'}
+    PII_HASH_SALT: ${env:PII_HASH_SALT, 'default-pii-salt'}
+    ENVIRONMENT: ${self:provider.stage}
+    BEDROCK_CACHE_TTL: ${env:BEDROCK_CACHE_TTL, '300'}
+    DYNAMODB_MAX_RETRIES: ${env:DYNAMODB_MAX_RETRIES, '3'}
+    CONNECTION_POOL_SIZE: ${env:CONNECTION_POOL_SIZE, '50'}
+  
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PREFIX}-*"
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PREFIX}-*/index/*"
+        - Effect: Allow
+          Action:
+            - bedrock:InvokeModel
+          Resource:
+            - "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminUpdateUserAttributes
+          Resource:
+            - "arn:aws:cognito-idp:${self:provider.region}:*:userpool/*"
+        - Effect: Allow
+          Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:GenerateDataKey
+            - kms:DescribeKey
+          Resource:
+            - "arn:aws:kms:${self:provider.region}:*:key/*"
+
+functions:
+  # Simple test function
+  publicSearchHandler:
+    handler: src/handlers/public_search_handler.handler
+    events:
+      - http:
+          path: public/veterans/search
+          method: GET
+          cors: true
+
+resources:
+  Resources:
+    # KMS Key for encryption
+    KMSKey:
+      Type: AWS::KMS::Key
+      Properties:
+        Description: KMS key for Honda Veteran Bank data encryption
+        KeyPolicy:
+          Statement:
+            - Sid: Enable IAM User Permissions
+              Effect: Allow
+              Principal:
+                AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+              Action: 'kms:*'
+              Resource: '*'
+    
+    KMSKeyAlias:
+      Type: AWS::KMS::Alias
+      Properties:
+        AliasName: alias/${self:service}-${self:provider.stage}-encryption-key
+        TargetKeyId: !Ref KMSKey
+
+    # Cognito User Pool
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:service}-${self:provider.stage}-user-pool
+        UsernameAttributes:
+          - email
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireUppercase: true
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: ${self:service}-${self:provider.stage}-client
+        UserPoolId:
+          Ref: CognitoUserPool
+        GenerateSecret: false
+        ExplicitAuthFlows:
+          - ADMIN_NO_SRP_AUTH
+          - USER_PASSWORD_AUTH
+
+    # DynamoDB Tables (minimal set)
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-users
+        AttributeDefinitions:
+          - AttributeName: user_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    PublicProfilesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-public-profiles
+        AttributeDefinitions:
+          - AttributeName: profile_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: profile_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+  Outputs:
+    KMSKeyId:
+      Value:
+        Ref: KMSKey
+      Export:
+        Name: ${self:service}-${self:provider.stage}-kms-key-id
+    CognitoUserPoolId:
+      Value:
+        Ref: CognitoUserPool
+      Export:
+        Name: ${self:service}-${self:provider.stage}-cognito-user-pool-id
+    CognitoClientId:
+      Value:
+        Ref: CognitoUserPoolClient
+      Export:
+        Name: ${self:service}-${self:provider.stage}-cognito-client-id
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+    pythonBin: python3.12
