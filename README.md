@@ -191,7 +191,7 @@ graph LR
         EP[外部プラットフォーム<br/>公開サイト]
         PS[公開検索<br/>機能]
         PF[プロフィール<br/>表示]
-        CF[コンタクト<br/>フォーム]
+        CONTACT[コンタクト<br/>フォーム]
     end
 
     subgraph "内部システム"
@@ -201,9 +201,9 @@ graph LR
     end
 
     subgraph "外部ユーザー"
-        R[リクルーター]
-        C[企業担当者]
-        H[ヘッドハンター]
+        REC[リクルーター]
+        CORP[企業担当者]
+        HEAD[ヘッドハンター]
     end
 
     subgraph "データ制御"
@@ -212,12 +212,12 @@ graph LR
     end
 
     %% 外部アクセスフロー
-    R --> EP
-    C --> EP
-    H --> EP
+    REC --> EP
+    CORP --> EP
+    HEAD --> EP
     EP --> PS
     PS --> PF
-    PF --> CF
+    PF --> CONTACT
 
     %% 内部制御フロー
     IS --> PM
@@ -235,9 +235,9 @@ graph LR
     classDef userClass fill:#f1f8e9
     classDef dataClass fill:#fafafa
 
-    class EP,PS,PF,CF externalClass
+    class EP,PS,PF,CONTACT externalClass
     class IS,PM,PP internalClass
-    class R,C,H userClass
+    class REC,CORP,HEAD userClass
     class PUB,PRIV dataClass
 ```
 
