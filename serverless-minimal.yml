@@ -178,8 +178,7 @@ resources:
             - Effect: Allow
               Principal: "*"
               Action: s3:GetObject
-              Resource:
-                Fn::Sub: "${FrontendBucket}/*"
+              Resource: !Sub "${FrontendBucket}/*"
 
   Outputs:
     KMSKeyId:
@@ -203,8 +202,7 @@ resources:
       Export:
         Name: ${self:service}-${self:provider.stage}-frontend-bucket
     FrontendBucketUrl:
-      Value:
-        Fn::GetAtt: [FrontendBucket, WebsiteURL]
+      Value: !GetAtt FrontendBucket.WebsiteURL
       Export:
         Name: ${self:service}-${self:provider.stage}-frontend-url
 
