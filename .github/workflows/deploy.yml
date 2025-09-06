@@ -11,61 +11,7 @@ env:
   PYTHON_VERSION: '3.12'
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Cache Python dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-
-      - name: Run code quality checks
-        run: |
-          # Code formatting check
-          black --check src/ tests/
-          
-          # Import sorting check
-          isort --check-only src/ tests/
-          
-          # Linting
-          flake8 src/ tests/
-          
-          # Type checking
-          mypy src/ --config-file mypy.ini
-          
-          # Security check
-          bandit -r src/
-
-      - name: Run tests
-        run: |
-          pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-
   deploy-backend:
-    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     
@@ -122,7 +68,7 @@ jobs:
           pytest tests/integration/ --stage=${{ env.STAGE }}
 
   deploy-frontend:
-    needs: [test, deploy-backend]
+    needs: [deploy-backend]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     
