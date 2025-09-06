@@ -28,7 +28,7 @@ class SecurityEventType(Enum):
     LOGIN_SUCCESS = "login_success"
     LOGIN_FAILURE = "login_failure"
     LOGOUT = "logout"
-    PASSWORD_CHANGE = "password_change"
+    PASSWORD_CHANGE = "password_change"  # nosec B105
     PROFILE_ACCESS = "profile_access"
     PROFILE_UPDATE = "profile_update"
     PERMISSION_DENIED = "permission_denied"

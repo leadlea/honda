@@ -472,7 +472,7 @@ Score: """
                 if score_match:
                     score = float(score_match.group(1))
                     return min(max(score, 0.0), 1.0)  # Clamp between 0 and 1
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
             # Fallback: simple keyword-based detection

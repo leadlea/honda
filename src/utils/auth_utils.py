@@ -33,7 +33,7 @@ def get_jwks() -> Dict[str, Any]:
 
     if _jwks_cache is None:
         jwks_url = f"https://cognito-idp.{REGION}.amazonaws.com/{USER_POOL_ID}/.well-known/jwks.json"
-        response = requests.get(jwks_url)
+        response = requests.get(jwks_url, timeout=10)
         response.raise_for_status()
         _jwks_cache = response.json()
 

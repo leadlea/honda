@@ -48,7 +48,7 @@ jobs:
           flake8 src/ tests/
           
           # Type checking
-          mypy src/
+          mypy src/ --config-file mypy.ini
           
           # Security check
           bandit -r src/
