@@ -186,29 +186,29 @@ sequenceDiagram
 ### 外部プラットフォーム連携図
 
 ```mermaid
-graph LR
-    subgraph "Honda ベテランバンク (外部向け)"
-        EP[外部プラットフォーム<br/>公開サイト]
-        PS[公開検索<br/>機能]
-        PF[プロフィール<br/>表示]
-        CONTACT[コンタクト<br/>フォーム]
+flowchart TD
+    subgraph External["🌐 外部ユーザー"]
+        REC["👤 リクルーター"]
+        CORP["🏢 企業担当者"]
+        HEAD["🎯 ヘッドハンター"]
     end
 
-    subgraph "内部システム"
-        IS[内部システム<br/>社員向け]
-        PM[プライバシー<br/>管理]
-        PP[公開設定<br/>制御]
+    subgraph Platform["🏛️ Honda ベテランバンク"]
+        EP["📱 外部プラットフォーム"]
+        PS["🔍 公開検索機能"]
+        PF["📋 プロフィール表示"]
+        CF["📧 コンタクトフォーム"]
     end
 
-    subgraph "外部ユーザー"
-        REC[リクルーター]
-        CORP[企業担当者]
-        HEAD[ヘッドハンター]
+    subgraph Internal["🏠 内部システム"]
+        IS["💼 社員向けシステム"]
+        PM["🔒 プライバシー管理"]
+        PP["⚙️ 公開設定制御"]
     end
 
-    subgraph "データ制御"
-        PUB[(公開プロフィール<br/>DynamoDB)]
-        PRIV[(プライベート情報<br/>暗号化)]
+    subgraph Data["💾 データ層"]
+        PUB[("📊 公開プロフィール<br/>DynamoDB")]
+        PRIV[("🔐 プライベート情報<br/>暗号化済み")]
     end
 
     %% 外部アクセスフロー
@@ -217,7 +217,7 @@ graph LR
     HEAD --> EP
     EP --> PS
     PS --> PF
-    PF --> CONTACT
+    PF --> CF
 
     %% 内部制御フロー
     IS --> PM
@@ -226,27 +226,19 @@ graph LR
 
     %% データ分離
     PUB --> PS
-    PRIV -.-> PM
+    PRIV --> PM
     PRIV -.x PS
 
     %% スタイリング
-    classDef externalClass fill:#ffebee
-    classDef internalClass fill:#e3f2fd
-    classDef userClass fill:#f1f8e9
-    classDef dataClass fill:#fafafa
+    classDef external fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    classDef platform fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef internal fill:#f1f8e9,stroke:#388e3c,stroke-width:2px
+    classDef data fill:#fafafa,stroke:#616161,stroke-width:2px
 
-    class EP externalClass
-    class PS externalClass
-    class PF externalClass
-    class CONTACT externalClass
-    class IS internalClass
-    class PM internalClass
-    class PP internalClass
-    class REC userClass
-    class CORP userClass
-    class HEAD userClass
-    class PUB dataClass
-    class PRIV dataClass
+    class REC,CORP,HEAD external
+    class EP,PS,PF,CF platform
+    class IS,PM,PP internal
+    class PUB,PRIV data
 ```
 
 ## 📋 前提条件
