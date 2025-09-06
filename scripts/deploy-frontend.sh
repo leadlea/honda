@@ -137,6 +137,11 @@ echo -e "${GREEN}✅ Build completed successfully${NC}"
 # Navigate back to root
 cd ..
 
+# Fix S3 and CloudFront configuration first
+echo -e "${YELLOW}🔧 Fixing S3 and CloudFront configuration...${NC}"
+chmod +x scripts/fix-cloudfront-s3.sh
+./scripts/fix-cloudfront-s3.sh || echo -e "${YELLOW}⚠️  Configuration fix failed, continuing with deployment${NC}"
+
 # Sync build files to S3
 echo -e "${YELLOW}☁️  Uploading files to S3...${NC}"
 aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
@@ -145,7 +150,10 @@ aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
     --cache-control "public, max-age=31536000" \
     --exclude "*.html" \
     --exclude "service-worker.js" \
-    --exclude "manifest.json"
+    --exclude "manifest.json" || {
+    echo -e "${RED}❌ Failed to sync static files to S3${NC}"
+    exit 1
+}
 
 # Upload HTML files with no-cache
 aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
@@ -154,14 +162,19 @@ aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
     --cache-control "no-cache, no-store, must-revalidate" \
     --include "*.html" \
     --include "service-worker.js" \
-    --include "manifest.json"
+    --include "manifest.json" || {
+    echo -e "${RED}❌ Failed to sync HTML files to S3${NC}"
+    exit 1
+}
 
 # Set proper content types
 aws s3 cp "s3://$BUCKET_NAME/index.html" "s3://$BUCKET_NAME/index.html" \
     --region "$BUCKET_REGION" \
     --metadata-directive REPLACE \
     --content-type "text/html" \
-    --cache-control "no-cache, no-store, must-revalidate"
+    --cache-control "no-cache, no-store, must-revalidate" || {
+    echo -e "${YELLOW}⚠️  Failed to set content type for index.html${NC}"
+}
 
 echo -e "${GREEN}✅ Files uploaded to S3 successfully${NC}"
 
