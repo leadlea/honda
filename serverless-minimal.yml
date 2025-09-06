@@ -59,6 +59,15 @@ provider:
             - kms:DescribeKey
           Resource:
             - "arn:aws:kms:${self:provider.region}:*:key/*"
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+            - s3:ListBucket
+          Resource:
+            - "arn:aws:s3:::${self:service}-${self:provider.stage}-frontend"
+            - "arn:aws:s3:::${self:service}-${self:provider.stage}-frontend/*"
 
 functions:
   # Simple test function
@@ -145,6 +154,33 @@ resources:
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
 
+    # S3 Bucket for Frontend
+    FrontendBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:service}-${self:provider.stage}-frontend
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: error.html
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+
+    FrontendBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket:
+          Ref: FrontendBucket
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal: "*"
+              Action: s3:GetObject
+              Resource:
+                Fn::Sub: "${FrontendBucket}/*"
+
   Outputs:
     KMSKeyId:
       Value:
@@ -161,6 +197,16 @@ resources:
         Ref: CognitoUserPoolClient
       Export:
         Name: ${self:service}-${self:provider.stage}-cognito-client-id
+    FrontendBucketName:
+      Value:
+        Ref: FrontendBucket
+      Export:
+        Name: ${self:service}-${self:provider.stage}-frontend-bucket
+    FrontendBucketUrl:
+      Value:
+        Fn::GetAtt: [FrontendBucket, WebsiteURL]
+      Export:
+        Name: ${self:service}-${self:provider.stage}-frontend-url
 
 plugins:
   - serverless-python-requirements
