@@ -1,16 +1,16 @@
 import { Amplify } from 'aws-amplify';
 import { environment, validateEnvironment } from './environment';
 
-// Validate environment variables
 validateEnvironment();
 
 const amplifyConfig = {
   Auth: {
     Cognito: {
-      userPoolId: environment.cognitoUserPoolId || 'us-west-2_XXXXXXXXX',
-      userPoolClientId: environment.cognitoClientId || 'xxxxxxxxxxxxxxxxxxxxxxxxxx',
+      userPoolId: environment.cognitoUserPoolId || 'ap-northeast-1_wkRvKeooL',
+      userPoolClientId: environment.cognitoClientId || '1179cu6f4a1g8hqhavmndtf8as',
       region: environment.region,
-      signUpVerificationMethod: 'code' as const,
+      // ★ ここを 'link' に変更
+      signUpVerificationMethod: 'link' as const,
       loginWith: {
         email: true,
         username: false,
@@ -28,5 +28,4 @@ const amplifyConfig = {
 };
 
 Amplify.configure(amplifyConfig);
-
 export default amplifyConfig;
