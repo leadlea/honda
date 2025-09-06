@@ -3,7 +3,7 @@ Unit tests for encryption utilities.
 """
 
 import os
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 

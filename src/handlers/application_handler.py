@@ -4,17 +4,16 @@ Application handler for managing job applications and interest expressions
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from ..models.application import Application
 from ..models.opportunity import Opportunity
-from ..models.user import User
 from ..repositories.application_repository import ApplicationRepository
 from ..repositories.opportunity_repository import OpportunityRepository
 from ..repositories.user_repository import UserRepository
 from ..services.application_status_service import ApplicationStatusService
 from ..utils.auth_utils import extract_user_from_event
-from ..utils.rbac import Permission, rbac_manager, require_role
+from ..utils.rbac import Permission, rbac_manager
 
 logger = logging.getLogger(__name__)
 

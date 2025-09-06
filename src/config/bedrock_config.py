@@ -3,8 +3,7 @@ Configuration settings for AWS Bedrock Claude integration.
 """
 
 import os
-from enum import Enum
-from typing import List, Optional
+from typing import List
 
 from src.services.bedrock_client import BedrockRegion, ClaudeModel
 

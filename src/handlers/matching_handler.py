@@ -6,14 +6,14 @@ Handles profile-opportunity matching, recommendation generation, and match analy
 import asyncio
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from ..services.matching_engine import MatchingCriteria, get_matching_engine
 from ..services.recommendation_service import (
     RecommendationFeedback,
     get_recommendation_service,
 )
-from ..utils.auth_utils import get_user_from_token, verify_jwt_token
+from ..utils.auth_utils import verify_jwt_token
 from ..utils.rbac import Permission, require_permission
 
 # Configure logging

@@ -3,9 +3,8 @@ Unit tests for security audit system.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
-import pytest
 
 from src.utils.security_audit import (
     RiskLevel,
@@ -14,7 +13,6 @@ from src.utils.security_audit import (
     SecurityEventType,
     audit_security_event,
     extract_request_info,
-    security_auditor,
 )
 
 

@@ -5,6 +5,8 @@ Implements security best practices for web applications.
 
 import json
 import logging
+import time
+import uuid
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -233,8 +235,6 @@ rate_limiter = RateLimiter()
 def security_middleware(func):
     """Decorator to add security middleware to Lambda functions."""
     import functools
-    import time
-    import uuid
 
     @functools.wraps(func)
     def wrapper(event, context):

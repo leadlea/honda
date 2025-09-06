@@ -5,7 +5,7 @@ Handles visibility settings and external platform synchronization.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from ..models.public_profile import PublicProfile
 from ..models.veteran_profile import VeteranProfile

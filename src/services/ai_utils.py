@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from .bedrock_client import BedrockRequest, BedrockResponse, get_bedrock_client
+from .bedrock_client import BedrockRequest, get_bedrock_client
 
 logger = logging.getLogger(__name__)
 

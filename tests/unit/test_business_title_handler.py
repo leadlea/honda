@@ -3,7 +3,6 @@ Unit tests for business title handler.
 """
 
 import json
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest

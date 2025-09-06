@@ -1,11 +1,9 @@
 """
 Unit tests for OpportunityRepository
 """
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import boto3
-import pytest
 from moto import mock_dynamodb
 
 from src.models.opportunity import Opportunity

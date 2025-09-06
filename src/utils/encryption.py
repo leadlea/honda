@@ -7,7 +7,7 @@ import base64
 import hashlib
 import logging
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Union
 
 import boto3
 from botocore.exceptions import ClientError

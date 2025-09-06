@@ -7,7 +7,7 @@ import json
 import logging
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import lru_cache, wraps
 from typing import Any, Callable, Dict, List, Optional
 
@@ -316,11 +316,7 @@ class LambdaColdStartOptimizer:
         """Preload commonly used modules."""
         try:
             # Import heavy modules during initialization
-            import json
-            from datetime import datetime
-
-            import boto3
-            import jwt
+            pass
 
             logger.info("Common modules preloaded")
         except Exception as e:

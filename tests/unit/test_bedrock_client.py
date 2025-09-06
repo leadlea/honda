@@ -3,14 +3,12 @@ Unit tests for Bedrock Claude client.
 """
 
 import json
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import pytest
 from botocore.exceptions import ClientError
 
 from src.services.bedrock_client import (
     BedrockClient,
-    BedrockClientError,
     BedrockRegion,
     BedrockRequest,
     BedrockResponse,

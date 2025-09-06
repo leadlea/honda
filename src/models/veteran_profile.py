@@ -4,7 +4,7 @@ Veteran Profile data model for DynamoDB
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 @dataclass

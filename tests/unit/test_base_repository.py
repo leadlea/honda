@@ -4,7 +4,6 @@ Unit tests for BaseRepository.
 
 from unittest.mock import Mock, patch
 
-import pytest
 
 from src.repositories.base_repository import BaseRepository
 

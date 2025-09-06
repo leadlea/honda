@@ -5,7 +5,7 @@ Centralizes security settings and policies.
 
 import os
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 
 class SecurityLevel(Enum):

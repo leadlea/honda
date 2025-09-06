@@ -2,19 +2,16 @@
 Unit tests for RBAC (Role-Based Access Control) system.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import pytest
 
 from src.utils.rbac import (
     AccessContext,
     Permission,
     RBACManager,
-    Role,
     check_resource_access,
     get_available_roles,
     get_user_permissions,
-    rbac_manager,
     require_permission,
     require_role,
     validate_role,

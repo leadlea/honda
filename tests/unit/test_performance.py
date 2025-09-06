@@ -2,8 +2,9 @@
 Unit tests for performance optimization utilities.
 """
 
+import json
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -11,7 +12,6 @@ from src.utils.performance import (
     BedrockOptimizer,
     ConnectionPool,
     DynamoDBOptimizer,
-    LambdaColdStartOptimizer,
     MemoryOptimizer,
     PerformanceMonitor,
     optimize_lambda_handler,

@@ -2,9 +2,6 @@
 Unit tests for VeteranProfile model.
 """
 
-from datetime import datetime
-
-import pytest
 
 from src.models.veteran_profile import VeteranProfile
 

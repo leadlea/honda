@@ -3,13 +3,12 @@ Unit tests for the recommendation service.
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from src.models.opportunity import Opportunity
 from src.models.recommendation import Recommendation
-from src.services.matching_engine import MatchingCriteria
 from src.services.recommendation_service import (
     RecommendationFeedback,
     RecommendationService,

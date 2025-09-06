@@ -7,11 +7,9 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-from ..models.opportunity import Opportunity
 from ..models.recommendation import Recommendation
-from ..models.veteran_profile import VeteranProfile
 from ..repositories.opportunity_repository import OpportunityRepository
 from ..repositories.recommendation_repository import RecommendationRepository
 from ..repositories.veteran_profile_repository import VeteranProfileRepository

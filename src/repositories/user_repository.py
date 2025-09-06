@@ -7,6 +7,8 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from botocore.exceptions import ClientError
+
 from ..models.user import SecurityAuditLog, User
 from .base_repository import BaseRepository
 

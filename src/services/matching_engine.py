@@ -3,11 +3,9 @@ AI-powered matching engine for veteran talent matching.
 Analyzes veteran profiles against opportunities and generates match scores and recommendations.
 """
 
-import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from ..models.opportunity import Opportunity
 from ..models.recommendation import Recommendation
@@ -16,7 +14,7 @@ from ..repositories.opportunity_repository import OpportunityRepository
 from ..repositories.recommendation_repository import RecommendationRepository
 from ..repositories.veteran_profile_repository import VeteranProfileRepository
 from .ai_utils import get_ai_service
-from .bedrock_client import BedrockRequest, get_bedrock_client
+from .bedrock_client import get_bedrock_client
 
 logger = logging.getLogger(__name__)
 
@@ -245,7 +243,7 @@ class MatchingEngine:
             opportunities = await self._get_filtered_opportunities(criteria)
 
             if not opportunities:
-                logger.warning(f"No opportunities found for matching criteria")
+                logger.warning("No opportunities found for matching criteria")
                 return []
 
             # Analyze matches for all opportunities

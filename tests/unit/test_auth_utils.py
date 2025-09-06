@@ -3,10 +3,9 @@ Unit tests for authentication utilities.
 """
 
 import os
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import jwt
-import pytest
 
 # Set environment variables for testing
 os.environ["COGNITO_USER_POOL_ID"] = "test-pool-id"

@@ -6,7 +6,6 @@ Provides cross-region inference, error handling, and retry functionality.
 import hashlib
 import json
 import logging
-import os
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -18,8 +17,6 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from src.utils.performance import (
     BedrockOptimizer,
-    ConnectionPool,
-    bedrock_optimizer,
     performance_timer,
 )
 
@@ -67,8 +64,6 @@ class BedrockRequest:
 
 class BedrockClientError(Exception):
     """Custom exception for Bedrock client errors."""
-
-    pass
 
 
 class BedrockClient:
@@ -379,7 +374,7 @@ class BedrockClient:
 
         # Create new event loop if none exists or if current loop is running
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             # If we're in a running loop, we need to create a new one in a thread
             import concurrent.futures
 

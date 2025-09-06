@@ -5,9 +5,8 @@ Manages contact requests and communication between external recruiters and veter
 
 import json
 import logging
-import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from src.models.public_profile import ContactRequest
 from src.repositories.public_profile_repository import (
@@ -473,7 +472,7 @@ Score: """
                 if score_match:
                     score = float(score_match.group(1))
                     return min(max(score, 0.0), 1.0)  # Clamp between 0 and 1
-            except:
+            except Exception:
                 pass
 
             # Fallback: simple keyword-based detection

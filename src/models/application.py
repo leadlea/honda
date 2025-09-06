@@ -1,7 +1,6 @@
 """
 Application data model for DynamoDB
 """
-import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime

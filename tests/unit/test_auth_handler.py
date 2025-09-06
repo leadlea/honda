@@ -4,10 +4,9 @@ Unit tests for authentication handler.
 
 import json
 import os
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import boto3
-import pytest
 from moto import mock_cognitoidp, mock_dynamodb
 
 # Set environment variables for testing

@@ -6,7 +6,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from ..models.application import Application
 from ..repositories.application_repository import ApplicationRepository

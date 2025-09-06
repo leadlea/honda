@@ -3,9 +3,8 @@ Base repository class for DynamoDB operations
 """
 import logging
 import os
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Dict, List, Optional, TypeVar
 
-import boto3
 from botocore.exceptions import ClientError
 
 from src.utils.encryption import pii_protection_service

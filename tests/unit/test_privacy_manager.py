@@ -1,10 +1,8 @@
 """
 Unit tests for privacy manager
 """
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
-import pytest
 
 from src.models.public_profile import PublicProfile
 from src.models.veteran_profile import VeteranProfile

@@ -5,8 +5,7 @@ Provides external access to veteran profiles with filtering and AI ranking
 
 import json
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from src.repositories.public_profile_repository import PublicProfileRepository
 from src.services.ai_utils import get_ai_service
@@ -271,7 +270,7 @@ class PublicSearchHandler:
             profiles_text += f"   Experience: {profile['experience_summary']}\n\n"
 
         return f"""
-You are helping rank veteran profiles based on a search query. 
+You are helping rank veteran profiles based on a search query.
 Analyze the profiles and rank them by relevance to the search requirements.
 
 Search Query: "{search_query}"

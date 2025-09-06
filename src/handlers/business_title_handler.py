@@ -6,13 +6,12 @@ Handles business title generation, selection, and regeneration.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from src.repositories.user_repository import UserRepository
 from src.repositories.veteran_profile_repository import VeteranProfileRepository
 from src.services.ai_utils import get_ai_service
 from src.utils.auth_utils import get_user_from_token
-from src.utils.rbac import Permission, require_role
 
 logger = logging.getLogger(__name__)
 

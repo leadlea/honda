@@ -2,7 +2,6 @@
 Unit tests for user models.
 """
 
-from datetime import datetime, timezone
 
 import pytest
 
@@ -12,7 +11,6 @@ from src.models.user import (
     User,
     UserLoginRequest,
     UserRegistrationRequest,
-    UserRole,
     UserSession,
     UserUpdateRequest,
 )

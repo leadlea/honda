@@ -1,7 +1,6 @@
 """
 Unit tests for application status service
 """
-from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
@@ -11,7 +10,6 @@ from src.models.opportunity import Opportunity
 from src.models.user import User
 from src.services.application_status_service import (
     ApplicationStatusService,
-    CommunicationMessage,
     StatusUpdate,
 )
 

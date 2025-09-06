@@ -3,10 +3,8 @@ Unit tests for Contact Handler
 """
 
 import json
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import pytest
 
 from src.handlers.contact_handler import ContactHandler
 from src.models.public_profile import ContactRequest
