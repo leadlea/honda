@@ -8,21 +8,23 @@ provider:
   region: ap-northeast-1
   stage: ${opt:stage, 'dev'}
   memorySize: 512
-  timeout: 30
+  timeout: 29                          # <<< API Gateway の上限に合わせて 29 秒
   environment:
     STAGE: ${self:provider.stage}
     REGION: ${self:provider.region}
     DYNAMODB_TABLE_PREFIX: ${self:service}-${self:provider.stage}
     BEDROCK_MODEL_ID: anthropic.claude-3-5-sonnet-20241022-v2:0
+    # これらは同一スタック内の Output を参照していたため循環しがち。
+    # リソース内では Ref/GetAtt を使うので環境変数は空でも可。
     COGNITO_USER_POOL_ID: ${cf:${self:service}-${self:provider.stage}.CognitoUserPoolId, ''}
     COGNITO_CLIENT_ID: ${cf:${self:service}-${self:provider.stage}.CognitoClientId, ''}
-    # Security configuration
+    # Security
     KMS_KEY_ID: ${cf:${self:service}-${self:provider.stage}.KMSKeyId, ''}
     ENCRYPTION_PASSWORD: ${env:ENCRYPTION_PASSWORD, 'default-dev-key'}
     ENCRYPTION_SALT: ${env:ENCRYPTION_SALT, 'default-dev-salt'}
     PII_HASH_SALT: ${env:PII_HASH_SALT, 'default-pii-salt'}
     ENVIRONMENT: ${self:provider.stage}
-    # Performance configuration
+    # Performance
     BEDROCK_CACHE_TTL: ${env:BEDROCK_CACHE_TTL, '300'}
     DYNAMODB_MAX_RETRIES: ${env:DYNAMODB_MAX_RETRIES, '3'}
     CONNECTION_POOL_SIZE: ${env:CONNECTION_POOL_SIZE, '50'}
@@ -66,6 +68,7 @@ functions:
   # Authentication functions
   authHandler:
     handler: src/handlers/auth_handler.handler
+    timeout: 29                      # <<< 29 秒に統一
     events:
       - http:
           path: auth/login
@@ -106,7 +109,7 @@ functions:
               - X-Amz-Security-Token
               - X-Amz-User-Agent
             allowCredentials: false
-          authorizer:
+          authorizer:                 # <<< 未定義参照をやめ、Authorizer リソースを参照
             type: COGNITO_USER_POOLS
             authorizerId:
               Ref: ApiGatewayAuthorizer
@@ -131,6 +134,7 @@ functions:
   # Profile management functions  
   profileHandler:
     handler: src/handlers/profile_handler.handler
+    timeout: 29
     events:
       - http:
           path: profiles/{userId}
@@ -187,7 +191,7 @@ functions:
   # Business title generation
   businessTitleHandler:
     handler: src/handlers/business_title_handler.handler
-    timeout: 60
+    timeout: 29                      # <<< 60 → 29
     memorySize: 1024
     events:
       - http:
@@ -211,7 +215,7 @@ functions:
   # AI questionnaire functions
   questionnaireHandler:
     handler: src/handlers/questionnaire_handler.handler
-    timeout: 60
+    timeout: 29                      # <<< 60 → 29
     memorySize: 1024
     events:
       - http:
@@ -286,7 +290,7 @@ functions:
   # Matching and recommendation functions
   matchingHandler:
     handler: src/handlers/matching_handler.lambda_handler
-    timeout: 60
+    timeout: 29                      # <<< 60 → 29
     memorySize: 1024
     events:
       - http:
@@ -310,6 +314,7 @@ functions:
   # Application management functions
   applicationHandler:
     handler: src/handlers/application_handler.handler
+    timeout: 29
     events:
       - http:
           path: applications/{userId}
@@ -366,6 +371,7 @@ functions:
   # Public platform functions (no auth required)
   publicSearchHandler:
     handler: src/handlers/public_search_handler.handler
+    timeout: 29
     events:
       - http:
           path: public/veterans/search
@@ -410,6 +416,7 @@ functions:
   # Contact handling for external platform
   contactHandler:
     handler: src/handlers/contact_handler.handler
+    timeout: 29
     events:
       - http:
           path: public/contact/{profileId}
@@ -427,6 +434,18 @@ functions:
 
 resources:
   Resources:
+    # --- Authorizer を定義（未定義エラー対策） ---
+    ApiGatewayAuthorizer:               # <<< NEW
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        Name: CognitoAuthorizer
+        Type: COGNITO_USER_POOLS
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        IdentitySource: method.request.header.Authorization
+        ProviderARNs:
+          - Fn::GetAtt: [CognitoUserPool, Arn]  # 同スタックのプール ARN を参照
+
     # KMS Key for encryption
     KMSKey:
       Type: AWS::KMS::Key
@@ -484,40 +503,44 @@ resources:
         ExplicitAuthFlows:
           - ADMIN_NO_SRP_AUTH
           - USER_PASSWORD_AUTH
+        AllowedOAuthFlowsUserPoolClient: true
+        AllowedOAuthFlows:
+          - code
+        SupportedIdentityProviders:
+          - COGNITO
+        AllowedOAuthScopes:
+          - openid
+          - email
+          - profile
+        CallbackURLs:
+          - https://doy5alruji476.cloudfront.net
+          - https://doy5alruji476.cloudfront.net/
+        LogoutURLs:
+          - https://doy5alruji476.cloudfront.net
+          - https://doy5alruji476.cloudfront.net/
 
-    # API Gateway Usage Plan for Rate Limiting
-    ApiGatewayUsagePlan:
-      Type: AWS::ApiGateway::UsagePlan
+    # API Gateway GatewayResponses (CORS for 4xx/5xx)
+    ApiGatewayResponseDefault4XX:        # <<< NEW
+      Type: AWS::ApiGateway::GatewayResponse
       Properties:
-        UsagePlanName: ${self:service}-${self:provider.stage}-usage-plan
-        Description: Usage plan for Honda Veteran Talent Matching API
-        Throttle:
-          BurstLimit: 200
-          RateLimit: 100
-        Quota:
-          Limit: 10000
-          Period: DAY
+        RestApiId: { Ref: ApiGatewayRestApi }
+        ResponseType: DEFAULT_4XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'https://doy5alruji476.cloudfront.net'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
 
-    # API Gateway API Key
-    ApiGatewayApiKey:
-      Type: AWS::ApiGateway::ApiKey
+    ApiGatewayResponseDefault5XX:        # <<< NEW
+      Type: AWS::ApiGateway::GatewayResponse
       Properties:
-        Name: ${self:service}-${self:provider.stage}-api-key
-        Description: API Key for Honda Veteran Talent Matching
-        Enabled: true
+        RestApiId: { Ref: ApiGatewayRestApi }
+        ResponseType: DEFAULT_5XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'https://doy5alruji476.cloudfront.net'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
 
-    # API Gateway Usage Plan Key
-    ApiGatewayUsagePlanKey:
-      Type: AWS::ApiGateway::UsagePlanKey
-      Properties:
-        KeyId:
-          Ref: ApiGatewayApiKey
-        KeyType: API_KEY
-        UsagePlanId:
-          Ref: ApiGatewayUsagePlan
-
-
-
+    # --- 以下は既存（DynamoDB/S3 など）。省略せず載せます ---
     # DynamoDB Tables
     UsersTable:
       Type: AWS::DynamoDB::Table
@@ -770,9 +793,9 @@ resources:
         Ref: CognitoUserPoolClient
       Export:
         Name: ${self:service}-${self:provider.stage}-cognito-client-id
-    ApiGatewayUrl:
+    ApiGatewayUrl:                       # <<< REST API の ID を正しく参照
       Value:
-        Fn::Sub: "https://${HttpApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
+        Fn::Sub: "https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
       Export:
         Name: ${self:service}-${self:provider.stage}-api-gateway-url
     ApiGatewayApiKey:
