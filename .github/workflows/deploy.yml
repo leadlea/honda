@@ -1,3 +1,4 @@
+# .github/workflows/deploy.yml
 name: Deploy Honda Veteran Talent Matching System
 
 on:
@@ -106,14 +107,20 @@ jobs:
           aws-region: ap-northeast-1
 
       - name: Deploy Frontend using deployment script
+        env:
+          # ===== Pass Secrets as ENV (these are REQUIRED by the script) =====
+          REACT_APP_COGNITO_CLIENT_ID:    ${{ secrets.REACT_APP_COGNITO_CLIENT_ID }}
+          REACT_APP_COGNITO_USER_POOL_ID: ${{ secrets.REACT_APP_COGNITO_USER_POOL_ID }}
+          REACT_APP_API_URL:              ${{ secrets.REACT_APP_API_URL }}
+          REACT_APP_REGION:               ${{ secrets.REACT_APP_REGION }}
+          # ===== Hosting settings (adjust if you use secrets for these too) =====
+          FRONTEND_BUCKET_NAME:           honda-hr-bank
+          FRONTEND_BUCKET_REGION:         ap-northeast-1
+          CLOUDFRONT_DISTRIBUTION_ID:     E1T3WQ2YHO1BNA
+          CLOUDFRONT_DOMAIN:              doy5alruji476.cloudfront.net
         run: |
           chmod +x scripts/deploy-frontend.sh
           ./scripts/deploy-frontend.sh ${{ env.STAGE }}
-        env:
-          FRONTEND_BUCKET_NAME: honda-hr-bank
-          FRONTEND_BUCKET_REGION: ap-northeast-1
-          CLOUDFRONT_DISTRIBUTION_ID: E1T3WQ2YHO1BNA
-          CLOUDFRONT_DOMAIN: doy5alruji476.cloudfront.net
 
       - name: Prepare CloudFront Configuration
         run: |
@@ -149,3 +156,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results.sarif'
+
