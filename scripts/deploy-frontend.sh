@@ -2,8 +2,8 @@
 # Frontend deployment script for Honda Veteran Talent Matching
 # Builds the React app and deploys it to S3/CloudFront
 # - ENV を最優先して Cognito 設定を埋め込む
-# - 1179... の旧 ClientID を検出したら即中断
-# - ビルド成果物にも 1179... が混入していないかガード
+# - 旧 ClientID（1179... / 2bggeikp...）を検出したら即中断
+# - ビルド成果物にも旧IDが混入していないか＋新IDが入っているかをガード
 
 set -Eeuo pipefail
 
@@ -15,9 +15,11 @@ SERVICE_NAME="honda-veteran-talent-matching"
 FRONTEND_DIR="frontend"
 BUILD_DIR="$FRONTEND_DIR/build"
 
+# 新クライアントID（ENVで上書き可能）
+EXPECTED_CLIENT_ID="${EXPECTED_CLIENT_ID:-1f62alqbqneo30qb0giarl9dva}"
+
 # Colors
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-
 die(){ echo -e "${RED}❌ $*${NC}"; exit 1; }
 
 echo -e "${GREEN}🚀 Starting frontend deployment for stage: $STAGE${NC}"
@@ -30,7 +32,7 @@ command -v node >/dev/null 2>&1 || die "Node.js not found"
 command -v npm  >/dev/null 2>&1 || die "npm not found"
 
 # 必須ENV（ここで未設定なら中断：先祖返り防止の要）
-: "${REACT_APP_COGNITO_CLIENT_ID:?REACT_APP_COGNITO_CLIENT_ID is required (e.g., 2bggeikp...)}"
+: "${REACT_APP_COGNITO_CLIENT_ID:?REACT_APP_COGNITO_CLIENT_ID is required (e.g., 1f62alqbqneo30qb0giarl9dva)}"
 : "${REACT_APP_COGNITO_USER_POOL_ID:?REACT_APP_COGNITO_USER_POOL_ID is required (e.g., ap-northeast-1_xxxxxxx)}"
 
 # ──────────────────────────────────────────────────────────────
@@ -72,11 +74,11 @@ fi
 # ──────────────────────────────────────────────────────────────
 echo -e "${YELLOW}📋 Resolving Cognito settings...${NC}"
 
+# 参照用（ログ/デバッグに使うだけ）
 CF_USER_POOL_ID=$(aws cloudformation describe-stacks \
   --stack-name "$SERVICE_NAME-$STAGE" \
   --query "Stacks[0].Outputs[?OutputKey=='CognitoUserPoolId'].OutputValue" \
   --output text 2>/dev/null || echo "")
-
 CF_CLIENT_ID=$(aws cloudformation describe-stacks \
   --stack-name "$SERVICE_NAME-$STAGE" \
   --query "Stacks[0].Outputs[?OutputKey=='CognitoClientId'].OutputValue" \
@@ -88,9 +90,9 @@ CLIENT_ID="$REACT_APP_COGNITO_CLIENT_ID"
 echo -e "${GREEN}✅ Using USER_POOL_ID from ENV: $USER_POOL_ID${NC}"
 echo -e "${GREEN}✅ Using CLIENT_ID from ENV: $CLIENT_ID${NC}"
 
-# 旧ID（1179...）の混入をブロック
-if [[ "$CLIENT_ID" == 1179cu6f* ]]; then
-  die "Forbidden ClientId detected (1179...). Abort."
+# 旧IDの混入をブロック
+if [[ "$CLIENT_ID" == 1179cu6f* || "$CLIENT_ID" == 2bggeikp7ijt5medn414pkfkmk* ]]; then
+  die "Forbidden old ClientId detected. Abort."
 fi
 if [[ "$CLIENT_ID" == "placeholder-client-id" || "$USER_POOL_ID" == "ap-northeast-1_placeholder" ]]; then
   die "Placeholder Cognito values detected. Abort."
@@ -105,7 +107,7 @@ cat > "$FRONTEND_DIR/.env.production" << EOF
 REACT_APP_API_URL=$API_URL
 REACT_APP_COGNITO_USER_POOL_ID=$USER_POOL_ID
 REACT_APP_COGNITO_CLIENT_ID=$CLIENT_ID
-REACT_APP_REGION=ap-northeast-1
+REACT_APP_REGION=${REACT_APP_REGION:-ap-northeast-1}
 REACT_APP_STAGE=$STAGE
 GENERATE_SOURCEMAP=false
 EOF
@@ -123,9 +125,12 @@ npm run build
 [ -d "build" ] || die "Build failed (build dir missing)"
 echo -e "${GREEN}✅ Build succeeded${NC}"
 
-# ビルド成果物に 1179... が混入していないかチェック
-if grep -R "1179cu6f4a1g8hqhavmndtf8as" build >/dev/null 2>&1; then
-  die "Found forbidden client id (1179...) inside build artifacts"
+# ビルド成果物ガード（旧IDブロック＋新ID陽性チェック）
+if grep -R -E "1179cu6f4a1g8hqhavmndtf8as|2bggeikp7ijt5medn414pkfkmk" build >/dev/null 2>&1; then
+  die "Found forbidden client id inside build artifacts"
+fi
+if ! grep -R "$EXPECTED_CLIENT_ID" build >/dev/null 2>&1; then
+  die "Expected client id not found in build artifacts: $EXPECTED_CLIENT_ID"
 fi
 cd ..
 

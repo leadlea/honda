@@ -55,13 +55,13 @@ jobs:
 
       - name: Deploy backend services
         run: |
-          npx serverless deploy --stage ${{ env.STAGE }} --config serverless-minimal.yml
+          npx serverless deploy --stage $STAGE --config serverless-minimal.yml
         env:
           SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
 
       - name: Verify deployment
         run: |
-          echo "Backend deployment completed successfully for stage: ${{ env.STAGE }}"
+          echo "Backend deployment completed successfully for stage: $STAGE"
           echo "Skipping integration tests - no tests defined yet"
 
   deploy-frontend:
@@ -81,11 +81,14 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Set deployment stage
+        id: set_stage
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "STAGE=prod" >> $GITHUB_ENV
+            echo "stage=prod" >> $GITHUB_OUTPUT
           else
             echo "STAGE=dev" >> $GITHUB_ENV
+            echo "stage=dev" >> $GITHUB_OUTPUT
           fi
 
       - name: Install frontend dependencies
@@ -108,31 +111,31 @@ jobs:
 
       - name: Deploy Frontend using deployment script
         env:
-          # ===== Pass Secrets as ENV (these are REQUIRED by the script) =====
-          REACT_APP_COGNITO_CLIENT_ID:    ${{ secrets.REACT_APP_COGNITO_CLIENT_ID }}
-          REACT_APP_COGNITO_USER_POOL_ID: ${{ secrets.REACT_APP_COGNITO_USER_POOL_ID }}
+          # ===== Pass Secrets as ENV (REQUIRED by the script) =====
+          REACT_APP_COGNITO_CLIENT_ID:    ${{ secrets.REACT_APP_COGNITO_CLIENT_ID }}     # 1f62alqbqneo30qb0giarl9dva
+          REACT_APP_COGNITO_USER_POOL_ID: ${{ secrets.REACT_APP_COGNITO_USER_POOL_ID }}  # ap-northeast-1_wkRvKeooL
           REACT_APP_API_URL:              ${{ secrets.REACT_APP_API_URL }}
           REACT_APP_REGION:               ${{ secrets.REACT_APP_REGION }}
-          # ===== Hosting settings (adjust if you use secrets for these too) =====
+          # ===== Hosting settings =====
           FRONTEND_BUCKET_NAME:           honda-hr-bank
           FRONTEND_BUCKET_REGION:         ap-northeast-1
           CLOUDFRONT_DISTRIBUTION_ID:     E1T3WQ2YHO1BNA
           CLOUDFRONT_DOMAIN:              doy5alruji476.cloudfront.net
         run: |
           chmod +x scripts/deploy-frontend.sh
-          ./scripts/deploy-frontend.sh ${{ env.STAGE }}
+          ./scripts/deploy-frontend.sh $STAGE
 
       - name: Prepare CloudFront Configuration
         run: |
           chmod +x scripts/prepare-cloudfront.sh
-          ./scripts/prepare-cloudfront.sh ${{ env.STAGE }}
+          ./scripts/prepare-cloudfront.sh $STAGE
 
       - name: Upload CloudFront artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cloudfront-config-${{ env.STAGE }}
+          name: cloudfront-config-${{ steps.set_stage.outputs.stage }}
           path: |
-            cloudfront-config-${{ env.STAGE }}.json
+            cloudfront-config-${{ steps.set_stage.outputs.stage }}.json
             CLOUDFRONT_DEPLOYMENT_INSTRUCTIONS.md
           retention-days: 30
 
