@@ -13,7 +13,7 @@ provider:
     STAGE: ${self:provider.stage}
     REGION: ${self:provider.region}
     DYNAMODB_TABLE_PREFIX: ${self:service}-${self:provider.stage}
-    BEDROCK_MODEL_ID: anthropic.claude-3-5-sonnet-20241022-v2:0
+    BEDROCK_MODEL_ID: 'anthropic.claude-3-5-sonnet-20241022-v2:0'
     KMS_KEY_ID: ${cf:${self:service}-${self:provider.stage}.KMSKeyId, ''}
     ENCRYPTION_PASSWORD: ${env:ENCRYPTION_PASSWORD, 'default-dev-key'}
     ENCRYPTION_SALT: ${env:ENCRYPTION_SALT, 'default-dev-salt'}
@@ -300,7 +300,7 @@ functions:
 
 resources:
   Resources:
-    # === Authorizer (既存 UserPool を参照) ===
+    # === Authorizer: 既存UserPoolを参照（ENVにIDを渡す） ===
     ApiGatewayAuthorizer:
       Type: AWS::ApiGateway::Authorizer
       Properties:
@@ -310,8 +310,7 @@ resources:
           Ref: ApiGatewayRestApi
         IdentitySource: method.request.header.Authorization
         ProviderARNs:
-          # 環境変数 COGNITO_USER_POOL_ID から ARN を組み立て
-          - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID}
+          - Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
 
     # === KMS ===
     KMSKey:
@@ -381,7 +380,7 @@ resources:
         UsagePlanId:
           Ref: ApiGatewayUsagePlan
 
-    # === GatewayResponses (CORS for 4xx/5xx) ===
+    # === GatewayResponses (CORS 4xx/5xx) ===
     ApiGatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -600,34 +599,6 @@ resources:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
 
-    # === S3 (Frontend Hosting) ===
-    FrontendBucket:
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: ${self:service}-${self:provider.stage}-frontend
-        WebsiteConfiguration:
-          IndexDocument: index.html
-          ErrorDocument: error.html
-        PublicAccessBlockConfiguration:
-          BlockPublicAcls: false
-          BlockPublicPolicy: false
-          IgnorePublicAcls: false
-          RestrictPublicBuckets: false
-
-    FrontendBucketPolicy:
-      Type: AWS::S3::BucketPolicy
-      Properties:
-        Bucket:
-          Ref: FrontendBucket
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Principal: "*"
-              Action: s3:GetObject
-              Resource:
-                Fn::Sub: arn:aws:s3:::${FrontendBucket}/*
-
   Outputs:
     KMSKeyId:
       Value:
@@ -645,14 +616,7 @@ resources:
 
     ApiGatewayUrl:
       Value:
-        Fn::Join:
-          - ""
-          - - "https://"
-            - Ref: ApiGatewayRestApi
-            - ".execute-api."
-            - "${self:provider.region}"
-            - ".amazonaws.com/"
-            - "${self:provider.stage}"
+        Fn::Sub: https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}
       Export:
         Name: ${self:service}-${self:provider.stage}-api-gateway-url
 
@@ -661,26 +625,3 @@ resources:
         Ref: ApiGatewayApiKey
       Export:
         Name: ${self:service}-${self:provider.stage}-api-key
-
-    FrontendBucketName:
-      Value:
-        Ref: FrontendBucket
-      Export:
-        Name: ${self:service}-${self:provider.stage}-frontend-bucket
-
-    FrontendBucketUrl:
-      Value:
-        Fn::GetAtt:
-          - FrontendBucket
-          - WebsiteURL
-      Export:
-        Name: ${self:service}-${self:provider.stage}-frontend-url
-
-plugins:
-  - serverless-python-requirements
-  - serverless-offline
-
-custom:
-  pythonRequirements:
-    dockerizePip: true
-    pythonBin: python3.12
