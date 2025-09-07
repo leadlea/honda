@@ -227,18 +227,18 @@ flowchart TD
     %% データ分離
     PUB --> PS
     PRIV --> PM
-    PRIV -.x PS
+    PRIV --x PS
 
     %% スタイリング
-    classDef external fill:#ffebee,stroke:#d32f2f,stroke-width:2px
-    classDef platform fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    classDef internal fill:#f1f8e9,stroke:#388e3c,stroke-width:2px
-    classDef data fill:#fafafa,stroke:#616161,stroke-width:2px
+    classDef external fill:#ffebee,stroke:#d32f2f,stroke-width:2px;
+    classDef platform fill:#e3f2fd,stroke:#1976d2,stroke-width:2px;
+    classDef internal fill:#f1f8e9,stroke:#388e3c,stroke-width:2px;
+    classDef data fill:#fafafa,stroke:#616161,stroke-width:2px;
 
-    class REC,CORP,HEAD external
-    class EP,PS,PF,CF platform
-    class IS,PM,PP internal
-    class PUB,PRIV data
+    class REC,CORP,HEAD external;
+    class EP,PS,PF,CF platform;
+    class IS,PM,PP internal;
+    class PUB,PRIV data;
 ```
 
 ## 📋 前提条件
