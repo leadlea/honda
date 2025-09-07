@@ -7,7 +7,7 @@ const amplifyConfig = {
   Auth: {
     Cognito: {
       userPoolId: environment.cognitoUserPoolId || 'ap-northeast-1_wkRvKeooL',
-      userPoolClientId: environment.cognitoClientId || '1179cu6f4a1g8hqhavmndtf8as',
+      userPoolClientId: environment.cognitoClientId || '2bggeikp7ijt5medn414pkfkmk',
       region: environment.region,
       // ★ ここを 'link' に変更
       signUpVerificationMethod: 'link' as const,
