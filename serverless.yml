@@ -301,7 +301,6 @@ functions:
             type: COGNITO_USER_POOLS
             authorizerId:
               Ref: ApiGatewayAuthorizer
-
   applicationHandler:
     handler: src/handlers/application_handler.handler
     timeout: 29
@@ -323,26 +322,11 @@ functions:
             type: COGNITO_USER_POOLS
             authorizerId:
               Ref: ApiGatewayAuthorizer
+
+      # ⚠ ここを /applications/{applicationId}/status から変更
       - http:
-          path: applications/{applicationId}/status
+          path: applications/status/{applicationId}
           method: PUT
-          cors:
-            origin: "*"
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
-            allowCredentials: false
-          authorizer:
-            type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
-      - http:
-          path: opportunities/search
-          method: GET
           cors:
             origin: "*"
             headers:
