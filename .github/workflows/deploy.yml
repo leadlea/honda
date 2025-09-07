@@ -1,159 +1,679 @@
-name: Deploy Honda Veteran Talent Matching System
+service: honda-veteran-talent-matching
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
+frameworkVersion: "4"
 
-env:
-  NODE_VERSION: '18'
-  PYTHON_VERSION: '3.12'
+provider:
+  name: aws
+  runtime: python3.12
+  region: ap-northeast-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 512
+  timeout: 29
+  environment:
+    STAGE: ${self:provider.stage}
+    REGION: ${self:provider.region}
+    DYNAMODB_TABLE_PREFIX: ${self:service}-${self:provider.stage}
+    BEDROCK_MODEL_ID: 'anthropic.claude-3-5-sonnet-20241022-v2:0'
+    KMS_KEY_ID: ${cf:${self:service}-${self:provider.stage}.KMSKeyId, ''}
+    ENCRYPTION_PASSWORD: ${env:ENCRYPTION_PASSWORD, 'default-dev-key'}
+    ENCRYPTION_SALT: ${env:ENCRYPTION_SALT, 'default-dev-salt'}
+    PII_HASH_SALT: ${env:PII_HASH_SALT, 'default-pii-salt'}
+    ENVIRONMENT: ${self:provider.stage}
+    BEDROCK_CACHE_TTL: ${env:BEDROCK_CACHE_TTL, '300'}
+    DYNAMODB_MAX_RETRIES: ${env:DYNAMODB_MAX_RETRIES, '3'}
+    CONNECTION_POOL_SIZE: ${env:CONNECTION_POOL_SIZE, '50'}
 
-jobs:
-  deploy-backend:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PREFIX}-*
+            - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PREFIX}-*/index/*
+        - Effect: Allow
+          Action:
+            - bedrock:InvokeModel
+          Resource:
+            - arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminUpdateUserAttributes
+          Resource:
+            - arn:aws:cognito-idp:${self:provider.region}:*:userpool/*
+        - Effect: Allow
+          Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:GenerateDataKey
+            - kms:DescribeKey
+          Resource:
+            - arn:aws:kms:${self:provider.region}:*:key/*
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+functions:
+  authHandler:
+    handler: src/handlers/auth_handler.handler
+    timeout: 29
+    events:
+      - http:
+          path: auth/login
+          method: POST
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+      - http:
+          path: auth/logout
+          method: POST
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+      - http:
+          path: auth/profile
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+      - http:
+          path: auth/permissions
+          method: PUT
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+  profileHandler:
+    handler: src/handlers/profile_handler.handler
+    timeout: 29
+    events:
+      - http:
+          path: profiles/{userId}
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+      - http:
+          path: profiles/{userId}
+          method: PUT
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+      - http:
+          path: profiles/{userId}/privacy
+          method: PUT
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
+  businessTitleHandler:
+    handler: src/handlers/business_title_handler.handler
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: profiles/{userId}/business-title
+          method: POST
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-1
+  questionnaireHandler:
+    handler: src/handlers/questionnaire_handler.handler
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: questionnaire/{userId}
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+      - http:
+          path: questionnaire/{userId}/submit
+          method: POST
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+      - http:
+          path: questionnaire/{userId}/history
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+      - http:
+          path: questionnaire/{userId}/regenerate
+          method: PUT
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
 
-      - name: Set deployment stage
-        run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "STAGE=prod" >> $GITHUB_ENV
-          else
-            echo "STAGE=dev" >> $GITHUB_ENV
-          fi
+  matchingHandler:
+    handler: src/handlers/matching_handler.lambda_handler
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: recommendations/{userId}
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
 
-      - name: Cleanup old Lambda versions
-        run: |
-          chmod +x scripts/cleanup-lambda-versions.sh
-          ./scripts/cleanup-lambda-versions.sh || echo "Cleanup failed, continuing with deployment"
+  applicationHandler:
+    handler: src/handlers/application_handler.handler
+    timeout: 29
+    events:
+      - http:
+          path: applications/{userId}
+          method: POST
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+      - http:
+          path: applications/status/{applicationId}        # ← 衝突回避のため変更済み
+          method: PUT
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+      - http:
+          path: opportunities/search
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
 
-      - name: Deploy backend services (FULL)
-        run: |
-          npx serverless deploy --stage $STAGE --config serverless.yml
-        env:
-          SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
+  publicSearchHandler:
+    handler: src/handlers/public_search_handler.handler
+    timeout: 29
+    events:
+      - http:
+          path: public/veterans/search
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+      - http:
+          path: public/veterans/{profileId}
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+      - http:
+          path: public/categories
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
 
-      - name: Verify deployment
-        run: |
-          echo "Backend deployment completed successfully for stage: $STAGE"
-          echo "Skipping integration tests - no tests defined yet"
+  contactHandler:
+    handler: src/handlers/contact_handler.handler
+    timeout: 29
+    events:
+      - http:
+          path: public/contact/{profileId}
+          method: POST
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
 
-  deploy-frontend:
-    needs: [deploy-backend]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+resources:
+  Resources:
+    # === Authorizer: 既存UserPoolを参照（ENVからIDを受け取る） ===
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        Name: CognitoAuthorizer
+        Type: COGNITO_USER_POOLS
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        IdentitySource: method.request.header.Authorization
+        ProviderARNs:
+          - Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+    # === KMS ===
+    KMSKey:
+      Type: AWS::KMS::Key
+      Properties:
+        Description: KMS key for Honda Veteran Bank data encryption
+        KeyPolicy:
+          Statement:
+            - Sid: Enable IAM User Permissions
+              Effect: Allow
+              Principal:
+                AWS:
+                  Fn::Sub: arn:aws:iam::${AWS::AccountId}:root
+              Action: "kms:*"
+              Resource: "*"
+            - Sid: Allow Lambda functions to use the key
+              Effect: Allow
+              Principal:
+                AWS:
+                  Fn::GetAtt:
+                    - IamRoleLambdaExecution
+                    - Arn
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:GenerateDataKey
+                - kms:DescribeKey
+              Resource: "*"
 
-      - name: Set deployment stage
-        id: set_stage
-        run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "STAGE=prod" >> $GITHUB_ENV
-            echo "stage=prod" >> $GITHUB_OUTPUT
-          else
-            echo "STAGE=dev" >> $GITHUB_ENV
-            echo "stage=dev" >> $GITHUB_OUTPUT
-          fi
+    KMSKeyAlias:
+      Type: AWS::KMS::Alias
+      Properties:
+        AliasName: alias/${self:service}-${self:provider.stage}-encryption-key
+        TargetKeyId:
+          Ref: KMSKey
 
-      - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: npm ci
+    # === API Key / Usage Plan ===
+    ApiGatewayUsagePlan:
+      Type: AWS::ApiGateway::UsagePlan
+      Properties:
+        UsagePlanName: ${self:service}-${self:provider.stage}-usage-plan
+        Description: Usage plan for ${self:service}
+        Throttle:
+          BurstLimit: 200
+          RateLimit: 100
+        Quota:
+          Limit: 10000
+          Period: DAY
+        ApiStages:
+          - ApiId:
+              Ref: ApiGatewayRestApi
+            Stage: ${self:provider.stage}
 
-      - name: Debug - Check frontend public directory
-        run: |
-          echo "Checking frontend/public directory contents:"
-          ls -la frontend/public/
-          echo "Checking if index.html exists:"
-          test -f frontend/public/index.html && echo "✅ index.html exists" || echo "❌ index.html missing"
+    ApiGatewayApiKey:
+      Type: AWS::ApiGateway::ApiKey
+      Properties:
+        Name: ${self:service}-${self:provider.stage}-api-key
+        Description: API key for ${self:service}
+        Enabled: true
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-1
+    ApiGatewayUsagePlanKey:
+      Type: AWS::ApiGateway::UsagePlanKey
+      Properties:
+        KeyId:
+          Ref: ApiGatewayApiKey
+        KeyType: API_KEY
+        UsagePlanId:
+          Ref: ApiGatewayUsagePlan
 
-      - name: Deploy Frontend using deployment script
-        env:
-          REACT_APP_COGNITO_CLIENT_ID:    ${{ secrets.REACT_APP_COGNITO_CLIENT_ID }}
-          REACT_APP_COGNITO_USER_POOL_ID: ${{ secrets.REACT_APP_COGNITO_USER_POOL_ID }}
-          REACT_APP_API_URL:              ${{ secrets.REACT_APP_API_URL }}
-          REACT_APP_REGION:               ${{ secrets.REACT_APP_REGION }}
-          FRONTEND_BUCKET_NAME:           honda-hr-bank
-          FRONTEND_BUCKET_REGION:         ap-northeast-1
-          CLOUDFRONT_DISTRIBUTION_ID:     E1T3WQ2YHO1BNA
-          CLOUDFRONT_DOMAIN:              doy5alruji476.cloudfront.net
-        run: |
-          chmod +x scripts/deploy-frontend.sh
-          ./scripts/deploy-frontend.sh $STAGE
+    # === GatewayResponses (CORS 4xx/5xx) ===
+    ApiGatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseType: DEFAULT_4XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'https://doy5alruji476.cloudfront.net'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
 
-      - name: Prepare CloudFront Configuration
-        run: |
-          chmod +x scripts/prepare-cloudfront.sh
-          ./scripts/prepare-cloudfront.sh $STAGE
+    ApiGatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseType: DEFAULT_5XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'https://doy5alruji476.cloudfront.net'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
 
-      - name: Upload CloudFront artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: cloudfront-config-${{ steps.set_stage.outputs.stage }}
-          path: |
-            cloudfront-config-${{ steps.set_stage.outputs.stage }}.json
-            CLOUDFRONT_DEPLOYMENT_INSTRUCTIONS.md
-          retention-days: 30
+    # === DynamoDB Tables ===
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-users
+        AttributeDefinitions:
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: EmailIndex
+            KeySchema:
+              - AttributeName: email
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
 
-  security-scan:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    VeteranProfilesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-veteran-profiles
+        AttributeDefinitions:
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: is_publicly_visible
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: PublicProfilesIndex
+            KeySchema:
+              - AttributeName: is_publicly_visible
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+    OpportunitiesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-opportunities
+        AttributeDefinitions:
+          - AttributeName: opportunity_id
+            AttributeType: S
+          - AttributeName: type
+            AttributeType: S
+          - AttributeName: posted_date
+            AttributeType: S
+        KeySchema:
+          - AttributeName: opportunity_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: TypeDateIndex
+            KeySchema:
+              - AttributeName: type
+                KeyType: HASH
+              - AttributeName: posted_date
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'trivy-results.sarif'
+    RecommendationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-recommendations
+        AttributeDefinitions:
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: recommendation_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user_id
+            KeyType: HASH
+          - AttributeName: recommendation_id
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    QuestionnairesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-questionnaires
+        AttributeDefinitions:
+          - AttributeName: questionnaire_id
+            AttributeType: S
+          - AttributeName: user_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: questionnaire_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: UserIdIndex
+            KeySchema:
+              - AttributeName: user_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    QuestionnaireResponsesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-questionnaire-responses
+        AttributeDefinitions:
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: response_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user_id
+            KeyType: HASH
+          - AttributeName: response_id
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    ApplicationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-applications
+        AttributeDefinitions:
+          - AttributeName: application_id
+            AttributeType: S
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: opportunity_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: application_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: UserIdIndex
+            KeySchema:
+              - AttributeName: user_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: OpportunityIdIndex
+            KeySchema:
+              - AttributeName: opportunity_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    PublicProfilesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-public-profiles
+        AttributeDefinitions:
+          - AttributeName: profile_id
+            AttributeType: S
+          - AttributeName: user_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: profile_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: UserIdIndex
+            KeySchema:
+              - AttributeName: user_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    ContactRequestsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-contact-requests
+        AttributeDefinitions:
+          - AttributeName: request_id
+            AttributeType: S
+          - AttributeName: profile_id
+            AttributeType: S
+          - AttributeName: created_at
+            AttributeType: S
+        KeySchema:
+          - AttributeName: request_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: ProfileIdDateIndex
+            KeySchema:
+              - AttributeName: profile_id
+                KeyType: HASH
+              - AttributeName: created_at
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    # === S3 (Frontend Hosting) ===
+    FrontendBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:service}-${self:provider.stage}-frontend
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: error.html
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+
+    FrontendBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket:
+          Ref: FrontendBucket
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal: "*"
+              Action: s3:GetObject
+              Resource:
+                Fn::Sub: arn:aws:s3:::${FrontendBucket}/*
+
+  Outputs:
+    KMSKeyId:
+      Value:
+        Ref: KMSKey
+      Export:
+        Name: ${self:service}-${self:provider.stage}-kms-key-id
+
+    KMSKeyArn:
+      Value:
+        Fn::GetAtt:
+          - KMSKey
+          - Arn
+      Export:
+        Name: ${self:service}-${self:provider.stage}-kms-key-arn
+
+    ApiGatewayUrl:
+      Value:
+        Fn::Sub: https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}
+      Export:
+        Name: ${self:service}-${self:provider.stage}-api-gateway-url
+
+    ApiGatewayApiKey:
+      Value:
+        Ref: ApiGatewayApiKey
+      Export:
+        Name: ${self:service}-${self:provider.stage}-api-key
+
+    FrontendBucketName:
+      Value:
+        Ref: FrontendBucket
+      Export:
+        Name: ${self:service}-${self:provider.stage}-frontend-bucket
+
+    FrontendBucketUrl:
+      Value:
+        Fn::GetAtt:
+          - FrontendBucket
+          - WebsiteURL
+      Export:
+        Name: ${self:service}-${self:provider.stage}-frontend-url
+
+plugins:
+  - serverless-python-requirements
+  - serverless-offline
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+    pythonBin: python3.12
 
