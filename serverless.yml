@@ -539,6 +539,36 @@ resources:
           gatewayresponse.header.Access-Control-Allow-Origin: "'https://doy5alruji476.cloudfront.net'"
           gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
           gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+    
+    # ===== API Key / Usage Plan (for Outputs.ApiGatewayApiKey) =====
+    ApiGatewayUsagePlan:
+      Type: AWS::ApiGateway::UsagePlan
+      Properties:
+        UsagePlanName: ${self:service}-${self:provider.stage}-usage-plan
+        Description: Usage plan for ${self:service}
+        Throttle:
+          BurstLimit: 200
+          RateLimit: 100
+        Quota:
+          Limit: 10000
+          Period: DAY
+        ApiStages:
+          - ApiId: { Ref: ApiGatewayRestApi }
+            Stage: ${self:provider.stage}
+
+    ApiGatewayApiKey:
+      Type: AWS::ApiGateway::ApiKey
+      Properties:
+        Name: ${self:service}-${self:provider.stage}-api-key
+        Description: API key for ${self:service}
+        Enabled: true
+
+    ApiGatewayUsagePlanKey:
+      Type: AWS::ApiGateway::UsagePlanKey
+      Properties:
+        KeyId: { Ref: ApiGatewayApiKey }
+        KeyType: API_KEY
+        UsagePlanId: { Ref: ApiGatewayUsagePlan }
 
     # --- 以下は既存（DynamoDB/S3 など）。省略せず載せます ---
     # DynamoDB Tables
