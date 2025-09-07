@@ -8,23 +8,19 @@ provider:
   region: ap-northeast-1
   stage: ${opt:stage, 'dev'}
   memorySize: 512
-  timeout: 29                          # <<< API Gateway の上限に合わせて 29 秒
+  timeout: 29
   environment:
     STAGE: ${self:provider.stage}
     REGION: ${self:provider.region}
     DYNAMODB_TABLE_PREFIX: ${self:service}-${self:provider.stage}
     BEDROCK_MODEL_ID: anthropic.claude-3-5-sonnet-20241022-v2:0
-    # これらは同一スタック内の Output を参照していたため循環しがち。
-    # リソース内では Ref/GetAtt を使うので環境変数は空でも可。
     COGNITO_USER_POOL_ID: ${cf:${self:service}-${self:provider.stage}.CognitoUserPoolId, ''}
     COGNITO_CLIENT_ID: ${cf:${self:service}-${self:provider.stage}.CognitoClientId, ''}
-    # Security
     KMS_KEY_ID: ${cf:${self:service}-${self:provider.stage}.KMSKeyId, ''}
     ENCRYPTION_PASSWORD: ${env:ENCRYPTION_PASSWORD, 'default-dev-key'}
     ENCRYPTION_SALT: ${env:ENCRYPTION_SALT, 'default-dev-salt'}
     PII_HASH_SALT: ${env:PII_HASH_SALT, 'default-pii-salt'}
     ENVIRONMENT: ${self:provider.stage}
-    # Performance
     BEDROCK_CACHE_TTL: ${env:BEDROCK_CACHE_TTL, '300'}
     DYNAMODB_MAX_RETRIES: ${env:DYNAMODB_MAX_RETRIES, '3'}
     CONNECTION_POOL_SIZE: ${env:CONNECTION_POOL_SIZE, '50'}
@@ -65,51 +61,32 @@ provider:
             - "arn:aws:kms:${self:provider.region}:*:key/*"
 
 functions:
-  # Authentication functions
   authHandler:
     handler: src/handlers/auth_handler.handler
-    timeout: 29                      # <<< 29 秒に統一
+    timeout: 29
     events:
       - http:
           path: auth/login
           method: POST
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
       - http:
           path: auth/logout
           method: POST
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
       - http:
           path: auth/profile
           method: GET
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
-          authorizer:                 # <<< 未定義参照をやめ、Authorizer リソースを参照
+          authorizer:
             type: COGNITO_USER_POOLS
             authorizerId:
               Ref: ApiGatewayAuthorizer
@@ -118,20 +95,13 @@ functions:
           method: PUT
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
             authorizerId:
               Ref: ApiGatewayAuthorizer
 
-  # Profile management functions  
   profileHandler:
     handler: src/handlers/profile_handler.handler
     timeout: 29
@@ -141,57 +111,35 @@ functions:
           method: GET
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
       - http:
           path: profiles/{userId}
           method: PUT
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
       - http:
           path: profiles/{userId}/privacy
           method: PUT
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
 
-  # Business title generation
   businessTitleHandler:
     handler: src/handlers/business_title_handler.handler
-    timeout: 29                      # <<< 60 → 29
+    timeout: 29
     memorySize: 1024
     events:
       - http:
@@ -199,23 +147,15 @@ functions:
           method: POST
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
 
-  # AI questionnaire functions
   questionnaireHandler:
     handler: src/handlers/questionnaire_handler.handler
-    timeout: 29                      # <<< 60 → 29
+    timeout: 29
     memorySize: 1024
     events:
       - http:
@@ -223,74 +163,45 @@ functions:
           method: GET
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
       - http:
           path: questionnaire/{userId}/submit
           method: POST
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
       - http:
           path: questionnaire/{userId}/history
           method: GET
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
       - http:
           path: questionnaire/{userId}/regenerate
           method: PUT
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
 
-  # Matching and recommendation functions
   matchingHandler:
     handler: src/handlers/matching_handler.lambda_handler
-    timeout: 29                      # <<< 60 → 29
+    timeout: 29
     memorySize: 1024
     events:
       - http:
@@ -298,20 +209,12 @@ functions:
           method: GET
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
 
-  # Application management functions
   applicationHandler:
     handler: src/handlers/application_handler.handler
     timeout: 29
@@ -321,54 +224,32 @@ functions:
           method: POST
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
       - http:
           path: applications/{applicationId}/status
           method: PUT
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
       - http:
           path: opportunities/search
           method: GET
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
           authorizer:
             type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+            authorizerId: { Ref: ApiGatewayAuthorizer }
 
-  # Public platform functions (no auth required)
   publicSearchHandler:
     handler: src/handlers/public_search_handler.handler
     timeout: 29
@@ -378,42 +259,23 @@ functions:
           method: GET
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
       - http:
           path: public/veterans/{profileId}
           method: GET
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
       - http:
           path: public/categories
           method: GET
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
 
-  # Contact handling for external platform
   contactHandler:
     handler: src/handlers/contact_handler.handler
     timeout: 29
@@ -423,30 +285,22 @@ functions:
           method: POST
           cors:
             origin: '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
 
 resources:
   Resources:
-    # --- Authorizer を定義（未定義エラー対策） ---
-    ApiGatewayAuthorizer:               # <<< NEW
+    ApiGatewayAuthorizer:
       Type: AWS::ApiGateway::Authorizer
       Properties:
         Name: CognitoAuthorizer
         Type: COGNITO_USER_POOLS
-        RestApiId:
-          Ref: ApiGatewayRestApi
+        RestApiId: { Ref: ApiGatewayRestApi }
         IdentitySource: method.request.header.Authorization
         ProviderARNs:
-          - Fn::GetAtt: [CognitoUserPool, Arn]  # 同スタックのプール ARN を参照
+          - Fn::GetAtt: [CognitoUserPool, Arn]
 
-    # KMS Key for encryption
+    # KMS
     KMSKey:
       Type: AWS::KMS::Key
       Properties:
@@ -463,28 +317,21 @@ resources:
               Effect: Allow
               Principal:
                 AWS: !GetAtt IamRoleLambdaExecution.Arn
-              Action:
-                - kms:Encrypt
-                - kms:Decrypt
-                - kms:GenerateDataKey
-                - kms:DescribeKey
+              Action: [kms:Encrypt, kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
               Resource: '*'
-    
     KMSKeyAlias:
       Type: AWS::KMS::Alias
       Properties:
         AliasName: alias/${self:service}-${self:provider.stage}-encryption-key
         TargetKeyId: !Ref KMSKey
 
-    # Cognito User Pool
+    # Cognito
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
       Properties:
         UserPoolName: ${self:service}-${self:provider.stage}-user-pool
-        UsernameAttributes:
-          - email
-        AutoVerifiedAttributes:
-          - email
+        UsernameAttributes: [email]
+        AutoVerifiedAttributes: [email]
         Policies:
           PasswordPolicy:
             MinimumLength: 8
@@ -497,21 +344,13 @@ resources:
       Type: AWS::Cognito::UserPoolClient
       Properties:
         ClientName: ${self:service}-${self:provider.stage}-client
-        UserPoolId:
-          Ref: CognitoUserPool
+        UserPoolId: { Ref: CognitoUserPool }
         GenerateSecret: false
-        ExplicitAuthFlows:
-          - ADMIN_NO_SRP_AUTH
-          - USER_PASSWORD_AUTH
+        ExplicitAuthFlows: [ADMIN_NO_SRP_AUTH, USER_PASSWORD_AUTH]
         AllowedOAuthFlowsUserPoolClient: true
-        AllowedOAuthFlows:
-          - code
-        SupportedIdentityProviders:
-          - COGNITO
-        AllowedOAuthScopes:
-          - openid
-          - email
-          - profile
+        AllowedOAuthFlows: [code]
+        SupportedIdentityProviders: [COGNITO]
+        AllowedOAuthScopes: [openid, email, profile]
         CallbackURLs:
           - https://doy5alruji476.cloudfront.net
           - https://doy5alruji476.cloudfront.net/
@@ -519,39 +358,14 @@ resources:
           - https://doy5alruji476.cloudfront.net
           - https://doy5alruji476.cloudfront.net/
 
-    # API Gateway GatewayResponses (CORS for 4xx/5xx)
-    ApiGatewayResponseDefault4XX:        # <<< NEW
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        RestApiId: { Ref: ApiGatewayRestApi }
-        ResponseType: DEFAULT_4XX
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'https://doy5alruji476.cloudfront.net'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
-
-    ApiGatewayResponseDefault5XX:        # <<< NEW
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        RestApiId: { Ref: ApiGatewayRestApi }
-        ResponseType: DEFAULT_5XX
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'https://doy5alruji476.cloudfront.net'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
-    
-    # ===== API Key / Usage Plan (for Outputs.ApiGatewayApiKey) =====
+    # API Key / Usage Plan
     ApiGatewayUsagePlan:
       Type: AWS::ApiGateway::UsagePlan
       Properties:
         UsagePlanName: ${self:service}-${self:provider.stage}-usage-plan
         Description: Usage plan for ${self:service}
-        Throttle:
-          BurstLimit: 200
-          RateLimit: 100
-        Quota:
-          Limit: 10000
-          Period: DAY
+        Throttle: { BurstLimit: 200, RateLimit: 100 }
+        Quota: { Limit: 10000, Period: DAY }
         ApiStages:
           - ApiId: { Ref: ApiGatewayRestApi }
             Stage: ${self:provider.stage}
@@ -570,28 +384,41 @@ resources:
         KeyType: API_KEY
         UsagePlanId: { Ref: ApiGatewayUsagePlan }
 
-    # --- 以下は既存（DynamoDB/S3 など）。省略せず載せます ---
+    # GatewayResponses (CORS for 4xx/5xx)
+    ApiGatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId: { Ref: ApiGatewayRestApi }
+        ResponseType: DEFAULT_4XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'https://doy5alruji476.cloudfront.net'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+    ApiGatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId: { Ref: ApiGatewayRestApi }
+        ResponseType: DEFAULT_5XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'https://doy5alruji476.cloudfront.net'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+
     # DynamoDB Tables
     UsersTable:
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-users
         AttributeDefinitions:
-          - AttributeName: user_id
-            AttributeType: S
-          - AttributeName: email
-            AttributeType: S
+          - { AttributeName: user_id, AttributeType: S }
+          - { AttributeName: email,   AttributeType: S }
         KeySchema:
-          - AttributeName: user_id
-            KeyType: HASH
+          - { AttributeName: user_id, KeyType: HASH }
         GlobalSecondaryIndexes:
           - IndexName: EmailIndex
             KeySchema:
-              - AttributeName: email
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-            BillingMode: PAY_PER_REQUEST
+              - { AttributeName: email, KeyType: HASH }
+            Projection: { ProjectionType: ALL }
         BillingMode: PAY_PER_REQUEST
 
     VeteranProfilesTable:
@@ -599,21 +426,15 @@ resources:
       Properties:
         TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-veteran-profiles
         AttributeDefinitions:
-          - AttributeName: user_id
-            AttributeType: S
-          - AttributeName: is_publicly_visible
-            AttributeType: S
+          - { AttributeName: user_id,            AttributeType: S }
+          - { AttributeName: is_publicly_visible, AttributeType: S }
         KeySchema:
-          - AttributeName: user_id
-            KeyType: HASH
+          - { AttributeName: user_id, KeyType: HASH }
         GlobalSecondaryIndexes:
           - IndexName: PublicProfilesIndex
             KeySchema:
-              - AttributeName: is_publicly_visible
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-            BillingMode: PAY_PER_REQUEST
+              - { AttributeName: is_publicly_visible, KeyType: HASH }
+            Projection: { ProjectionType: ALL }
         BillingMode: PAY_PER_REQUEST
 
     OpportunitiesTable:
@@ -621,25 +442,17 @@ resources:
       Properties:
         TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-opportunities
         AttributeDefinitions:
-          - AttributeName: opportunity_id
-            AttributeType: S
-          - AttributeName: type
-            AttributeType: S
-          - AttributeName: posted_date
-            AttributeType: S
+          - { AttributeName: opportunity_id, AttributeType: S }
+          - { AttributeName: type,           AttributeType: S }
+          - { AttributeName: posted_date,    AttributeType: S }
         KeySchema:
-          - AttributeName: opportunity_id
-            KeyType: HASH
+          - { AttributeName: opportunity_id, KeyType: HASH }
         GlobalSecondaryIndexes:
           - IndexName: TypeDateIndex
             KeySchema:
-              - AttributeName: type
-                KeyType: HASH
-              - AttributeName: posted_date
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-            BillingMode: PAY_PER_REQUEST
+              - { AttributeName: type,        KeyType: HASH }
+              - { AttributeName: posted_date, KeyType: RANGE }
+            Projection: { ProjectionType: ALL }
         BillingMode: PAY_PER_REQUEST
 
     RecommendationsTable:
@@ -647,15 +460,11 @@ resources:
       Properties:
         TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-recommendations
         AttributeDefinitions:
-          - AttributeName: user_id
-            AttributeType: S
-          - AttributeName: recommendation_id
-            AttributeType: S
+          - { AttributeName: user_id,            AttributeType: S }
+          - { AttributeName: recommendation_id,  AttributeType: S }
         KeySchema:
-          - AttributeName: user_id
-            KeyType: HASH
-          - AttributeName: recommendation_id
-            KeyType: RANGE
+          - { AttributeName: user_id,           KeyType: HASH }
+          - { AttributeName: recommendation_id, KeyType: RANGE }
         BillingMode: PAY_PER_REQUEST
 
     QuestionnairesTable:
@@ -663,21 +472,15 @@ resources:
       Properties:
         TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-questionnaires
         AttributeDefinitions:
-          - AttributeName: questionnaire_id
-            AttributeType: S
-          - AttributeName: user_id
-            AttributeType: S
+          - { AttributeName: questionnaire_id, AttributeType: S }
+          - { AttributeName: user_id,          AttributeType: S }
         KeySchema:
-          - AttributeName: questionnaire_id
-            KeyType: HASH
+          - { AttributeName: questionnaire_id, KeyType: HASH }
         GlobalSecondaryIndexes:
           - IndexName: UserIdIndex
             KeySchema:
-              - AttributeName: user_id
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-            BillingMode: PAY_PER_REQUEST
+              - { AttributeName: user_id, KeyType: HASH }
+            Projection: { ProjectionType: ALL }
         BillingMode: PAY_PER_REQUEST
 
     QuestionnaireResponsesTable:
@@ -685,15 +488,11 @@ resources:
       Properties:
         TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-questionnaire-responses
         AttributeDefinitions:
-          - AttributeName: user_id
-            AttributeType: S
-          - AttributeName: response_id
-            AttributeType: S
+          - { AttributeName: user_id,   AttributeType: S }
+          - { AttributeName: response_id, AttributeType: S }
         KeySchema:
-          - AttributeName: user_id
-            KeyType: HASH
-          - AttributeName: response_id
-            KeyType: RANGE
+          - { AttributeName: user_id,   KeyType: HASH }
+          - { AttributeName: response_id, KeyType: RANGE }
         BillingMode: PAY_PER_REQUEST
 
     ApplicationsTable:
@@ -701,30 +500,20 @@ resources:
       Properties:
         TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-applications
         AttributeDefinitions:
-          - AttributeName: application_id
-            AttributeType: S
-          - AttributeName: user_id
-            AttributeType: S
-          - AttributeName: opportunity_id
-            AttributeType: S
+          - { AttributeName: application_id, AttributeType: S }
+          - { AttributeName: user_id,       AttributeType: S }
+          - { AttributeName: opportunity_id, AttributeType: S }
         KeySchema:
-          - AttributeName: application_id
-            KeyType: HASH
+          - { AttributeName: application_id, KeyType: HASH }
         GlobalSecondaryIndexes:
           - IndexName: UserIdIndex
             KeySchema:
-              - AttributeName: user_id
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-            BillingMode: PAY_PER_REQUEST
+              - { AttributeName: user_id, KeyType: HASH }
+            Projection: { ProjectionType: ALL }
           - IndexName: OpportunityIdIndex
             KeySchema:
-              - AttributeName: opportunity_id
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-            BillingMode: PAY_PER_REQUEST
+              - { AttributeName: opportunity_id, KeyType: HASH }
+            Projection: { ProjectionType: ALL }
         BillingMode: PAY_PER_REQUEST
 
     PublicProfilesTable:
@@ -732,21 +521,15 @@ resources:
       Properties:
         TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-public-profiles
         AttributeDefinitions:
-          - AttributeName: profile_id
-            AttributeType: S
-          - AttributeName: user_id
-            AttributeType: S
+          - { AttributeName: profile_id, AttributeType: S }
+          - { AttributeName: user_id,    AttributeType: S }
         KeySchema:
-          - AttributeName: profile_id
-            KeyType: HASH
+          - { AttributeName: profile_id, KeyType: HASH }
         GlobalSecondaryIndexes:
           - IndexName: UserIdIndex
             KeySchema:
-              - AttributeName: user_id
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-            BillingMode: PAY_PER_REQUEST
+              - { AttributeName: user_id, KeyType: HASH }
+            Projection: { ProjectionType: ALL }
         BillingMode: PAY_PER_REQUEST
 
     ContactRequestsTable:
@@ -754,25 +537,17 @@ resources:
       Properties:
         TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-contact-requests
         AttributeDefinitions:
-          - AttributeName: request_id
-            AttributeType: S
-          - AttributeName: profile_id
-            AttributeType: S
-          - AttributeName: created_at
-            AttributeType: S
+          - { AttributeName: request_id, AttributeType: S }
+          - { AttributeName: profile_id, AttributeType: S }
+          - { AttributeName: created_at, AttributeType: S }
         KeySchema:
-          - AttributeName: request_id
-            KeyType: HASH
+          - { AttributeName: request_id, KeyType: HASH }
         GlobalSecondaryIndexes:
           - IndexName: ProfileIdDateIndex
             KeySchema:
-              - AttributeName: profile_id
-                KeyType: HASH
-              - AttributeName: created_at
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-            BillingMode: PAY_PER_REQUEST
+              - { AttributeName: profile_id, KeyType: HASH }
+              - { AttributeName: created_at, KeyType: RANGE }
+            Projection: { ProjectionType: ALL }
         BillingMode: PAY_PER_REQUEST
 
     # S3 Bucket for Frontend
@@ -792,57 +567,42 @@ resources:
     FrontendBucketPolicy:
       Type: AWS::S3::BucketPolicy
       Properties:
-        Bucket:
-          Ref: FrontendBucket
+        Bucket: { Ref: FrontendBucket }
         PolicyDocument:
+          Version: '2012-10-17'
           Statement:
             - Effect: Allow
               Principal: "*"
               Action: s3:GetObject
               Resource:
-                Fn::Sub: "${FrontendBucket}/*"
+                Fn::Sub: "arn:aws:s3:::${FrontendBucket}/*"
 
   Outputs:
     KMSKeyId:
-      Value:
-        Ref: KMSKey
-      Export:
-        Name: ${self:service}-${self:provider.stage}-kms-key-id
+      Value: { Ref: KMSKey }
+      Export: { Name: ${self:service}-${self:provider.stage}-kms-key-id }
     KMSKeyArn:
-      Value:
-        Fn::GetAtt: [KMSKey, Arn]
-      Export:
-        Name: ${self:service}-${self:provider.stage}-kms-key-arn
+      Value: { Fn::GetAtt: [KMSKey, Arn] }
+      Export: { Name: ${self:service}-${self:provider.stage}-kms-key-arn }
     CognitoUserPoolId:
-      Value:
-        Ref: CognitoUserPool
-      Export:
-        Name: ${self:service}-${self:provider.stage}-cognito-user-pool-id
+      Value: { Ref: CognitoUserPool }
+      Export: { Name: ${self:service}-${self:provider.stage}-cognito-user-pool-id }
     CognitoClientId:
-      Value:
-        Ref: CognitoUserPoolClient
-      Export:
-        Name: ${self:service}-${self:provider.stage}-cognito-client-id
-    ApiGatewayUrl:                       # <<< REST API の ID を正しく参照
+      Value: { Ref: CognitoUserPoolClient }
+      Export: { Name: ${self:service}-${self:provider.stage}-cognito-client-id }
+    ApiGatewayUrl:
       Value:
         Fn::Sub: "https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
-      Export:
-        Name: ${self:service}-${self:provider.stage}-api-gateway-url
+      Export: { Name: ${self:service}-${self:provider.stage}-api-gateway-url }
     ApiGatewayApiKey:
-      Value:
-        Ref: ApiGatewayApiKey
-      Export:
-        Name: ${self:service}-${self:provider.stage}-api-key
+      Value: { Ref: ApiGatewayApiKey }
+      Export: { Name: ${self:service}-${self:provider.stage}-api-key }
     FrontendBucketName:
-      Value:
-        Ref: FrontendBucket
-      Export:
-        Name: ${self:service}-${self:provider.stage}-frontend-bucket
+      Value: { Ref: FrontendBucket }
+      Export: { Name: ${self:service}-${self:provider.stage}-frontend-bucket }
     FrontendBucketUrl:
-      Value:
-        Fn::GetAtt: [FrontendBucket, WebsiteURL]
-      Export:
-        Name: ${self:service}-${self:provider.stage}-frontend-url
+      Value: { Fn::GetAtt: [FrontendBucket, WebsiteURL] }
+      Export: { Name: ${self:service}-${self:provider.stage}-frontend-url }
 
 plugins:
   - serverless-python-requirements
