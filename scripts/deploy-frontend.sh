@@ -2,47 +2,61 @@
 # Frontend deployment script for Honda Veteran Talent Matching
 # Builds the React app and deploys it to S3/CloudFront
 # - ENV を最優先して Cognito 設定を埋め込む
-# - 旧 ClientId / 旧 UserPoolId が混入していたら即中断
-# - ビルド成果物にも旧 ID が無いかガード
+# - 旧 ClientId（1179..., 2bggeik...）だけをブロック
+# - ログにはマスクして表示
 
 set -Eeuo pipefail
 
+# ──────────────────────────────────────────────────────────────
+# Config
+# ──────────────────────────────────────────────────────────────
 STAGE=${1:-dev}
 SERVICE_NAME="honda-veteran-talent-matching"
 FRONTEND_DIR="frontend"
 BUILD_DIR="$FRONTEND_DIR/build"
 
+# Colors
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 die(){ echo -e "${RED}❌ $*${NC}"; exit 1; }
+mask(){ local v="$1"; echo "${v:0:3}******${v: -3}"; }
 
 echo -e "${GREEN}🚀 Starting frontend deployment for stage: $STAGE${NC}"
 
-# ── Pre-checks ────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
+# Pre-checks
+# ──────────────────────────────────────────────────────────────
 command -v aws  >/dev/null 2>&1 || die "AWS CLI not found"
 command -v node >/dev/null 2>&1 || die "Node.js not found"
 command -v npm  >/dev/null 2>&1 || die "npm not found"
 
+# 必須ENV（ここで未設定なら中断）
 : "${REACT_APP_COGNITO_CLIENT_ID:?REACT_APP_COGNITO_CLIENT_ID is required}"
 : "${REACT_APP_COGNITO_USER_POOL_ID:?REACT_APP_COGNITO_USER_POOL_ID is required}"
 
-# 旧 ID（混入したら中断）
-FORBIDDEN_CLIENT_IDS=(
-  "1179cu6f4a1g8hqhavmndtf8as"   # 一番古い
-  "2bggeikp7ijt5medn414pkfkmk"   # 旧
-  "1f62alqbqneo30qb0giarl9dva"   # 直前まで使ってたID（今回から禁止）
-)
-FORBIDDEN_POOL_IDS=(
-  "ap-northeast-1_wkRvKeooL"     # 旧プール
-)
+CLIENT_ID="$REACT_APP_COGNITO_CLIENT_ID"
+USER_POOL_ID="$REACT_APP_COGNITO_USER_POOL_ID"
 
-for bad in "${FORBIDDEN_CLIENT_IDS[@]}"; do
-  [[ "$REACT_APP_COGNITO_CLIENT_ID" == "$bad" ]] && die "Forbidden ClientId specified: $bad"
-done
-for bad in "${FORBIDDEN_POOL_IDS[@]}"; do
-  [[ "$REACT_APP_COGNITO_USER_POOL_ID" == "$bad" ]] && die "Forbidden UserPoolId specified: $bad"
-done
+echo -e "${GREEN}🔐 Cognito ClientId: $(mask "$CLIENT_ID")${NC}"
+echo -e "${GREEN}🔐 UserPoolId: $(mask "$USER_POOL_ID")${NC}"
 
-# ── Hosting config（既存インフラ） ─────────────────────────────────────────────
+# 旧IDだけをブロック（誤検知しないように限定）
+if [[ "$CLIENT_ID" == "1179cu6f4a1g8hqhavmndtf8as" || \
+      "$CLIENT_ID" == "2bggeikp7ijt5medn414pkfkmk" || \
+      "$CLIENT_ID" == "placeholder-client-id" ]]; then
+  die "Forbidden/placeholder ClientId detected. Abort."
+fi
+
+# フォーマット基本チェック（英数かつ 10〜64 文字程度）
+if ! [[ "$CLIENT_ID" =~ ^[a-z0-9]{10,64}$ ]]; then
+  die "Invalid ClientId format (must be lowercase alnum, length 10-64)"
+fi
+if ! [[ "$USER_POOL_ID" =~ ^ap-northeast-1_.+ ]]; then
+  die "Invalid UserPoolId format for ap-northeast-1"
+fi
+
+# ──────────────────────────────────────────────────────────────
+# Static hosting config (既存インフラを利用)
+# ──────────────────────────────────────────────────────────────
 echo -e "${YELLOW}📋 Using existing S3/CloudFront config...${NC}"
 BUCKET_NAME="${FRONTEND_BUCKET_NAME:-honda-hr-bank}"
 BUCKET_REGION="${FRONTEND_BUCKET_REGION:-ap-northeast-1}"
@@ -56,7 +70,9 @@ echo -e "${GREEN}✅ S3 Bucket: $BUCKET_NAME${NC}"
 echo -e "${GREEN}✅ CloudFront Distribution: $CLOUDFRONT_DISTRIBUTION_ID${NC}"
 echo -e "${GREEN}✅ CloudFront Domain: $CLOUDFRONT_DOMAIN${NC}"
 
-# ── Backend endpoint ──────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
+# Backend endpoint
+# ──────────────────────────────────────────────────────────────
 echo -e "${YELLOW}📋 Resolving API Gateway URL...${NC}"
 API_URL="${REACT_APP_API_URL:-}"
 if [ -z "$API_URL" ]; then
@@ -72,19 +88,24 @@ else
   echo -e "${GREEN}✅ API URL: $API_URL${NC}"
 fi
 
-# ── .env.production を生成（ENV 最優先） ───────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
+# Write .env.production（ENVの値を書き込む）
+# ──────────────────────────────────────────────────────────────
 echo -e "${YELLOW}📝 Creating $FRONTEND_DIR/.env.production...${NC}"
 cat > "$FRONTEND_DIR/.env.production" << EOF
+# Auto-generated for $STAGE
 REACT_APP_API_URL=$API_URL
-REACT_APP_COGNITO_USER_POOL_ID=$REACT_APP_COGNITO_USER_POOL_ID
-REACT_APP_COGNITO_CLIENT_ID=$REACT_APP_COGNITO_CLIENT_ID
+REACT_APP_COGNITO_USER_POOL_ID=$USER_POOL_ID
+REACT_APP_COGNITO_CLIENT_ID=$CLIENT_ID
 REACT_APP_REGION=${REACT_APP_REGION:-ap-northeast-1}
 REACT_APP_STAGE=$STAGE
 GENERATE_SOURCEMAP=false
 EOF
 echo -e "${GREEN}✅ .env.production created${NC}"
 
-# ── Build ────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
+# Build frontend
+# ──────────────────────────────────────────────────────────────
 cd "$FRONTEND_DIR"
 echo -e "${YELLOW}📦 Installing dependencies...${NC}"
 npm ci --production=false
@@ -94,54 +115,78 @@ npm run build
 [ -d "build" ] || die "Build failed (build dir missing)"
 echo -e "${GREEN}✅ Build succeeded${NC}"
 
-# ビルド成果物に旧 ID が混入していないか確認
-if rg -n "1179cu6f4a1g8hqhavmndtf8as|2bggeikp7ijt5medn414pkfkmk|1f62alqbqneo30qb0giarl9dva|ap-northeast-1_wkRvKeooL" -S build >/dev/null 2>&1; then
-  die "❌ Forbidden Cognito ID found inside build artifacts"
+# 念のため旧ID混入チェック
+if grep -R -E "1179cu6f4a1g8hqhavmndtf8as|2bggeikp7ijt5medn414pkfkmk" build >/dev/null 2>&1; then
+  die "Found forbidden old client id inside build artifacts"
 fi
 cd ..
 
-# ── Optional: S3/CloudFront 設定補正 ───────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
+# Optional: S3/CFront policy fix
+# ──────────────────────────────────────────────────────────────
+echo -e "${YELLOW}🔧 Ensuring S3/CFront config...${NC}"
 chmod +x scripts/fix-cloudfront-s3.sh 2>/dev/null || true
 ./scripts/fix-cloudfront-s3.sh 2>/dev/null || echo -e "${YELLOW}⚠️  Skipped/failed config fix, continue${NC}"
 
-# ── Upload to S3 ─────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
+# Upload to S3
+# ──────────────────────────────────────────────────────────────
 echo -e "${YELLOW}☁️  Uploading static assets to S3...${NC}"
 aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
-  --region "$BUCKET_REGION" --delete \
+  --region "$BUCKET_REGION" \
+  --delete \
   --cache-control "public, max-age=31536000" \
-  --exclude "*.html" --exclude "service-worker.js" --exclude "manifest.json"
+  --exclude "*.html" \
+  --exclude "service-worker.js" \
+  --exclude "manifest.json"
 
 echo -e "${YELLOW}☁️  Uploading HTML/manifest with no-cache...${NC}"
 aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
-  --region "$BUCKET_REGION" --delete \
+  --region "$BUCKET_REGION" \
+  --delete \
   --cache-control "no-cache, no-store, must-revalidate" \
-  --include "*.html" --include "service-worker.js" --include "manifest.json"
+  --include "*.html" \
+  --include "service-worker.js" \
+  --include "manifest.json"
 
+# Ensure index.html content-type
 aws s3 cp "s3://$BUCKET_NAME/index.html" "s3://$BUCKET_NAME/index.html" \
-  --region "$BUCKET_REGION" --metadata-directive REPLACE \
+  --region "$BUCKET_REGION" \
+  --metadata-directive REPLACE \
   --content-type "text/html" \
   --cache-control "no-cache, no-store, must-revalidate" || true
 
 echo -e "${GREEN}✅ S3 upload complete${NC}"
 
-# ── CloudFront invalidation ──────────────────────────────────────────────────
-echo -e "${YELLOW}🔄 Creating CloudFront invalidation...${NC}"
+# ──────────────────────────────────────────────────────────────
+# CloudFront invalidation
+# ──────────────────────────────────────────────────────────────
+echo -e "${YELLOW}🔄 Invalidating CloudFront cache...${NC}"
 INVALIDATION_ID=$(aws cloudfront create-invalidation \
   --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
   --paths "/*" \
-  --query 'Invalidation.Id' --output text 2>/dev/null || echo "")
-[ -n "$INVALIDATION_ID" ] \
-  && echo -e "${GREEN}✅ Invalidation: $INVALIDATION_ID${NC}" \
-  || echo -e "${YELLOW}⚠️  Could not create invalidation${NC}"
+  --query 'Invalidation.Id' \
+  --output text 2>/dev/null || echo "")
+
+if [ -n "$INVALIDATION_ID" ]; then
+  echo -e "${GREEN}✅ Invalidation created: $INVALIDATION_ID${NC}"
+else
+  echo -e "${YELLOW}⚠️  Could not create invalidation (check IAM/Dist ID)${NC}"
+fi
 
 WEBSITE_URL="https://$CLOUDFRONT_DOMAIN"
 echo -e "${GREEN}🌐 Website URL: $WEBSITE_URL${NC}"
 
+# ──────────────────────────────────────────────────────────────
+# Summary
+# ──────────────────────────────────────────────────────────────
+echo -e "${GREEN}🎉 Frontend deployment done${NC}"
 echo -e "${YELLOW}📋 Summary:${NC}"
-echo -e "  Stage:               $STAGE"
-echo -e "  API URL:             $API_URL"
-echo -e "  UserPoolId:          $REACT_APP_COGNITO_USER_POOL_ID"
-echo -e "  ClientId:            $REACT_APP_COGNITO_CLIENT_ID"
-echo -e "  S3 Bucket:           $BUCKET_NAME / $BUCKET_REGION"
-echo -e "  CloudFront:          $CLOUDFRONT_DISTRIBUTION_ID"
-[ -n "$INVALIDATION_ID" ] && echo -e "  Invalidation:        $INVALIDATION_ID"
+echo -e "   Stage:               $STAGE"
+echo -e "   S3 Bucket:           $BUCKET_NAME (Region: $BUCKET_REGION)"
+echo -e "   CloudFront Dist:     $CLOUDFRONT_DISTRIBUTION_ID"
+echo -e "   Website URL:         $WEBSITE_URL"
+echo -e "   API URL:             $API_URL"
+echo -e "   Cognito User Pool:   $USER_POOL_ID"
+echo -e "   Cognito Client:      $(mask "$CLIENT_ID")"
+[ -n "$INVALIDATION_ID" ] && echo -e "   Invalidation:        $INVALIDATION_ID"
