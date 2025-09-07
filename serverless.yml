@@ -238,7 +238,7 @@ functions:
             authorizerId:
               Ref: ApiGatewayAuthorizer
       - http:
-          path: applications/status/{applicationId}
+          path: applications/status/{applicationId}   # ← 衝突回避のため変更済み
           method: PUT
           cors:
             origin: "*"
@@ -300,6 +300,25 @@ functions:
 
 resources:
   Resources:
+    # === Keep existing Cognito UserPool under the stack (do NOT delete) ===
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        UserPoolName: ${self:service}-${self:provider.stage}-user-pool
+        UsernameAttributes:
+          - email
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireUppercase: true
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+
     # === Authorizer: 既存UserPoolを参照（ENVにIDを渡す） ===
     ApiGatewayAuthorizer:
       Type: AWS::ApiGateway::Authorizer

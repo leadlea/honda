@@ -54,12 +54,12 @@ jobs:
 
       - name: Deploy backend services (FULL)
         run: |
-          # fail-fast if the required env is missing
+          # fail-fast if required env is missing
           test -n "${{ secrets.REACT_APP_COGNITO_USER_POOL_ID }}" || (echo "COGNITO_USER_POOL_ID missing" && exit 1)
           npx serverless deploy --stage $STAGE --config serverless.yml
         env:
           SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
-          # CloudFormation (Authorizer) が参照する既存 UserPool をENVで注入
+          # Authorizer が参照する既存 UserPool ID をテンプレ解決時に注入
           COGNITO_USER_POOL_ID: ${{ secrets.REACT_APP_COGNITO_USER_POOL_ID }}
 
       - name: Verify deployment
