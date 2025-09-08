@@ -444,7 +444,7 @@ BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
 
 サポートと質問については:
 - GitHub リポジトリで Issue を作成
-- 福原玄（genfukuhara@gmail.com）に連絡してください
+- 福原玄（genfukuhara@gmail.com）に連絡
 
 ## 🗺️ ロードマップ
 
