@@ -1,7 +1,7 @@
 import { Amplify } from 'aws-amplify';
 import type { ResourcesConfig } from 'aws-amplify';
 import { environment, validateEnvironment } from './environment';
-import { fetchAuthSession } from 'aws-amplify/auth'; // ← 追加
+import { fetchAuthSession } from 'aws-amplify/auth'; // 追加
 
 // 必須チェック
 validateEnvironment();
@@ -15,34 +15,38 @@ assertNonEmpty('cognitoUserPoolId', environment.cognitoUserPoolId);
 assertNonEmpty('cognitoClientId', environment.cognitoClientId);
 assertNonEmpty('apiUrl', environment.apiUrl);
 
-// v6 では Auth.Cognito に region は不要
+// Amplify v6: Auth.Cognito に region は不要
 const amplifyConfig: ResourcesConfig = {
   Auth: {
     Cognito: {
       userPoolId: environment.cognitoUserPoolId,
       userPoolClientId: environment.cognitoClientId,
-      signUpVerificationMethod: 'link', // 要件に合わせて 'code' でもOK
+      signUpVerificationMethod: 'link', // 必要に応じて 'code'
       loginWith: { email: true, username: false },
     },
   },
   API: {
     REST: {
       veteranTalentAPI: {
-        endpoint: environment.apiUrl,         // 例: https://xxxx.execute-api.ap-northeast-1.amazonaws.com/prod
+        endpoint: environment.apiUrl, // 例: https://xxxx.execute-api.ap-northeast-1.amazonaws.com/prod
         region: environment.region,
 
-        // ★ ここがポイント：毎回 Authorization を自動付与
-        headers: async () => {
-          const s = await fetchAuthSession();
-          const idToken = s.tokens?.idToken?.toString();
-          // Cognito User Pools Authorizer は通常 Bearer なしでOK
-          // もし Authorizer 側の設定で Bearer を要求しているなら下の1行を使ってください
-          // return idToken ? { Authorization: `Bearer ${idToken}` } : {};
-          return idToken ? { Authorization: idToken } : {};
+        // ★ 全てのRESTリクエストに Authorization を自動付与
+        customHeaders: async () => {
+          try {
+            const s = await fetchAuthSession();
+            const idToken = s.tokens?.idToken?.toString();
+            // 通常の User Pools Authorizer は Bearer なしでも可。
+            // Bearer が必要な構成なら下の1行に変更してください。
+            // return idToken ? { Authorization: `Bearer ${idToken}` } : {};
+            return idToken ? { Authorization: idToken } : {};
+          } catch {
+            return {};
+          }
         },
 
-        // （もし API Key も併用しているなら）
-        // headers: async () => {
+        // APIキー併用時の例:
+        // customHeaders: async () => {
         //   const s = await fetchAuthSession();
         //   const idToken = s.tokens?.idToken?.toString();
         //   return {
