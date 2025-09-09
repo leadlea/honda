@@ -8,7 +8,8 @@ import RecommendationsList from './components/recommendations/RecommendationsLis
 import ApplicationTracker from './components/recommendations/ApplicationTracker';
 import PublicVeteranSearch from './components/public/PublicVeteranSearch';
 import ProtectedRoute from './components/common/ProtectedRoute';
-import Verified from './components/Verified';               // ★ 追加
+import Verified from './components/Verified';
+import Questionnaire from './components/questionnaire/Questionnaire'; // ← 追加
 import './config/amplify';
 import './App.css';
 
@@ -16,7 +17,7 @@ const AppContent: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
 
-  // ★ URLのパスで /verified をハンドリング（Router不要）
+  // URLのパスで /verified をハンドリング（Routerなし運用）
   const pathname =
     typeof window !== 'undefined'
       ? window.location.pathname.replace(/\/+$/, '')
@@ -33,43 +34,41 @@ const AppContent: React.FC = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'user-profile':
-        return <UserProfile />;
-      case 'questionnaire':
+      case 'profile': // ← ナビが 'profile' を渡してもユーザープロフィールを表示
         return (
           <ProtectedRoute allowedRoles={['veteran']}>
-            <div className="page-placeholder">
-              <h2>AI問診システム</h2>
-              <p>この機能は次のタスクで実装されます。</p>
-            </div>
+            <UserProfile />
           </ProtectedRoute>
         );
-      case 'profile':
+
+      case 'questionnaire': // ← プレースホルダーを本実装に差し替え
         return (
           <ProtectedRoute allowedRoles={['veteran']}>
-            <div className="page-placeholder">
-              <h2>プロフィール管理</h2>
-              <p>この機能は次のタスクで実装されます。</p>
-            </div>
+            <Questionnaire />
           </ProtectedRoute>
         );
+
       case 'recommendations':
         return (
           <ProtectedRoute allowedRoles={['veteran']}>
             <RecommendationsList />
           </ProtectedRoute>
         );
+
       case 'applications':
         return (
           <ProtectedRoute allowedRoles={['veteran']}>
             <ApplicationTracker />
           </ProtectedRoute>
         );
+
       case 'public-search':
         return (
           <ProtectedRoute allowedRoles={['external_recruiter']}>
             <PublicVeteranSearch />
           </ProtectedRoute>
         );
+
       case 'admin':
         return (
           <ProtectedRoute allowedRoles={['admin']}>
@@ -79,6 +78,7 @@ const AppContent: React.FC = () => {
             </div>
           </ProtectedRoute>
         );
+
       default:
         return <Dashboard onNavigate={handleNavigate} />;
     }
