@@ -1,52 +1,44 @@
 """
-Lambda handler for AI-generated questionnaire operations.
-Removes local JWT verification/cryptography dependency and relies on
-API Gateway Cognito User Pool Authorizer (claims from event.requestContext).
+AI Questionnaire Lambda (no external crypto deps)
+- Uses API Gateway Cognito authorizer claims for the user.
+- Talks to DynamoDB directly via boto3 (no repository imports).
+- Generates questionnaire via Bedrock; falls back to a static template if it fails.
 """
 
+from __future__ import annotations
+
 import json
+import os
+import uuid
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.repositories.questionnaire_repository import QuestionnaireRepository
-from src.repositories.user_repository import UserRepository
-from src.repositories.veteran_profile_repository import VeteranProfileRepository
-from src.services.ai_utils import get_ai_service
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# ---------- Env & clients ----------
+REGION = os.environ.get("AWS_REGION") or os.environ.get("REGION") or "ap-northeast-1"
+PREFIX = os.environ.get("DYNAMODB_TABLE_PREFIX", "honda-veteran-talent-matching-dev")
+MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0")
 
-# ---------- helpers ----------
+ddb = boto3.resource("dynamodb", region_name=REGION)
+bedrock = boto3.client("bedrock-runtime", region_name=REGION)
 
-def _get_user_from_event(event: Dict[str, Any]) -> Tuple[Optional[str], Dict[str, Any]]:
-    """
-    Get user_id and raw claims from API Gateway authorizer claims.
-    Falls back to path parameter if claims are unavailable.
-    """
-    claims = (
-        event.get("requestContext", {})
-        .get("authorizer", {})
-        .get("claims", {})
-        or {}
-    )
-
-    user_id = (
-        claims.get("sub")
-        or claims.get("username")
-        or claims.get("cognito:username")
-    )
-
-    # safe fallback to path parameter (case variations)
-    if not user_id:
-        path_params = event.get("pathParameters", {}) or {}
-        user_id = path_params.get("userId") or path_params.get("user_id")
-
-    return user_id, claims
+TBL_USERS = ddb.Table(f"{PREFIX}-users")
+TBL_PROFILES = ddb.Table(f"{PREFIX}-veteran-profiles")
+TBL_Q = ddb.Table(f"{PREFIX}-questionnaires")
 
 
-def _json_response(status: int, body: Dict[str, Any]) -> Dict[str, Any]:
+# ---------- small helpers ----------
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _resp(status: int, body: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "statusCode": status,
         "headers": {
@@ -57,290 +49,355 @@ def _json_response(status: int, body: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-# ---------- handler class ----------
-
-class QuestionnaireHandler:
-    """Handler for questionnaire-related operations."""
-
-    def __init__(self):
-        self.ai_service = get_ai_service()
-        self.questionnaire_repo = QuestionnaireRepository()
-        self.user_repo = UserRepository()
-        self.profile_repo = VeteranProfileRepository()
-
-    # === GET /questionnaire/{userId} (generate on demand) ===
-    async def generate_questionnaire(
-        self, event: Dict[str, Any], context: Any
-    ) -> Dict[str, Any]:
-        try:
-            user_id, claims = _get_user_from_event(event)
-            if not user_id:
-                return _json_response(401, {"error": "Unauthorized"})
-            # (任意) パスの userId と一致チェック
-            path_uid = (event.get("pathParameters") or {}).get("userId")
-            if path_uid and path_uid != user_id:
-                return _json_response(403, {"error": "Forbidden"})
-
-            # Check role (veteran)
-            user = await self.user_repo.get_by_id(user_id)
-            if not user or getattr(user, "role", None) != "veteran":
-                return _json_response(403, {"error": "Access denied. Veteran role required."})
-
-            # Get profile
-            profile = await self.profile_repo.get_by_user_id(user_id)
-
-            # previous answers for context
-            previous_questionnaires = await self.questionnaire_repo.get_user_questionnaires(user_id)
-            previous_responses: List[Dict[str, Any]] = []
-            if previous_questionnaires:
-                latest = max(previous_questionnaires, key=lambda q: q.created_at)
-                if getattr(latest, "responses", None):
-                    previous_responses = latest.responses
-
-            # years of experience
-            years_experience = 0
-            if getattr(user, "join_date", None):
-                join_date = datetime.fromisoformat(str(user.join_date).replace("Z", "+00:00"))
-                years_experience = (datetime.now(timezone.utc) - join_date).days // 365
-
-            # ask AI
-            questionnaire_data = await self.ai_service.generate_questionnaire(
-                name=getattr(user, "name", "User"),
-                department=getattr(user, "department", "General"),
-                years_experience=years_experience,
-                current_role=getattr(profile, "business_title", "Employee") if profile else "Employee",
-                previous_responses=previous_responses,
-            )
-
-            # persist
-            created = await self.questionnaire_repo.create_questionnaire(
-                user_id=user_id,
-                questionnaire_data=questionnaire_data,
-                ai_generated=True,
-            )
-
-            logger.info("Generated questionnaire %s for user %s", created.questionnaire_id, user_id)
-
-            # フロントが扱いやすい形：質問票をトップレベルで返す
-            shaped = {
-                "questionnaire_id": created.questionnaire_id,
-                "status": getattr(created, "status", "generated"),
-                "created_at": getattr(created, "created_at", datetime.now(timezone.utc).isoformat()),
-                **questionnaire_data,  # expected to include `title`, `questions`, `responses` (optional)
-            }
-            return _json_response(200, shaped)
-
-        except Exception as e:
-            logger.exception("Error generating questionnaire: %s", e)
-            return _json_response(500, {"error": "Internal server error"})
-
-    # === POST /questionnaire/{userId}/submit ===
-    async def submit_questionnaire(
-        self, event: Dict[str, Any], context: Any
-    ) -> Dict[str, Any]:
-        try:
-            user_id, _ = _get_user_from_event(event)
-            if not user_id:
-                return _json_response(401, {"error": "Unauthorized"})
-
-            try:
-                body = json.loads(event.get("body") or "{}")
-            except json.JSONDecodeError:
-                return _json_response(400, {"error": "Invalid JSON in request body"})
-
-            questionnaire_id = body.get("questionnaire_id")
-            responses = body.get("responses") or []
-
-            if not questionnaire_id or not isinstance(responses, list) or not responses:
-                return _json_response(400, {"error": "Missing questionnaire_id or responses"})
-
-            questionnaire = await self.questionnaire_repo.get_by_id(questionnaire_id)
-            if not questionnaire or questionnaire.user_id != user_id:
-                return _json_response(404, {"error": "Questionnaire not found"})
-
-            await self.questionnaire_repo.submit_responses(
-                questionnaire_id=questionnaire_id, responses=responses
-            )
-
-            # Update profile heuristically from responses
-            await self._update_profile_from_responses(user_id, responses)
-
-            logger.info("Submitted questionnaire %s for user %s", questionnaire_id, user_id)
-
-            return _json_response(
-                200,
-                {
-                    "message": "Questionnaire submitted successfully",
-                    "questionnaire_id": questionnaire_id,
-                    "submitted_at": datetime.now(timezone.utc).isoformat(),
-                },
-            )
-
-        except Exception as e:
-            logger.exception("Error submitting questionnaire: %s", e)
-            return _json_response(500, {"error": "Internal server error"})
-
-    # === GET /questionnaire/{userId}/history ===
-    async def get_questionnaire_history(
-        self, event: Dict[str, Any], context: Any
-    ) -> Dict[str, Any]:
-        try:
-            user_id, _ = _get_user_from_event(event)
-            if not user_id:
-                return _json_response(401, {"error": "Unauthorized"})
-
-            questionnaires = await self.questionnaire_repo.get_user_questionnaires(user_id)
-
-            history: List[Dict[str, Any]] = []
-            for q in questionnaires:
-                history.append(
-                    {
-                        "questionnaire_id": q.questionnaire_id,
-                        "title": getattr(q, "title", None) or getattr(q, "questionnaire", {}).get("title"),
-                        "status": getattr(q, "status", "generated"),
-                        "created_at": getattr(q, "created_at", None),
-                        "submitted_at": getattr(q, "submitted_at", None),
-                        "ai_generated": getattr(q, "ai_generated", True),
-                        "question_count": len(getattr(q, "questions", []) or getattr(q, "questionnaire", {}).get("questions", []) or []),
-                        "response_count": len(getattr(q, "responses", []) or []),
-                        # Optional fields used by UI
-                        "questions": getattr(q, "questions", None) or getattr(q, "questionnaire", {}).get("questions"),
-                        "responses": getattr(q, "responses", None),
-                        "generated_at": getattr(q, "created_at", None),
-                        "completed_at": getattr(q, "submitted_at", None),
-                    }
-                )
-
-            return _json_response(200, {"questionnaires": history, "total_count": len(history)})
-
-        except Exception as e:
-            logger.exception("Error getting questionnaire history: %s", e)
-            return _json_response(500, {"error": "Internal server error"})
-
-    # === PUT /questionnaire/{userId}/regenerate ===
-    async def regenerate_questionnaire(
-        self, event: Dict[str, Any], context: Any
-    ) -> Dict[str, Any]:
-        try:
-            user_id, _ = _get_user_from_event(event)
-            if not user_id:
-                return _json_response(401, {"error": "Unauthorized"})
-
-            # original questionnaire_id (optional) from body or path
-            body = {}
-            if event.get("body"):
-                try:
-                    body = json.loads(event["body"])
-                except json.JSONDecodeError:
-                    body = {}
-            from_qid = (event.get("pathParameters") or {}).get("questionnaire_id") or body.get("questionnaire_id")
-
-            user = await self.user_repo.get_by_id(user_id)
-            profile = await self.profile_repo.get_by_user_id(user_id)
-
-            years_experience = 0
-            if getattr(user, "join_date", None):
-                join_date = datetime.fromisoformat(str(user.join_date).replace("Z", "+00:00"))
-                years_experience = (datetime.now(timezone.utc) - join_date).days // 365
-
-            previous_responses: List[Dict[str, Any]] = []
-            if from_qid:
-                original = await self.questionnaire_repo.get_by_id(from_qid)
-                if original and getattr(original, "responses", None):
-                    previous_responses = original.responses
-
-            questionnaire_data = await self.ai_service.generate_questionnaire(
-                name=getattr(user, "name", "User"),
-                department=getattr(user, "department", "General"),
-                years_experience=years_experience,
-                current_role=getattr(profile, "business_title", "Employee") if profile else "Employee",
-                previous_responses=previous_responses,
-            )
-
-            created = await self.questionnaire_repo.create_questionnaire(
-                user_id=user_id,
-                questionnaire_data=questionnaire_data,
-                ai_generated=True,
-            )
-
-            logger.info("Regenerated questionnaire %s for user %s", created.questionnaire_id, user_id)
-
-            shaped = {
-                "questionnaire_id": created.questionnaire_id,
-                "status": getattr(created, "status", "generated"),
-                "created_at": getattr(created, "created_at", datetime.now(timezone.utc).isoformat()),
-                "regenerated_from": from_qid,
-                **questionnaire_data,
-            }
-            return _json_response(200, shaped)
-
-        except Exception as e:
-            logger.exception("Error regenerating questionnaire: %s", e)
-            return _json_response(500, {"error": "Internal server error"})
-
-    # ---------- profile updater ----------
-
-    async def _update_profile_from_responses(self, user_id: str, responses: List[Dict[str, Any]]) -> None:
-        try:
-            profile = await self.profile_repo.get_by_user_id(user_id)
-            if not profile:
-                logger.warning("No profile found for user %s", user_id)
-                return
-
-            new_skills: List[str] = []
-            new_interests: List[str] = []
-
-            for r in responses:
-                qid = str(r.get("question_id", "")).lower()
-                answer = r.get("answer", "")
-                if "skill" in qid and answer:
-                    new_skills.extend(answer if isinstance(answer, list) else [answer])
-                if "interest" in qid or "career" in qid:
-                    new_interests.extend(answer if isinstance(answer, list) else [answer])
-
-            update: Dict[str, Any] = {}
-
-            if new_skills:
-                existing = list(getattr(profile, "skills", []) or [])
-                names = {s.get("name", "") for s in existing if isinstance(s, dict)}
-                for s in new_skills:
-                    if s and s not in names:
-                        existing.append({"name": s, "level": "Intermediate", "years": 1, "certifications": []})
-                update["skills"] = existing
-
-            if new_interests:
-                prefs = dict(getattr(profile, "preferences", {}) or {})
-                roles = list(prefs.get("preferred_roles", []) or [])
-                for i in new_interests:
-                    if i and i not in roles:
-                        roles.append(i)
-                prefs["preferred_roles"] = roles
-                update["preferences"] = prefs
-
-            q_responses = list(getattr(profile, "questionnaire_responses", []) or [])
-            q_responses.append({"timestamp": datetime.now(timezone.utc).isoformat(), "responses": responses})
-            update["questionnaire_responses"] = q_responses
-
-            if update:
-                await self.profile_repo.update_profile(user_id, update)
-                logger.info("Updated profile for user %s based on questionnaire responses", user_id)
-
-        except Exception as e:
-            logger.exception("Error updating profile from responses: %s", e)
+def _get_user_from_event(event: Dict[str, Any]) -> Optional[str]:
+    claims = (
+        event.get("requestContext", {})
+        .get("authorizer", {})
+        .get("claims", {})
+        or {}
+    )
+    uid = claims.get("sub") or claims.get("username") or claims.get("cognito:username")
+    if not uid:
+        path = event.get("pathParameters") or {}
+        uid = path.get("userId") or path.get("user_id")
+    return uid
 
 
-# ---------- Lambda entrypoints ----------
+# ---------- Dynamo helpers ----------
+def _get_user(uid: str) -> Optional[Dict[str, Any]]:
+    try:
+        r = TBL_USERS.get_item(Key={"user_id": uid})
+        return r.get("Item")
+    except ClientError as e:
+        logger.error("Get user failed: %s", e)
+        return None
 
-handler_instance = QuestionnaireHandler()
 
+def _get_profile(uid: str) -> Optional[Dict[str, Any]]:
+    try:
+        r = TBL_PROFILES.get_item(Key={"user_id": uid})
+        return r.get("Item")
+    except ClientError as e:
+        logger.error("Get profile failed: %s", e)
+        return None
+
+
+def _save_questionnaire(uid: str, qdata: Dict[str, Any]) -> Dict[str, Any]:
+    qid = str(uuid.uuid4())
+    item = {
+        "questionnaire_id": qid,
+        "user_id": uid,
+        "status": "generated",
+        "created_at": _now_iso(),
+        "ai_generated": True,
+        # 保存時はネストした "questionnaire" に格納（既存スキーマ互換）
+        "questionnaire": qdata,
+        "responses": [],
+    }
+    TBL_Q.put_item(Item=item)
+    return item
+
+
+def _get_questionnaire(qid: str) -> Optional[Dict[str, Any]]:
+    r = TBL_Q.get_item(Key={"questionnaire_id": qid})
+    return r.get("Item")
+
+
+def _query_user_questionnaires(uid: str) -> List[Dict[str, Any]]:
+    # GSI: UserIdIndex (HASH user_id)
+    try:
+        r = TBL_Q.query(
+            IndexName="UserIdIndex",
+            KeyConditionExpression=boto3.dynamodb.conditions.Key("user_id").eq(uid),
+        )
+        return r.get("Items", [])
+    except ClientError as e:
+        logger.error("Query questionnaires failed: %s", e)
+        return []
+
+
+def _submit_responses(qid: str, responses: List[Dict[str, Any]]) -> None:
+    TBL_Q.update_item(
+        Key={"questionnaire_id": qid},
+        UpdateExpression="SET #r = :r, #s = :s, #t = :t",
+        ExpressionAttributeNames={"#r": "responses", "#s": "status", "#t": "submitted_at"},
+        ExpressionAttributeValues={":r": responses, ":s": "completed", ":t": _now_iso()},
+    )
+
+
+def _update_profile_from_responses(uid: str, responses: List[Dict[str, Any]]) -> None:
+    profile = _get_profile(uid)
+    if not profile:
+        logger.warning("No profile for user %s", uid)
+        return
+
+    new_skills: List[str] = []
+    new_interests: List[str] = []
+
+    for r in responses:
+        qid = str(r.get("question_id", "")).lower()
+        ans = r.get("answer", "")
+        if "skill" in qid and ans:
+            new_skills.extend(ans if isinstance(ans, list) else [ans])
+        if "interest" in qid or "career" in qid:
+            new_interests.extend(ans if isinstance(ans, list) else [ans])
+
+    update_expr = []
+    names: Dict[str, str] = {}
+    values: Dict[str, Any] = {}
+
+    if new_skills:
+        existing = list(profile.get("skills", []) or [])
+        names_set = {s.get("name", "") for s in existing if isinstance(s, dict)}
+        for s in new_skills:
+            if s and s not in names_set:
+                existing.append({"name": s, "level": "Intermediate", "years": 1, "certifications": []})
+        update_expr.append("#skills = :skills")
+        names["#skills"] = "skills"
+        values[":skills"] = existing
+
+    if new_interests:
+        prefs = dict(profile.get("preferences") or {})
+        roles = list(prefs.get("preferred_roles", []) or [])
+        for i in new_interests:
+            if i and i not in roles:
+                roles.append(i)
+        prefs["preferred_roles"] = roles
+        update_expr.append("#prefs = :prefs")
+        names["#prefs"] = "preferences"
+        values[":prefs"] = prefs
+
+    q_hist = list(profile.get("questionnaire_responses", []) or [])
+    q_hist.append({"timestamp": _now_iso(), "responses": responses})
+    update_expr.append("#qh = :qh")
+    names["#qh"] = "questionnaire_responses"
+    values[":qh"] = q_hist
+
+    if update_expr:
+        TBL_PROFILES.update_item(
+            Key={"user_id": uid},
+            UpdateExpression="SET " + ", ".join(update_expr),
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values,
+        )
+
+
+# ---------- Bedrock ----------
+def _fallback_questionnaire(name: str) -> Dict[str, Any]:
+    return {
+        "title": f"{name}さん向けキャリアAI問診",
+        "questions": [
+            {"id": "skills_primary", "text": "現在の主な専門スキルは何ですか？", "type": "text", "category": "skills", "required": True},
+            {"id": "skills_lang", "text": "業務で使ったことのあるプログラミング言語を選んでください。", "type": "multiple_choice", "options": ["Python", "Java", "C/C++", "Go", "その他"], "category": "skills", "required": False},
+            {"id": "exp_years", "text": "現在の職種の経験年数を教えてください（1〜5で評価）。", "type": "rating", "category": "experience", "required": True},
+            {"id": "domain_exp", "text": "自動車・ロボティクス・モビリティ領域で携わったことのある分野を教えてください。", "type": "text", "category": "experience", "required": False},
+            {"id": "interest_roles", "text": "今後挑戦したいロール（職務）を教えてください。", "type": "text", "category": "preferences", "required": True},
+            {"id": "work_style", "text": "勤務地・働き方（出社/リモート/ハイブリッド）の希望はありますか？", "type": "text", "category": "preferences", "required": False},
+            {"id": "leadership", "text": "ピープルマネジメントに関心はありますか？", "type": "boolean", "category": "goals", "required": False},
+            {"id": "goal_6m", "text": "今後6か月で達成したいキャリア目標は何ですか？", "type": "text", "category": "goals", "required": False},
+        ],
+        "responses": [],
+    }
+
+
+def _generate_with_bedrock(name: str, department: str, years_experience: int, current_role: str,
+                           previous_responses: List[Dict[str, Any]]) -> Dict[str, Any]:
+    system = (
+        "You are a career counselor. Create a short personalized questionnaire in Japanese "
+        "as compact JSON with fields: title (string), questions (array of {id,text,type,category,required,options?}). "
+        "Use types: text|multiple_choice|rating|boolean. Keep 6-10 questions. "
+        "Return ONLY JSON."
+    )
+    user_msg = {
+        "name": name,
+        "department": department,
+        "years_experience": years_experience,
+        "current_role": current_role,
+        "previous_responses": previous_responses,
+    }
+    body = json.dumps({
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 1000,
+        "temperature": 0.3,
+        "system": system,
+        "messages": [{"role": "user", "content": [{"type": "text", "text": json.dumps(user_msg, ensure_ascii=False)}]}],
+    })
+
+    try:
+        res = bedrock.invoke_model(modelId=MODEL_ID, body=body)
+        payload = res["body"].read().decode("utf-8")
+        data = json.loads(payload)
+        text = ""
+        for c in data.get("content", []):
+            if c.get("type") == "text":
+                text += c.get("text", "")
+        # 有効な JSON 抽出
+        parsed = json.loads(text)
+        # 最低限のバリデーション
+        if not isinstance(parsed.get("questions", []), list):
+            raise ValueError("Invalid questions")
+        return {"title": parsed.get("title") or f"{name}さん向けAI問診", "questions": parsed["questions"], "responses": []}
+    except Exception as e:
+        logger.warning("Bedrock generation failed, fallback used: %s", e)
+        return _fallback_questionnaire(name)
+
+
+# ---------- Handlers ----------
 async def generate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    return await handler_instance.generate_questionnaire(event, context)
+    try:
+        uid = _get_user_from_event(event)
+        if not uid:
+            return _resp(401, {"error": "Unauthorized"})
+
+        user = _get_user(uid) or {}
+        profile = _get_profile(uid) or {}
+
+        # years of experience
+        years = 0
+        j = user.get("join_date")
+        if j:
+            try:
+                dt = datetime.fromisoformat(str(j).replace("Z", "+00:00"))
+                years = (datetime.now(timezone.utc) - dt).days // 365
+            except Exception:
+                years = 0
+
+        # context from latest questionnaire
+        prev_items = _query_user_questionnaires(uid)
+        previous_responses: List[Dict[str, Any]] = []
+        if prev_items:
+            latest = max(prev_items, key=lambda x: x.get("created_at", ""))
+            previous_responses = latest.get("responses") or []
+
+        qdata = _generate_with_bedrock(
+            name=user.get("name", "ユーザー"),
+            department=user.get("department", "General"),
+            years_experience=years,
+            current_role=profile.get("business_title", "Employee"),
+            previous_responses=previous_responses,
+        )
+
+        saved = _save_questionnaire(uid, qdata)
+        # フロントの期待に合わせて { questionnaire: {...} } で返す
+        shaped = {
+            "questionnaire_id": saved["questionnaire_id"],
+            "status": saved["status"],
+            "created_at": saved["created_at"],
+            **qdata,
+        }
+        return _resp(200, {"questionnaire": shaped})
+    except Exception as e:
+        logger.exception("generate_questionnaire error: %s", e)
+        return _resp(500, {"error": "Internal server error"})
+
 
 async def submit_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    return await handler_instance.submit_questionnaire(event, context)
+    try:
+        uid = _get_user_from_event(event)
+        if not uid:
+            return _resp(401, {"error": "Unauthorized"})
+
+        try:
+            body = json.loads(event.get("body") or "{}")
+        except json.JSONDecodeError:
+            return _resp(400, {"error": "Invalid JSON in request body"})
+
+        qid = body.get("questionnaire_id")
+        responses = body.get("responses") or []
+        if not qid or not isinstance(responses, list) or not responses:
+            return _resp(400, {"error": "Missing questionnaire_id or responses"})
+
+        item = _get_questionnaire(qid)
+        if not item or item.get("user_id") != uid:
+            return _resp(404, {"error": "Questionnaire not found"})
+
+        _submit_responses(qid, responses)
+        _update_profile_from_responses(uid, responses)
+
+        return _resp(200, {"message": "Questionnaire submitted successfully", "questionnaire_id": qid})
+    except Exception as e:
+        logger.exception("submit_questionnaire error: %s", e)
+        return _resp(500, {"error": "Internal server error"})
+
 
 async def get_questionnaire_history(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    return await handler_instance.get_questionnaire_history(event, context)
+    try:
+        uid = _get_user_from_event(event)
+        if not uid:
+            return _resp(401, {"error": "Unauthorized"})
+
+        items = _query_user_questionnaires(uid)
+        history: List[Dict[str, Any]] = []
+        for it in items:
+            q = it.get("questionnaire") or {}
+            history.append({
+                "questionnaire_id": it.get("questionnaire_id"),
+                "title": q.get("title"),
+                "status": it.get("status"),
+                "created_at": it.get("created_at"),
+                "submitted_at": it.get("submitted_at"),
+                "ai_generated": it.get("ai_generated", True),
+                "questions": q.get("questions", []),
+                "responses": it.get("responses", []),
+                "generated_at": it.get("created_at"),
+                "completed_at": it.get("submitted_at"),
+            })
+        return _resp(200, {"questionnaires": history, "total_count": len(history)})
+    except Exception as e:
+        logger.exception("get_questionnaire_history error: %s", e)
+        return _resp(500, {"error": "Internal server error"})
+
 
 async def regenerate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    return await handler_instance.regenerate_questionnaire(event, context)
+    try:
+        uid = _get_user_from_event(event)
+        if not uid:
+            return _resp(401, {"error": "Unauthorized"})
+
+        # optional: body.questionnaire_id to reuse previous responses
+        body = {}
+        if event.get("body"):
+            try:
+                body = json.loads(event["body"])
+            except json.JSONDecodeError:
+                body = {}
+        from_qid = body.get("questionnaire_id")
+
+        user = _get_user(uid) or {}
+        profile = _get_profile(uid) or {}
+
+        years = 0
+        j = user.get("join_date")
+        if j:
+            try:
+                dt = datetime.fromisoformat(str(j).replace("Z", "+00:00"))
+                years = (datetime.now(timezone.utc) - dt).days // 365
+            except Exception:
+                years = 0
+
+        prev_responses: List[Dict[str, Any]] = []
+        if from_qid:
+            orig = _get_questionnaire(from_qid)
+            if orig:
+                prev_responses = orig.get("responses") or []
+
+        qdata = _generate_with_bedrock(
+            name=user.get("name", "ユーザー"),
+            department=user.get("department", "General"),
+            years_experience=years,
+            current_role=profile.get("business_title", "Employee"),
+            previous_responses=prev_responses,
+        )
+
+        saved = _save_questionnaire(uid, qdata)
+        shaped = {
+            "questionnaire_id": saved["questionnaire_id"],
+            "status": saved["status"],
+            "created_at": saved["created_at"],
+            "regenerated_from": from_qid,
+            **qdata,
+        }
+        return _resp(200, {"questionnaire": shaped})
+    except Exception as e:
+        logger.exception("regenerate_questionnaire error: %s", e)
+        return _resp(500, {"error": "Internal server error"})
