@@ -1,10 +1,28 @@
-import { signIn, signOut, signUp, getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
+import {
+  signIn,
+  signOut,
+  signUp,
+  getCurrentUser as amplifyGetCurrentUser,
+  fetchAuthSession,
+} from 'aws-amplify/auth';
 import { get, put } from 'aws-amplify/api';
 import { User, LoginCredentials, SignUpData } from '../types/auth';
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<any> {
     try {
+      // 既存セッションがあると "There is already a signed in user." が出るため事前に掃除
+      try {
+        const u = await amplifyGetCurrentUser();
+        if (u) {
+          await signOut({ global: true });
+        }
+      } catch {
+        // 未ログインなら無視
+      }
+      // 念のためローカルセッションもクリア
+      await signOut().catch(() => {});
+
       const result = await signIn({
         username: credentials.email,
         password: credentials.password,
@@ -18,7 +36,8 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
-      await signOut();
+      // 全端末のセッションも含めて無効化
+      await signOut({ global: true });
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
@@ -48,10 +67,10 @@ class AuthService {
 
   async getCurrentUser(): Promise<any> {
     try {
-      const user = await getCurrentUser();
+      const user = await amplifyGetCurrentUser();
       return user;
-    } catch (error) {
-      console.error('Get current user error:', error);
+    } catch {
+      // 未ログイン
       return null;
     }
   }
@@ -66,7 +85,7 @@ class AuthService {
         path: `/auth/profile`,
       }).response;
 
-      const userData = await response.body.json() as any;
+      const userData = (await response.body.json()) as any;
       return userData.user;
     } catch (error) {
       console.error('Get user profile error:', error);
@@ -79,12 +98,10 @@ class AuthService {
       const response = await put({
         apiName: 'veteranTalentAPI',
         path: `/auth/profile`,
-        options: {
-          body: userData,
-        },
+        options: { body: userData },
       }).response;
 
-      const updatedUser = await response.body.json() as any;
+      const updatedUser = (await response.body.json()) as any;
       return updatedUser.user;
     } catch (error) {
       console.error('Update user profile error:', error);
@@ -95,7 +112,7 @@ class AuthService {
   async getAuthToken(): Promise<string | null> {
     try {
       const session = await fetchAuthSession();
-      return session.tokens?.idToken?.toString() || null;
+      return session.tokens?.idToken?.toString() ?? null;
     } catch (error) {
       console.error('Get auth token error:', error);
       return null;
@@ -106,7 +123,7 @@ class AuthService {
     try {
       const user = await this.getCurrentUser();
       return !!user;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
