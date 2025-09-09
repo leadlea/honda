@@ -1,4 +1,3 @@
-// frontend/src/services/profileService.ts
 import { get, put, post } from 'aws-amplify/api';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import {
@@ -8,8 +7,7 @@ import {
   PrivacySettings,
 } from '../types/profile';
 
-// 共通: 認証ヘッダー（IDトークン）。バックエンド側は "Bearer " を除去する実装なので、どちらでもOK。
-// 明示的に "Bearer " を付与しておく。
+// 共通: 認証ヘッダー
 async function authHeaders(extra?: Record<string, string>) {
   const { tokens } = await fetchAuthSession();
   const idToken = tokens?.idToken?.toString();
@@ -31,6 +29,7 @@ class ProfileService {
         path: `/profiles/${userId}`,
         options: { headers },
       }).response;
+
       const data = (await response.body.json()) as any;
       return data.profile ?? null;
     } catch (error) {
@@ -50,10 +49,11 @@ class ProfileService {
         path: `/profiles/${userId}`,
         options: {
           headers,
-          // Amplify APIは object を渡すと自動でJSON化されます
-          body: profileData,
+          // 型エラー回避のため JSON 文字列で送信
+          body: JSON.stringify(profileData),
         },
       }).response;
+
       const data = (await response.body.json()) as any;
       return data.profile;
     } catch (error) {
@@ -73,9 +73,10 @@ class ProfileService {
         path: `/profiles/${userId}/privacy`,
         options: {
           headers,
-          body: privacySettings,
+          body: JSON.stringify(privacySettings),
         },
       }).response;
+
       const data = (await response.body.json()) as any;
       return data.profile;
     } catch (error) {
@@ -92,6 +93,7 @@ class ProfileService {
         path: `/profiles/${userId}/business-title`,
         options: { headers },
       }).response;
+
       const data = (await response.body.json()) as any;
       return data.suggestions ?? [];
     } catch (error) {
@@ -101,7 +103,6 @@ class ProfileService {
   }
 
   // ---------- Questionnaire ----------
-  // バックエンドは「questions を直置き」で返すので、そのまま返す
   async getQuestionnaire(userId: string): Promise<Questionnaire | null> {
     try {
       const headers = await authHeaders();
@@ -110,8 +111,9 @@ class ProfileService {
         path: `/questionnaire/${userId}`,
         options: { headers },
       }).response;
+
       const data = (await response.body.json()) as any;
-      // data.questionnaire ではなく data を採用
+      // バックエンドは questions を直置きで返す
       return (data as Questionnaire) ?? null;
     } catch (error) {
       console.error('Get questionnaire error:', error);
@@ -119,7 +121,6 @@ class ProfileService {
     }
   }
 
-  // 返却は { message, questionnaire_id, submitted_at } を想定
   async submitQuestionnaire(
     userId: string,
     responses: Array<{ question_id: string; answer: any; answered_at?: string }>,
@@ -132,9 +133,10 @@ class ProfileService {
         path: `/questionnaire/${userId}/submit`,
         options: {
           headers,
-          body: { questionnaire_id: questionnaireId, responses },
+          body: JSON.stringify({ questionnaire_id: questionnaireId, responses }),
         },
       }).response;
+
       const data = (await response.body.json()) as any;
       return data;
     } catch (error) {
@@ -143,15 +145,21 @@ class ProfileService {
     }
   }
 
-  // 再生成も「直置きの質問票」を返す
-  async regenerateQuestionnaire(userId: string, questionnaireId?: string): Promise<Questionnaire> {
+  async regenerateQuestionnaire(
+    userId: string,
+    questionnaireId?: string
+  ): Promise<Questionnaire> {
     try {
       const headers = await authHeaders();
       const response = await put({
         apiName: 'veteranTalentAPI',
         path: `/questionnaire/${userId}/regenerate`,
-        options: { headers, body: { questionnaire_id: questionnaireId } },
+        options: {
+          headers,
+          body: JSON.stringify({ questionnaire_id: questionnaireId }),
+        },
       }).response;
+
       const data = (await response.body.json()) as any;
       return data as Questionnaire;
     } catch (error) {
@@ -168,6 +176,7 @@ class ProfileService {
         path: `/questionnaire/${userId}/history`,
         options: { headers },
       }).response;
+
       const data = (await response.body.json()) as any;
       return (data?.questionnaires ?? []) as Questionnaire[];
     } catch (error) {
