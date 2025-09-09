@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { profileService } from '../../services/profileService';
-import { Questionnaire as QuestionnaireType, Question, QuestionnaireResponse } from '../../types/profile';
+import { Questionnaire as QuestionnaireType, Question } from '../../types/profile';
 import './Questionnaire.css';
 
 const Questionnaire: React.FC = () => {
@@ -11,57 +11,60 @@ const Questionnaire: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
   const [questionnaireHistory, setQuestionnaireHistory] = useState<QuestionnaireType[]>([]);
 
-  useEffect(() => {
-    if (user) {
-      loadQuestionnaire();
-      loadQuestionnaireHistory();
-    }
-  }, [user]);
-
-  const loadQuestionnaire = async () => {
+  // --- Data loaders (memoized) ---
+  const loadQuestionnaire = useCallback(async () => {
+    if (!user) return;
     try {
       setLoading(true);
       setError(null);
-      const data = await profileService.getQuestionnaire(user!.user_id);
-      
+      const data = await profileService.getQuestionnaire(user.user_id);
+
       if (data) {
         setQuestionnaire(data);
-        // Load existing responses if any
-        const existingResponses: Record<string, any> = {};
-        data.responses.forEach(response => {
-          existingResponses[response.question_id] = response.answer;
+        // 既存回答があれば初期値にロード
+        const existing: Record<string, any> = {};
+        (data.responses ?? []).forEach((r: any) => {
+          existing[r.question_id] = r.answer;
         });
-        setResponses(existingResponses);
+        setResponses(existing);
+      } else {
+        setQuestionnaire(null);
+        setResponses({});
       }
-    } catch (error) {
+    } catch (e) {
       setError('問診の読み込みに失敗しました');
-      console.error('Load questionnaire error:', error);
+      console.error('Load questionnaire error:', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const loadQuestionnaireHistory = async () => {
+  const loadQuestionnaireHistory = useCallback(async () => {
+    if (!user) return;
     try {
-      const history = await profileService.getQuestionnaireHistory(user!.user_id);
-      setQuestionnaireHistory(history);
-    } catch (error) {
-      console.error('Load questionnaire history error:', error);
+      const history = await profileService.getQuestionnaireHistory(user.user_id);
+      setQuestionnaireHistory(history || []);
+    } catch (e) {
+      console.error('Load questionnaire history error:', e);
     }
-  };
+  }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    loadQuestionnaire();
+    loadQuestionnaireHistory();
+  }, [user, loadQuestionnaire, loadQuestionnaireHistory]);
+
+  // --- Handlers ---
   const handleResponseChange = (questionId: string, value: any) => {
-    setResponses(prev => ({
-      ...prev,
-      [questionId]: value
-    }));
+    setResponses(prev => ({ ...prev, [questionId]: value }));
   };
 
   const handleSubmit = async () => {
+    if (!user) return;
     try {
       setSubmitting(true);
       setError(null);
@@ -69,41 +72,39 @@ const Questionnaire: React.FC = () => {
       const responseArray = Object.entries(responses).map(([questionId, answer]) => ({
         question_id: questionId,
         answer,
-        answered_at: new Date().toISOString()
+        answered_at: new Date().toISOString(),
       }));
 
-      await profileService.submitQuestionnaire(user!.user_id, responseArray);
-      
-      // Reload questionnaire to get updated status
-      await loadQuestionnaire();
-      
+      await profileService.submitQuestionnaire(user.user_id, responseArray, questionnaire?.questionnaire_id);
+      await loadQuestionnaire(); // 最新状態を再取得
       alert('問診の回答が正常に送信されました！');
-    } catch (error) {
+    } catch (e) {
       setError('問診の送信に失敗しました');
-      console.error('Submit questionnaire error:', error);
+      console.error('Submit questionnaire error:', e);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleRegenerate = async () => {
+    if (!user) return;
     try {
       setLoading(true);
       setError(null);
-      const data = await profileService.regenerateQuestionnaire(user!.user_id);
+      const data = await profileService.regenerateQuestionnaire(user.user_id, questionnaire?.questionnaire_id);
       setQuestionnaire(data);
       setResponses({});
-      setCurrentQuestionIndex(0);
-    } catch (error) {
+    } catch (e) {
       setError('問診の再生成に失敗しました');
-      console.error('Regenerate questionnaire error:', error);
+      console.error('Regenerate questionnaire error:', e);
     } finally {
       setLoading(false);
     }
   };
 
+  // --- Render helpers ---
   const renderQuestion = (question: Question) => {
-    const value = responses[question.id] || '';
+    const value = responses[question.id] ?? '';
 
     switch (question.type) {
       case 'text':
@@ -120,8 +121,8 @@ const Questionnaire: React.FC = () => {
       case 'multiple_choice':
         return (
           <div className="question-options">
-            {question.options?.map((option, index) => (
-              <label key={index} className="option-label">
+            {question.options?.map((option, idx) => (
+              <label key={idx} className="option-label">
                 <input
                   type="radio"
                   name={question.id}
@@ -139,7 +140,7 @@ const Questionnaire: React.FC = () => {
         return (
           <div className="rating-container">
             <div className="rating-scale">
-              {[1, 2, 3, 4, 5].map(rating => (
+              {[1, 2, 3, 4, 5].map((rating) => (
                 <label key={rating} className="rating-label">
                   <input
                     type="radio"
@@ -192,16 +193,18 @@ const Questionnaire: React.FC = () => {
 
   const getProgress = () => {
     if (!questionnaire) return 0;
-    const answeredQuestions = Object.keys(responses).length;
-    return (answeredQuestions / questionnaire.questions.length) * 100;
+    const answered = Object.keys(responses).length;
+    const total = questionnaire.questions.length || 1;
+    return (answered / total) * 100;
   };
 
   const canSubmit = () => {
     if (!questionnaire) return false;
-    const requiredQuestions = questionnaire.questions.filter(q => q.required);
-    return requiredQuestions.every(q => responses[q.id] !== undefined && responses[q.id] !== '');
+    const required = questionnaire.questions.filter((q) => q.required);
+    return required.every((q) => responses[q.id] !== undefined && responses[q.id] !== '');
   };
 
+  // --- UI states ---
   if (loading) {
     return (
       <div className="questionnaire-container">
@@ -241,18 +244,16 @@ const Questionnaire: React.FC = () => {
     );
   }
 
+  // --- Main ---
   return (
     <div className="questionnaire-container">
       <div className="questionnaire-header">
         <h1>AI生成問診</h1>
         <p>あなたのスキルと興味を評価するための個人向け問診です</p>
-        
+
         <div className="progress-container">
           <div className="progress-bar">
-            <div 
-              className="progress-fill" 
-              style={{ width: `${getProgress()}%` }}
-            ></div>
+            <div className="progress-fill" style={{ width: `${getProgress()}%` }} />
           </div>
           <span className="progress-text">
             {Object.keys(responses).length} / {questionnaire.questions.length} 質問回答済み
@@ -273,38 +274,28 @@ const Questionnaire: React.FC = () => {
               </span>
               {question.required && <span className="required-indicator">必須</span>}
             </div>
-            
+
             <h3 className="question-text">{question.text}</h3>
-            
-            <div className="question-input">
-              {renderQuestion(question)}
-            </div>
+
+            <div className="question-input">{renderQuestion(question)}</div>
           </div>
         ))}
       </div>
 
       <div className="questionnaire-actions">
-        <button 
-          onClick={() => setShowHistory(!showHistory)} 
+        <button
+          onClick={() => setShowHistory((v) => !v)}
           className="btn btn-outline"
           disabled={submitting}
         >
           {showHistory ? '問診を隠す' : '過去の問診を見る'}
         </button>
-        
-        <button 
-          onClick={handleRegenerate} 
-          className="btn btn-secondary"
-          disabled={submitting}
-        >
+
+        <button onClick={handleRegenerate} className="btn btn-secondary" disabled={submitting}>
           問診を再生成
         </button>
-        
-        <button 
-          onClick={handleSubmit} 
-          className="btn btn-primary"
-          disabled={!canSubmit() || submitting}
-        >
+
+        <button onClick={handleSubmit} className="btn btn-primary" disabled={!canSubmit() || submitting}>
           {submitting ? '送信中...' : '回答を送信'}
         </button>
       </div>
@@ -320,26 +311,26 @@ const Questionnaire: React.FC = () => {
         <div className="questionnaire-history">
           <h3>過去の問診履歴</h3>
           <div className="history-list">
-            {questionnaireHistory.map((historyItem, index) => (
-              <div key={historyItem.questionnaire_id} className="history-item">
+            {questionnaireHistory.map((h, idx) => (
+              <div key={h.questionnaire_id} className="history-item">
                 <div className="history-header">
-                  <h4>問診 #{index + 1}</h4>
+                  <h4>問診 #{idx + 1}</h4>
                   <div className="history-meta">
-                    <span className={`status-badge ${historyItem.status}`}>
-                      {historyItem.status === 'completed' && '完了'}
-                      {historyItem.status === 'in_progress' && '進行中'}
-                      {historyItem.status === 'generated' && '生成済み'}
+                    <span className={`status-badge ${h.status}`}>
+                      {h.status === 'completed' && '完了'}
+                      {h.status === 'in_progress' && '進行中'}
+                      {h.status === 'generated' && '生成済み'}
                     </span>
                     <span className="history-date">
-                      {new Date(historyItem.generated_at).toLocaleDateString('ja-JP')}
+                      {h.generated_at ? new Date(h.generated_at).toLocaleDateString('ja-JP') : '-'}
                     </span>
                   </div>
                 </div>
                 <div className="history-stats">
-                  <span>質問数: {historyItem.questions.length}</span>
-                  <span>回答数: {historyItem.responses.length}</span>
-                  {historyItem.completed_at && (
-                    <span>完了日: {new Date(historyItem.completed_at).toLocaleDateString('ja-JP')}</span>
+                  <span>質問数: {h.questions?.length ?? 0}</span>
+                  <span>回答数: {h.responses?.length ?? 0}</span>
+                  {h.completed_at && (
+                    <span>完了日: {new Date(h.completed_at).toLocaleDateString('ja-JP')}</span>
                   )}
                 </div>
               </div>
