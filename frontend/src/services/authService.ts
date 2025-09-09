@@ -9,25 +9,22 @@ import { get, put } from 'aws-amplify/api';
 import { User, LoginCredentials, SignUpData } from '../types/auth';
 
 class AuthService {
-  // 共通：認証ヘッダーを作る
+  // 共通: 認証ヘッダー
   private async authHeaders(): Promise<Record<string, string>> {
-    const session = await fetchAuthSession();
-    const idToken = session.tokens?.idToken?.toString();
+    const s = await fetchAuthSession();
+    const idToken = s.tokens?.idToken?.toString();
     if (!idToken) throw new Error('No ID token in session');
-    // User Pools Authorizer は Authorization ヘッダーに JWT を期待
-    // （Bearer なしで動く構成が一般的）
+    // Bearer が必要なら `Bearer ${idToken}` に変更
     return { Authorization: idToken };
-    // もし環境側で Bearer を要求しているなら:
-    // return { Authorization: `Bearer ${idToken}` };
   }
 
   async login(credentials: LoginCredentials): Promise<any> {
     try {
-      // 既存セッション掃除（今回の元エラー対策）
+      // 残留セッション掃除（"already signed in user" 対策）
       try {
         const u = await amplifyGetCurrentUser();
         if (u) await signOut({ global: true });
-      } catch {/* 未ログインなら無視 */}
+      } catch {}
       await signOut().catch(() => {});
 
       const result = await signIn({
@@ -75,7 +72,7 @@ class AuthService {
     try {
       const user = await amplifyGetCurrentUser();
       return user;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -89,12 +86,12 @@ class AuthService {
         apiName: 'veteranTalentAPI',
         path: '/auth/profile',
         options: {
-          headers: await this.authHeaders(),   // ← 追加
+          headers: await this.authHeaders(),  // ← ここで付与
         },
       }).response;
 
-      const userData = (await response.body.json()) as any;
-      return userData.user;
+      const data = (await response.body.json()) as any;
+      return data.user;
     } catch (error) {
       console.error('Get user profile error:', error);
       return null;
@@ -108,12 +105,12 @@ class AuthService {
         path: '/auth/profile',
         options: {
           body: userData,
-          headers: await this.authHeaders(),   // ← 追加
+          headers: await this.authHeaders(),  // ← ここで付与
         },
       }).response;
 
-      const updatedUser = (await response.body.json()) as any;
-      return updatedUser.user;
+      const data = (await response.body.json()) as any;
+      return data.user;
     } catch (error) {
       console.error('Update user profile error:', error);
       throw error;
@@ -122,8 +119,8 @@ class AuthService {
 
   async getAuthToken(): Promise<string | null> {
     try {
-      const session = await fetchAuthSession();
-      return session.tokens?.idToken?.toString() ?? null;
+      const s = await fetchAuthSession();
+      return s.tokens?.idToken?.toString() ?? null;
     } catch (error) {
       console.error('Get auth token error:', error);
       return null;
