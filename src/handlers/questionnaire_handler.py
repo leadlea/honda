@@ -1,8 +1,8 @@
 """
-AI Questionnaire Lambda (no external crypto deps)
+AI Questionnaire Lambda (sync version, no crypto deps)
 - Uses API Gateway Cognito authorizer claims for the user.
 - Talks to DynamoDB directly via boto3 (no repository imports).
-- Generates questionnaire via Bedrock; falls back to a static template if it fails.
+- Generates questionnaire via Bedrock and falls back to a static template.
 """
 
 from __future__ import annotations
@@ -12,10 +12,10 @@ import os
 import uuid
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import boto3
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -104,12 +104,9 @@ def _get_questionnaire(qid: str) -> Optional[Dict[str, Any]]:
 
 
 def _query_user_questionnaires(uid: str) -> List[Dict[str, Any]]:
-    # GSI: UserIdIndex (HASH user_id)
+    from boto3.dynamodb.conditions import Key  # ローカル import（コールドスタート最適化）
     try:
-        r = TBL_Q.query(
-            IndexName="UserIdIndex",
-            KeyConditionExpression=boto3.dynamodb.conditions.Key("user_id").eq(uid),
-        )
+        r = TBL_Q.query(IndexName="UserIdIndex", KeyConditionExpression=Key("user_id").eq(uid))
         return r.get("Items", [])
     except ClientError as e:
         logger.error("Query questionnaires failed: %s", e)
@@ -200,13 +197,12 @@ def _fallback_questionnaire(name: str) -> Dict[str, Any]:
     }
 
 
-def _generate_with_bedrock(name: str, department: str, years_experience: int, current_role: str,
-                           previous_responses: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _generate_with_bedrock(name: str, department: str, years_experience: int,
+                           current_role: str, previous_responses: List[Dict[str, Any]]) -> Dict[str, Any]:
     system = (
         "You are a career counselor. Create a short personalized questionnaire in Japanese "
         "as compact JSON with fields: title (string), questions (array of {id,text,type,category,required,options?}). "
-        "Use types: text|multiple_choice|rating|boolean. Keep 6-10 questions. "
-        "Return ONLY JSON."
+        "Use types: text|multiple_choice|rating|boolean. Keep 6-10 questions. Return ONLY JSON."
     )
     user_msg = {
         "name": name,
@@ -231,9 +227,7 @@ def _generate_with_bedrock(name: str, department: str, years_experience: int, cu
         for c in data.get("content", []):
             if c.get("type") == "text":
                 text += c.get("text", "")
-        # 有効な JSON 抽出
         parsed = json.loads(text)
-        # 最低限のバリデーション
         if not isinstance(parsed.get("questions", []), list):
             raise ValueError("Invalid questions")
         return {"title": parsed.get("title") or f"{name}さん向けAI問診", "questions": parsed["questions"], "responses": []}
@@ -242,8 +236,8 @@ def _generate_with_bedrock(name: str, department: str, years_experience: int, cu
         return _fallback_questionnaire(name)
 
 
-# ---------- Handlers ----------
-async def generate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+# ---------- Handlers (SYNC) ----------
+def generate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         uid = _get_user_from_event(event)
         if not uid:
@@ -252,7 +246,6 @@ async def generate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[st
         user = _get_user(uid) or {}
         profile = _get_profile(uid) or {}
 
-        # years of experience
         years = 0
         j = user.get("join_date")
         if j:
@@ -262,7 +255,6 @@ async def generate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[st
             except Exception:
                 years = 0
 
-        # context from latest questionnaire
         prev_items = _query_user_questionnaires(uid)
         previous_responses: List[Dict[str, Any]] = []
         if prev_items:
@@ -278,7 +270,6 @@ async def generate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[st
         )
 
         saved = _save_questionnaire(uid, qdata)
-        # フロントの期待に合わせて { questionnaire: {...} } で返す
         shaped = {
             "questionnaire_id": saved["questionnaire_id"],
             "status": saved["status"],
@@ -291,7 +282,7 @@ async def generate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[st
         return _resp(500, {"error": "Internal server error"})
 
 
-async def submit_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def submit_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         uid = _get_user_from_event(event)
         if not uid:
@@ -320,7 +311,7 @@ async def submit_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str,
         return _resp(500, {"error": "Internal server error"})
 
 
-async def get_questionnaire_history(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def get_questionnaire_history(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         uid = _get_user_from_event(event)
         if not uid:
@@ -348,13 +339,12 @@ async def get_questionnaire_history(event: Dict[str, Any], context: Any) -> Dict
         return _resp(500, {"error": "Internal server error"})
 
 
-async def regenerate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def regenerate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         uid = _get_user_from_event(event)
         if not uid:
             return _resp(401, {"error": "Unauthorized"})
 
-        # optional: body.questionnaire_id to reuse previous responses
         body = {}
         if event.get("body"):
             try:
