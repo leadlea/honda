@@ -9,18 +9,25 @@ import { get, put } from 'aws-amplify/api';
 import { User, LoginCredentials, SignUpData } from '../types/auth';
 
 class AuthService {
+  // 共通：認証ヘッダーを作る
+  private async authHeaders(): Promise<Record<string, string>> {
+    const session = await fetchAuthSession();
+    const idToken = session.tokens?.idToken?.toString();
+    if (!idToken) throw new Error('No ID token in session');
+    // User Pools Authorizer は Authorization ヘッダーに JWT を期待
+    // （Bearer なしで動く構成が一般的）
+    return { Authorization: idToken };
+    // もし環境側で Bearer を要求しているなら:
+    // return { Authorization: `Bearer ${idToken}` };
+  }
+
   async login(credentials: LoginCredentials): Promise<any> {
     try {
-      // 既存セッションがあると "There is already a signed in user." が出るため事前に掃除
+      // 既存セッション掃除（今回の元エラー対策）
       try {
         const u = await amplifyGetCurrentUser();
-        if (u) {
-          await signOut({ global: true });
-        }
-      } catch {
-        // 未ログインなら無視
-      }
-      // 念のためローカルセッションもクリア
+        if (u) await signOut({ global: true });
+      } catch {/* 未ログインなら無視 */}
       await signOut().catch(() => {});
 
       const result = await signIn({
@@ -36,7 +43,6 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
-      // 全端末のセッションも含めて無効化
       await signOut({ global: true });
     } catch (error) {
       console.error('Logout error:', error);
@@ -69,8 +75,7 @@ class AuthService {
     try {
       const user = await amplifyGetCurrentUser();
       return user;
-    } catch {
-      // 未ログイン
+    } catch (error) {
       return null;
     }
   }
@@ -82,7 +87,10 @@ class AuthService {
 
       const response = await get({
         apiName: 'veteranTalentAPI',
-        path: `/auth/profile`,
+        path: '/auth/profile',
+        options: {
+          headers: await this.authHeaders(),   // ← 追加
+        },
       }).response;
 
       const userData = (await response.body.json()) as any;
@@ -97,8 +105,11 @@ class AuthService {
     try {
       const response = await put({
         apiName: 'veteranTalentAPI',
-        path: `/auth/profile`,
-        options: { body: userData },
+        path: '/auth/profile',
+        options: {
+          body: userData,
+          headers: await this.authHeaders(),   // ← 追加
+        },
       }).response;
 
       const updatedUser = (await response.body.json()) as any;
