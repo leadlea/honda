@@ -1,95 +1,63 @@
 """
 Lambda handler for AI-generated questionnaire operations.
-- GET  /questionnaire/{userId}           : 既存問診があれば返す。なければAI生成して返す（idトークンのユーザーのみ）
-- POST /questionnaire/{userId}/submit    : 回答保存。questionnaire_id 省略時は最新の未完了を自動採用
-- GET  /questionnaire/{userId}/history   : 履歴一覧（フロントの型に合わせたフィールド名で返却）
-- PUT  /questionnaire/{userId}/regenerate: 直近または指定idを元に再生成して返却
+Removes local JWT verification/cryptography dependency and relies on
+API Gateway Cognito User Pool Authorizer (claims from event.requestContext).
 """
 
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.repositories.questionnaire_repository import QuestionnaireRepository
 from src.repositories.user_repository import UserRepository
 from src.repositories.veteran_profile_repository import VeteranProfileRepository
 from src.services.ai_utils import get_ai_service
-from src.utils.auth_utils import get_user_from_token
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def _cors_headers(extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
-    base = {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-    }
-    if extra:
-        base.update(extra)
-    return base
+# ---------- helpers ----------
 
-
-def _asdict(obj: Any) -> Dict[str, Any]:
-    """Repositoryの戻りがオブジェクトでもdictでも扱えるように吸収。"""
-    if obj is None:
-        return {}
-    if isinstance(obj, dict):
-        return obj
-    d = {}
-    for k in dir(obj):
-        if k.startswith("_"):
-            continue
-        try:
-            v = getattr(obj, k)
-        except Exception:
-            continue
-        if callable(v):
-            continue
-        d[k] = v
-    return d
-
-
-def _get(d: Dict[str, Any], key: str, default=None):
-    return d.get(key, default)
-
-
-def _normalize_questionnaire(record: Dict[str, Any]) -> Dict[str, Any]:
+def _get_user_from_event(event: Dict[str, Any]) -> Tuple[Optional[str], Dict[str, Any]]:
     """
-    フロントが期待するフィールド名に正規化。
-    - questions: List[Question]
-    - responses: List[{question_id, answer, answered_at}]
-    - status: 'generated' | 'in_progress' | 'completed'
-    - generated_at / completed_at
+    Get user_id and raw claims from API Gateway authorizer claims.
+    Falls back to path parameter if claims are unavailable.
     """
-    qid = (
-        _get(record, "questionnaire_id")
-        or _get(record, "id")
-        or _get(record, "pk")
+    claims = (
+        event.get("requestContext", {})
+        .get("authorizer", {})
+        .get("claims", {})
+        or {}
     )
-    questions = (
-        _get(record, "questions")
-        or _get(record, "questionnaire", {}).get("questions", [])
-        or _get(record, "questionnaire_data", {}).get("questions", [])
-        or []
-    )
-    responses = _get(record, "responses", []) or []
-    status = _get(record, "status") or ("completed" if responses else "generated")
-    created_at = _get(record, "created_at") or _get(record, "generated_at")
-    submitted_at = _get(record, "submitted_at") or _get(record, "completed_at")
 
+    user_id = (
+        claims.get("sub")
+        or claims.get("username")
+        or claims.get("cognito:username")
+    )
+
+    # safe fallback to path parameter (case variations)
+    if not user_id:
+        path_params = event.get("pathParameters", {}) or {}
+        user_id = path_params.get("userId") or path_params.get("user_id")
+
+    return user_id, claims
+
+
+def _json_response(status: int, body: Dict[str, Any]) -> Dict[str, Any]:
     return {
-        "questionnaire_id": qid,
-        "title": _get(record, "title") or "AI問診",
-        "questions": questions,
-        "responses": responses,
-        "status": status,
-        "generated_at": created_at,
-        "created_at": created_at,
-        "completed_at": submitted_at,
+        "statusCode": status,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+        },
+        "body": json.dumps(body, default=str),
     }
 
+
+# ---------- handler class ----------
 
 class QuestionnaireHandler:
     """Handler for questionnaire-related operations."""
@@ -100,332 +68,279 @@ class QuestionnaireHandler:
         self.user_repo = UserRepository()
         self.profile_repo = VeteranProfileRepository()
 
-    # ---------- helpers ----------
-
-    async def _assert_and_get_user(self, event: Dict[str, Any]) -> Dict[str, str]:
-        token = (event.get("headers", {}).get("Authorization", "") or "").replace(
-            "Bearer ", ""
-        )
-        if not token:
-            raise PermissionError("Missing authorization token")
-
-        user_info = get_user_from_token(token)
-        if not user_info:
-            raise PermissionError("Invalid authorization token")
-
-        user_id = user_info["user_id"]
-        path_user = event.get("pathParameters", {}).get("userId")
-        if path_user and path_user != user_id:
-            raise PermissionError("User mismatch")
-
-        return {"user_id": user_id}
-
-    async def _latest_open_questionnaire(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """未完了（generated/in_progress）で一番新しいものを返す。なければNone。"""
-        items = await self.questionnaire_repo.get_user_questionnaires(user_id)
-        if not items:
-            return None
-        # dict化＆ソート
-        rows: List[Dict[str, Any]] = [_asdict(x) for x in items]
-        rows = sorted(rows, key=lambda r: _get(r, "created_at", ""), reverse=True)
-        for r in rows:
-            st = _get(r, "status", "")
-            if st in ("generated", "in_progress", ""):
-                return r
-            # statusが無い実装の場合、responsesが無ければ未完了扱い
-            if not _get(r, "status") and not _get(r, "responses"):
-                return r
-        return None
-
-    async def _generate_and_store(
-        self, user: Any, profile: Any, previous_responses: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        years_experience = 0
-        if getattr(user, "join_date", None):
-            join_date = datetime.fromisoformat(user.join_date.replace("Z", "+00:00"))
-            years_experience = (datetime.now(timezone.utc) - join_date).days // 365
-
-        questionnaire_data = await self.ai_service.generate_questionnaire(
-            name=user.name,
-            department=getattr(user, "department", None),
-            years_experience=years_experience,
-            current_role=getattr(profile, "business_title", "Employee")
-            if profile
-            else "Employee",
-            previous_responses=previous_responses or [],
-        )
-
-        created = await self.questionnaire_repo.create_questionnaire(
-            user_id=user.user_id,
-            questionnaire_data=questionnaire_data,
-            ai_generated=True,
-        )
-        return _normalize_questionnaire(_asdict(created) | {"questions": questionnaire_data.get("questions", [])})
-
-    # ---------- endpoints ----------
-
+    # === GET /questionnaire/{userId} (generate on demand) ===
     async def generate_questionnaire(
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
-        """既存があれば返却。無ければAIで生成して返却。"""
         try:
-            ids = await self._assert_and_get_user(event)
-            user_id = ids["user_id"]
+            user_id, claims = _get_user_from_event(event)
+            if not user_id:
+                return _json_response(401, {"error": "Unauthorized"})
+            # (任意) パスの userId と一致チェック
+            path_uid = (event.get("pathParameters") or {}).get("userId")
+            if path_uid and path_uid != user_id:
+                return _json_response(403, {"error": "Forbidden"})
 
+            # Check role (veteran)
             user = await self.user_repo.get_by_id(user_id)
-            if not user or getattr(user, "role", "") != "veteran":
-                return {
-                    "statusCode": 403,
-                    "headers": _cors_headers(),
-                    "body": json.dumps({"error": "Access denied. Veteran role required."}),
-                }
+            if not user or getattr(user, "role", None) != "veteran":
+                return _json_response(403, {"error": "Access denied. Veteran role required."})
 
+            # Get profile
             profile = await self.profile_repo.get_by_user_id(user_id)
 
-            # 直近の未完了があればそれを返す
-            existing = await self._latest_open_questionnaire(user_id)
-            if existing:
-                normalized = _normalize_questionnaire(existing)
-                logger.info(f"Return existing questionnaire {normalized['questionnaire_id']} for user {user_id}")
-                return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(normalized)}
+            # previous answers for context
+            previous_questionnaires = await self.questionnaire_repo.get_user_questionnaires(user_id)
+            previous_responses: List[Dict[str, Any]] = []
+            if previous_questionnaires:
+                latest = max(previous_questionnaires, key=lambda q: q.created_at)
+                if getattr(latest, "responses", None):
+                    previous_responses = latest.responses
 
-            # なければ新規生成
-            prev = await self.questionnaire_repo.get_user_questionnaires(user_id) or []
-            latest = None
-            if prev:
-                latest = max(prev, key=lambda q: getattr(q, "created_at", ""))
-            previous_responses = _asdict(latest).get("responses", []) if latest else []
+            # years of experience
+            years_experience = 0
+            if getattr(user, "join_date", None):
+                join_date = datetime.fromisoformat(str(user.join_date).replace("Z", "+00:00"))
+                years_experience = (datetime.now(timezone.utc) - join_date).days // 365
 
-            normalized = await self._generate_and_store(user, profile, previous_responses)
+            # ask AI
+            questionnaire_data = await self.ai_service.generate_questionnaire(
+                name=getattr(user, "name", "User"),
+                department=getattr(user, "department", "General"),
+                years_experience=years_experience,
+                current_role=getattr(profile, "business_title", "Employee") if profile else "Employee",
+                previous_responses=previous_responses,
+            )
 
-            logger.info(f"Generated questionnaire {normalized['questionnaire_id']} for user {user_id}")
-            return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(normalized)}
+            # persist
+            created = await self.questionnaire_repo.create_questionnaire(
+                user_id=user_id,
+                questionnaire_data=questionnaire_data,
+                ai_generated=True,
+            )
 
-        except PermissionError as e:
-            return {"statusCode": 401, "headers": _cors_headers(), "body": json.dumps({"error": str(e)})}
+            logger.info("Generated questionnaire %s for user %s", created.questionnaire_id, user_id)
+
+            # フロントが扱いやすい形：質問票をトップレベルで返す
+            shaped = {
+                "questionnaire_id": created.questionnaire_id,
+                "status": getattr(created, "status", "generated"),
+                "created_at": getattr(created, "created_at", datetime.now(timezone.utc).isoformat()),
+                **questionnaire_data,  # expected to include `title`, `questions`, `responses` (optional)
+            }
+            return _json_response(200, shaped)
+
         except Exception as e:
-            logger.exception("Error generating questionnaire")
-            return {"statusCode": 500, "headers": _cors_headers(), "body": json.dumps({"error": "Internal server error"})}
+            logger.exception("Error generating questionnaire: %s", e)
+            return _json_response(500, {"error": "Internal server error"})
 
+    # === POST /questionnaire/{userId}/submit ===
     async def submit_questionnaire(
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
-        """回答保存。questionnaire_id 省略時は最新の未完了を採用。プロフィールも更新。"""
         try:
-            ids = await self._assert_and_get_user(event)
-            user_id = ids["user_id"]
+            user_id, _ = _get_user_from_event(event)
+            if not user_id:
+                return _json_response(401, {"error": "Unauthorized"})
 
             try:
-                body = json.loads(event.get("body", "{}"))
+                body = json.loads(event.get("body") or "{}")
             except json.JSONDecodeError:
-                return {"statusCode": 400, "headers": _cors_headers(), "body": json.dumps({"error": "Invalid JSON in request body"})}
+                return _json_response(400, {"error": "Invalid JSON in request body"})
 
             questionnaire_id = body.get("questionnaire_id")
-            responses = body.get("responses", [])
+            responses = body.get("responses") or []
 
-            if not responses:
-                return {"statusCode": 400, "headers": _cors_headers(), "body": json.dumps({"error": "Missing responses"})}
+            if not questionnaire_id or not isinstance(responses, list) or not responses:
+                return _json_response(400, {"error": "Missing questionnaire_id or responses"})
 
-            # id未指定なら最新の未完了を自動採用。無ければ生成して採用。
-            if not questionnaire_id:
-                q = await self._latest_open_questionnaire(user_id)
-                if not q:
-                    user = await self.user_repo.get_by_id(user_id)
-                    profile = await self.profile_repo.get_by_user_id(user_id)
-                    normalized = await self._generate_and_store(user, profile, [])
-                    questionnaire_id = normalized["questionnaire_id"]
-                else:
-                    questionnaire_id = _normalize_questionnaire(q)["questionnaire_id"]
+            questionnaire = await self.questionnaire_repo.get_by_id(questionnaire_id)
+            if not questionnaire or questionnaire.user_id != user_id:
+                return _json_response(404, {"error": "Questionnaire not found"})
 
-            # 所有確認
-            record = await self.questionnaire_repo.get_by_id(questionnaire_id)
-            record_d = _asdict(record)
-            if not record or _get(record_d, "user_id") != user_id:
-                return {"statusCode": 404, "headers": _cors_headers(), "body": json.dumps({"error": "Questionnaire not found"})}
-
-            # 保存
             await self.questionnaire_repo.submit_responses(
                 questionnaire_id=questionnaire_id, responses=responses
             )
 
-            # プロフィール反映
+            # Update profile heuristically from responses
             await self._update_profile_from_responses(user_id, responses)
 
-            return {
-                "statusCode": 200,
-                "headers": _cors_headers(),
-                "body": json.dumps(
-                    {
-                        "message": "Questionnaire submitted successfully",
-                        "questionnaire_id": questionnaire_id,
-                        "submitted_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                ),
-            }
+            logger.info("Submitted questionnaire %s for user %s", questionnaire_id, user_id)
 
-        except PermissionError as e:
-            return {"statusCode": 401, "headers": _cors_headers(), "body": json.dumps({"error": str(e)})}
+            return _json_response(
+                200,
+                {
+                    "message": "Questionnaire submitted successfully",
+                    "questionnaire_id": questionnaire_id,
+                    "submitted_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+
         except Exception as e:
-            logger.exception("Error submitting questionnaire")
-            return {"statusCode": 500, "headers": _cors_headers(), "body": json.dumps({"error": "Internal server error"})}
+            logger.exception("Error submitting questionnaire: %s", e)
+            return _json_response(500, {"error": "Internal server error"})
 
+    # === GET /questionnaire/{userId}/history ===
     async def get_questionnaire_history(
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
-        """履歴一覧。フロントの表示に合わせ、generated_at等も付けて返却。"""
         try:
-            ids = await self._assert_and_get_user(event)
-            user_id = ids["user_id"]
+            user_id, _ = _get_user_from_event(event)
+            if not user_id:
+                return _json_response(401, {"error": "Unauthorized"})
 
-            items = await self.questionnaire_repo.get_user_questionnaires(user_id) or []
-            history = []
-            for q in items:
-                d = _normalize_questionnaire(_asdict(q))
-                # 追加で表示に役立つ統計
-                d["question_count"] = len(d.get("questions", []))
-                d["response_count"] = len(d.get("responses", []))
-                history.append(d)
+            questionnaires = await self.questionnaire_repo.get_user_questionnaires(user_id)
 
-            return {
-                "statusCode": 200,
-                "headers": _cors_headers(),
-                "body": json.dumps({"questionnaires": history, "total_count": len(history)}),
-            }
+            history: List[Dict[str, Any]] = []
+            for q in questionnaires:
+                history.append(
+                    {
+                        "questionnaire_id": q.questionnaire_id,
+                        "title": getattr(q, "title", None) or getattr(q, "questionnaire", {}).get("title"),
+                        "status": getattr(q, "status", "generated"),
+                        "created_at": getattr(q, "created_at", None),
+                        "submitted_at": getattr(q, "submitted_at", None),
+                        "ai_generated": getattr(q, "ai_generated", True),
+                        "question_count": len(getattr(q, "questions", []) or getattr(q, "questionnaire", {}).get("questions", []) or []),
+                        "response_count": len(getattr(q, "responses", []) or []),
+                        # Optional fields used by UI
+                        "questions": getattr(q, "questions", None) or getattr(q, "questionnaire", {}).get("questions"),
+                        "responses": getattr(q, "responses", None),
+                        "generated_at": getattr(q, "created_at", None),
+                        "completed_at": getattr(q, "submitted_at", None),
+                    }
+                )
 
-        except PermissionError as e:
-            return {"statusCode": 401, "headers": _cors_headers(), "body": json.dumps({"error": str(e)})}
-        except Exception:
-            logger.exception("Error getting questionnaire history")
-            return {"statusCode": 500, "headers": _cors_headers(), "body": json.dumps({"error": "Internal server error"})}
+            return _json_response(200, {"questionnaires": history, "total_count": len(history)})
 
+        except Exception as e:
+            logger.exception("Error getting questionnaire history: %s", e)
+            return _json_response(500, {"error": "Internal server error"})
+
+    # === PUT /questionnaire/{userId}/regenerate ===
     async def regenerate_questionnaire(
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
-        """
-        直近または指定idを元に再生成。
-        - pathParameters.questionnaire_id（オプション）
-        - body.questionnaire_id（オプション）
-        いずれも無い場合は直近のものをベースにして再生成
-        """
         try:
-            ids = await self._assert_and_get_user(event)
-            user_id = ids["user_id"]
+            user_id, _ = _get_user_from_event(event)
+            if not user_id:
+                return _json_response(401, {"error": "Unauthorized"})
 
-            qp = event.get("pathParameters", {}) or {}
-            maybe_id = qp.get("questionnaire_id")
-
-            if not maybe_id and event.get("body"):
+            # original questionnaire_id (optional) from body or path
+            body = {}
+            if event.get("body"):
                 try:
                     body = json.loads(event["body"])
-                    maybe_id = body.get("questionnaire_id")
-                except Exception:
-                    pass
-
-            if not maybe_id:
-                latest = await self._latest_open_questionnaire(user_id)
-                if latest:
-                    maybe_id = _normalize_questionnaire(latest)["questionnaire_id"]
-
-            # 元データ
-            if maybe_id:
-                base = await self.questionnaire_repo.get_by_id(maybe_id)
-                base_d = _asdict(base)
-                if not base or _get(base_d, "user_id") != user_id:
-                    return {"statusCode": 404, "headers": _cors_headers(), "body": json.dumps({"error": "Questionnaire not found"})}
-                previous_responses = _get(base_d, "responses", [])
-            else:
-                previous_responses = []
+                except json.JSONDecodeError:
+                    body = {}
+            from_qid = (event.get("pathParameters") or {}).get("questionnaire_id") or body.get("questionnaire_id")
 
             user = await self.user_repo.get_by_id(user_id)
             profile = await self.profile_repo.get_by_user_id(user_id)
 
-            normalized = await self._generate_and_store(user, profile, previous_responses)
-            normalized["regenerated_from"] = maybe_id
+            years_experience = 0
+            if getattr(user, "join_date", None):
+                join_date = datetime.fromisoformat(str(user.join_date).replace("Z", "+00:00"))
+                years_experience = (datetime.now(timezone.utc) - join_date).days // 365
 
-            logger.info(f"Regenerated questionnaire {normalized['questionnaire_id']} for user {user_id}")
-            return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(normalized)}
+            previous_responses: List[Dict[str, Any]] = []
+            if from_qid:
+                original = await self.questionnaire_repo.get_by_id(from_qid)
+                if original and getattr(original, "responses", None):
+                    previous_responses = original.responses
 
-        except PermissionError as e:
-            return {"statusCode": 401, "headers": _cors_headers(), "body": json.dumps({"error": str(e)})}
-        except Exception:
-            logger.exception("Error regenerating questionnaire")
-            return {"statusCode": 500, "headers": _cors_headers(), "body": json.dumps({"error": "Internal server error"})}
+            questionnaire_data = await self.ai_service.generate_questionnaire(
+                name=getattr(user, "name", "User"),
+                department=getattr(user, "department", "General"),
+                years_experience=years_experience,
+                current_role=getattr(profile, "business_title", "Employee") if profile else "Employee",
+                previous_responses=previous_responses,
+            )
 
-    # ---------- profile update ----------
+            created = await self.questionnaire_repo.create_questionnaire(
+                user_id=user_id,
+                questionnaire_data=questionnaire_data,
+                ai_generated=True,
+            )
 
-    async def _update_profile_from_responses(
-        self, user_id: str, responses: list
-    ) -> None:
-        """回答からスキル/興味を抽出してプロフィールにマージ保存。"""
+            logger.info("Regenerated questionnaire %s for user %s", created.questionnaire_id, user_id)
+
+            shaped = {
+                "questionnaire_id": created.questionnaire_id,
+                "status": getattr(created, "status", "generated"),
+                "created_at": getattr(created, "created_at", datetime.now(timezone.utc).isoformat()),
+                "regenerated_from": from_qid,
+                **questionnaire_data,
+            }
+            return _json_response(200, shaped)
+
+        except Exception as e:
+            logger.exception("Error regenerating questionnaire: %s", e)
+            return _json_response(500, {"error": "Internal server error"})
+
+    # ---------- profile updater ----------
+
+    async def _update_profile_from_responses(self, user_id: str, responses: List[Dict[str, Any]]) -> None:
         try:
             profile = await self.profile_repo.get_by_user_id(user_id)
             if not profile:
-                logger.warning(f"No profile found for user {user_id}")
+                logger.warning("No profile found for user %s", user_id)
                 return
 
             new_skills: List[str] = []
             new_interests: List[str] = []
 
             for r in responses:
-                qid = r.get("question_id", "") or r.get("id", "")
-                ans = r.get("answer", r.get("value"))
-                if not qid:
-                    continue
+                qid = str(r.get("question_id", "")).lower()
+                answer = r.get("answer", "")
+                if "skill" in qid and answer:
+                    new_skills.extend(answer if isinstance(answer, list) else [answer])
+                if "interest" in qid or "career" in qid:
+                    new_interests.extend(answer if isinstance(answer, list) else [answer])
 
-                if "skill" in qid.lower() and ans:
-                    if isinstance(ans, list):
-                        new_skills.extend([str(a) for a in ans])
-                    else:
-                        new_skills.append(str(ans))
-
-                if "interest" in qid.lower() or "career" in qid.lower():
-                    if isinstance(ans, list):
-                        new_interests.extend([str(a) for a in ans])
-                    else:
-                        new_interests.append(str(ans))
-
-            update_data: Dict[str, Any] = {}
+            update: Dict[str, Any] = {}
 
             if new_skills:
-                existing_skills = getattr(profile, "skills", []) or []
-                names = {s.get("name", "") for s in existing_skills if isinstance(s, dict)}
+                existing = list(getattr(profile, "skills", []) or [])
+                names = {s.get("name", "") for s in existing if isinstance(s, dict)}
                 for s in new_skills:
                     if s and s not in names:
-                        existing_skills.append({"name": s, "level": "Intermediate", "years": 1, "certifications": []})
-                update_data["skills"] = existing_skills
+                        existing.append({"name": s, "level": "Intermediate", "years": 1, "certifications": []})
+                update["skills"] = existing
 
             if new_interests:
-                preferences = getattr(profile, "preferences", {}) or {}
-                current = preferences.get("preferred_roles", []) or []
-                for it in new_interests:
-                    if it and it not in current:
-                        current.append(it)
-                preferences["preferred_roles"] = current
-                update_data["preferences"] = preferences
+                prefs = dict(getattr(profile, "preferences", {}) or {})
+                roles = list(prefs.get("preferred_roles", []) or [])
+                for i in new_interests:
+                    if i and i not in roles:
+                        roles.append(i)
+                prefs["preferred_roles"] = roles
+                update["preferences"] = prefs
 
-            qrs = getattr(profile, "questionnaire_responses", []) or []
-            qrs.append({"timestamp": datetime.now(timezone.utc).isoformat(), "responses": responses})
-            update_data["questionnaire_responses"] = qrs
+            q_responses = list(getattr(profile, "questionnaire_responses", []) or [])
+            q_responses.append({"timestamp": datetime.now(timezone.utc).isoformat(), "responses": responses})
+            update["questionnaire_responses"] = q_responses
 
-            if update_data:
-                await self.profile_repo.update_profile(user_id, update_data)
-                logger.info(f"Updated profile for user {user_id} from questionnaire responses")
+            if update:
+                await self.profile_repo.update_profile(user_id, update)
+                logger.info("Updated profile for user %s based on questionnaire responses", user_id)
 
-        except Exception:
-            logger.exception("Error updating profile from responses")
+        except Exception as e:
+            logger.exception("Error updating profile from responses: %s", e)
 
 
-# Lambda function handlers
-questionnaire_handler = QuestionnaireHandler()
+# ---------- Lambda entrypoints ----------
+
+handler_instance = QuestionnaireHandler()
 
 async def generate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    return await questionnaire_handler.generate_questionnaire(event, context)
+    return await handler_instance.generate_questionnaire(event, context)
 
 async def submit_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    return await questionnaire_handler.submit_questionnaire(event, context)
+    return await handler_instance.submit_questionnaire(event, context)
 
 async def get_questionnaire_history(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    return await questionnaire_handler.get_questionnaire_history(event, context)
+    return await handler_instance.get_questionnaire_history(event, context)
 
 async def regenerate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    return await questionnaire_handler.regenerate_questionnaire(event, context)
+    return await handler_instance.regenerate_questionnaire(event, context)
