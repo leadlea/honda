@@ -155,9 +155,9 @@ functions:
             authorizerId:
               Ref: ApiGatewayAuthorizer
 
-  # --- Questionnaire endpoints: 個別関数に分割 ---
+  # --- Questionnaire endpoints: 個別関数 ---
   questionnaireGet:
-    handler: src/handlers/questionnaire.generate_questionnaire
+    handler: src/handlers/questionnaire_handler.generate_questionnaire
     timeout: 29
     memorySize: 1024
     events:
@@ -174,7 +174,7 @@ functions:
               Ref: ApiGatewayAuthorizer
 
   questionnaireSubmit:
-    handler: src/handlers/questionnaire.submit_questionnaire
+    handler: src/handlers/questionnaire_handler.submit_questionnaire
     timeout: 29
     memorySize: 1024
     events:
@@ -191,7 +191,7 @@ functions:
               Ref: ApiGatewayAuthorizer
 
   questionnaireHistory:
-    handler: src/handlers/questionnaire.get_questionnaire_history
+    handler: src/handlers/questionnaire_handler.get_questionnaire_history
     timeout: 29
     memorySize: 1024
     events:
@@ -208,7 +208,7 @@ functions:
               Ref: ApiGatewayAuthorizer
 
   questionnaireRegenerate:
-    handler: src/handlers/questionnaire.regenerate_questionnaire
+    handler: src/handlers/questionnaire_handler.regenerate_questionnaire
     timeout: 29
     memorySize: 1024
     events:
@@ -257,7 +257,7 @@ functions:
             authorizerId:
               Ref: ApiGatewayAuthorizer
       - http:
-          path: applications/status/{applicationId}   # ← 衝突回避のため変更済み
+          path: applications/status/{applicationId}
           method: PUT
           cors:
             origin: "*"
