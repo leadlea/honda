@@ -1,9 +1,16 @@
 """
 Authentication handler for Cognito User Pool integration.
-Handles user registration, login, logout, and JWT token verification.
+Handles user registration, login, logout, and JWT token handling.
 Integrates with RBAC system and security auditing.
+
+※ PyJWT への依存を排除しました。トークン検証は API Gateway の
+   Cognito オーソライザーで行われる前提で、Lambda では
+   requestContext.authorizer.claims を優先利用します。
 """
 
+from __future__ import annotations
+
+import base64
 import json
 import logging
 import os
@@ -11,33 +18,105 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import boto3
-import jwt
 from botocore.exceptions import ClientError
 
 from src.utils.performance import optimize_lambda_handler
-
-# Import RBAC and security audit modules
 from src.utils.rbac import get_available_roles, rbac_manager, validate_role
 from src.utils.security_audit import extract_request_info, security_auditor
 from src.utils.security_headers import create_secure_response, security_middleware
 
-# Configure logging
+# ──────────────────────────────────────────────────────────────
+# Logging / AWS clients / Env
+# ──────────────────────────────────────────────────────────────
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Initialize AWS clients
 cognito_client = boto3.client("cognito-idp")
 dynamodb = boto3.resource("dynamodb")
 
-# Environment variables
-USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID")
-CLIENT_ID = os.environ.get("COGNITO_CLIENT_ID")
-USERS_TABLE_NAME = f"{os.environ.get('DYNAMODB_TABLE_PREFIX')}-users"
+USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID")  # e.g. ap-northeast-1_y0c315iUX
+CLIENT_ID = os.environ.get("COGNITO_CLIENT_ID")        # e.g. 146raomfft06uhv8d93rv7iiol
+TABLE_PREFIX = os.environ.get("DYNAMODB_TABLE_PREFIX")  # e.g. honda-veteran-talent-matching-prod
+USERS_TABLE_NAME = f"{TABLE_PREFIX}-users" if TABLE_PREFIX else os.environ.get("USERS_TABLE", "")
 
-# Initialize DynamoDB table
 users_table = dynamodb.Table(USERS_TABLE_NAME)
 
 
+# ──────────────────────────────────────────────────────────────
+# Helpers
+# ──────────────────────────────────────────────────────────────
+def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
+    """Create standardized HTTP response with security headers."""
+    origin = None  # security_middleware / create_secure_response 側で最終決定
+    return create_secure_response(status_code, body, origin=origin)
+
+
+def extract_token_from_header(event: Dict[str, Any]) -> Optional[str]:
+    """
+    Extract JWT from Authorization header.
+    Accepts both 'Bearer <token>' and raw '<token>'.
+    """
+    headers = event.get("headers", {}) or {}
+    auth_header = headers.get("Authorization") or headers.get("authorization")
+    if not auth_header:
+        return None
+    ah = auth_header.strip()
+    if ah.lower().startswith("bearer "):
+        return ah.split(" ", 1)[1].strip()
+    return ah  # raw token
+
+
+def _decode_jwt_payload_no_verify(token: str) -> Dict[str, Any]:
+    """
+    Decode JWT payload without signature verification.
+    API Gateway + Cognito authorizer already verified the token.
+    """
+    try:
+        payload_b64 = token.split(".")[1]
+        padding = "=" * (-len(payload_b64) % 4)
+        data = base64.urlsafe_b64decode(payload_b64 + padding)
+        return json.loads(data)
+    except Exception:
+        return {}
+
+
+def get_user_id_from_token(jwt_token: str) -> Optional[str]:
+    """
+    Extract user identifier from JWT payload.
+    Tries sub -> cognito:username -> username (AccessToken では username が多い)
+    """
+    claims = _decode_jwt_payload_no_verify(jwt_token)
+    return claims.get("sub") or claims.get("cognito:username") or claims.get("username")
+
+
+def get_claims_from_event(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Safely extract claims from authorizer (preferred source)."""
+    return (
+        event.get("requestContext", {})
+        .get("authorizer", {})
+        .get("claims", {})
+    ) or {}
+
+
+def get_user_id_from_event(event: Dict[str, Any]) -> Optional[str]:
+    """Prefer claims; fall back to decoding header token."""
+    claims = get_claims_from_event(event)
+    uid = claims.get("sub") or claims.get("cognito:username") or claims.get("username")
+    if uid:
+        return uid
+    token = extract_token_from_header(event)
+    if token:
+        return get_user_id_from_token(token)
+    return None
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+# ──────────────────────────────────────────────────────────────
+# Handler (routing)
+# ──────────────────────────────────────────────────────────────
 @optimize_lambda_handler
 @security_middleware
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -50,10 +129,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         path = event.get("path", "")
         path_parameters = event.get("pathParameters") or {}
 
-        # Extract the action from the path
+        # Extract action from /auth/{action}
         path_parts = path.strip("/").split("/")
         if len(path_parts) >= 2:
-            action = path_parts[1]  # auth/{action}
+            action = path_parts[1]
         else:
             action = (
                 path_parameters.get("proxy", "").split("/")[0]
@@ -63,21 +142,22 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         logger.info(f"Processing {http_method} request for action: {action}")
 
-        # Route to appropriate handler
         if http_method == "POST":
             if action == "register":
                 return register_user(event)
-            elif action == "login":
+            if action == "login":
                 return login_user(event)
-            elif action == "logout":
+            if action == "logout":
                 return logout_user(event)
-            elif action == "refresh":
+            if action == "refresh":
                 return refresh_token(event)
+
         elif http_method == "GET":
             if action == "profile":
-                return get_user_profile(event)
-            elif action == "verify":
+                return get_user_profile(event)  # ← 初回アクセスで upsert
+            if action == "verify":
                 return verify_token(event)
+
         elif http_method == "PUT":
             if action == "profile":
                 return update_user_profile(event)
@@ -85,41 +165,39 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return create_response(400, {"error": "Invalid action or method"})
 
     except Exception as e:
-        logger.error(f"Error in auth handler: {str(e)}")
+        logger.exception("Error in auth handler")
         return create_response(500, {"error": "Internal server error"})
 
 
+# ──────────────────────────────────────────────────────────────
+# Actions
+# ──────────────────────────────────────────────────────────────
 def register_user(event: Dict[str, Any]) -> Dict[str, Any]:
     """
     Register a new user in Cognito User Pool and create user record in DynamoDB.
+    （管理者作成フロー / AdminCreate を想定。UI サインアップ利用時は未使用のことも）
     """
     try:
         body = json.loads(event.get("body", "{}"))
 
-        # Validate required fields
         required_fields = ["email", "password", "name", "employee_id", "department"]
         for field in required_fields:
             if not body.get(field):
-                return create_response(
-                    400, {"error": f"Missing required field: {field}"}
-                )
+                return create_response(400, {"error": f"Missing required field: {field}"})
 
         email = body["email"]
         password = body["password"]
         name = body["name"]
         employee_id = body["employee_id"]
         department = body["department"]
-        role = body.get("role", "veteran")  # Default to veteran role
+        role = body.get("role", "veteran")
 
-        # Validate role using RBAC system
         if not validate_role(role):
-            available_roles = get_available_roles()
-            return create_response(
-                400, {"error": f"Invalid role. Must be one of: {available_roles}"}
-            )
+            available = get_available_roles()
+            return create_response(400, {"error": f"Invalid role. Must be one of: {available}"})
 
-        # Create user in Cognito
-        cognito_response = cognito_client.admin_create_user(
+        # Admin create
+        u = cognito_client.admin_create_user(
             UserPoolId=USER_POOL_ID,
             Username=email,
             UserAttributes=[
@@ -131,19 +209,20 @@ def register_user(event: Dict[str, Any]) -> Dict[str, Any]:
                 {"Name": "custom:role", "Value": role},
             ],
             TemporaryPassword=password,
-            MessageAction="SUPPRESS",  # Don't send welcome email
+            MessageAction="SUPPRESS",
         )
-
-        user_id = cognito_response["User"]["Username"]
+        # Cognito の Username は email を指定しているが、今後の一貫性のため
+        # DynamoDB の主キーは "sub" を推奨（ここでは username を暫定採用）
+        user_id = u["User"]["Username"]
 
         # Set permanent password
         cognito_client.admin_set_user_password(
             UserPoolId=USER_POOL_ID, Username=user_id, Password=password, Permanent=True
         )
 
-        # Create user record in DynamoDB
-        current_time = datetime.now(timezone.utc).isoformat()
-        user_record = {
+        # Create user record
+        now = _now_iso()
+        users_table.put_item(Item={
             "user_id": user_id,
             "employee_id": employee_id,
             "email": email,
@@ -151,131 +230,102 @@ def register_user(event: Dict[str, Any]) -> Dict[str, Any]:
             "department": department,
             "role": role,
             "is_active": True,
-            "created_at": current_time,
-            "updated_at": current_time,
-        }
-
-        users_table.put_item(Item=user_record)
+            "created_at": now,
+            "updated_at": now,
+        })
 
         logger.info(f"User registered successfully: {email}")
-
-        return create_response(
-            201,
-            {
-                "message": "User registered successfully",
-                "user_id": user_id,
-                "email": email,
-                "role": role,
-            },
-        )
+        return create_response(201, {
+            "message": "User registered successfully",
+            "user_id": user_id,
+            "email": email,
+            "role": role,
+        })
 
     except ClientError as e:
-        error_code = e.response["Error"]["Code"]
-        if error_code == "UsernameExistsException":
+        code = e.response["Error"]["Code"]
+        if code == "UsernameExistsException":
             return create_response(409, {"error": "User already exists"})
-        elif error_code == "InvalidPasswordException":
-            return create_response(
-                400, {"error": "Password does not meet requirements"}
-            )
-        else:
-            logger.error(f"Cognito error: {str(e)}")
-            return create_response(500, {"error": "Registration failed"})
-    except Exception as e:
-        logger.error(f"Registration error: {str(e)}")
+        if code == "InvalidPasswordException":
+            return create_response(400, {"error": "Password does not meet requirements"})
+        logger.exception("Cognito error on register_user")
+        return create_response(500, {"error": "Registration failed"})
+    except Exception:
+        logger.exception("Registration error")
         return create_response(500, {"error": "Registration failed"})
 
 
 def login_user(event: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Authenticate user and return JWT tokens.
+    Authenticate with Cognito (ADMIN_NO_SRP_AUTH) and return tokens + light user info.
     """
     request_info = extract_request_info(event)
-
     try:
         body = json.loads(event.get("body", "{}"))
-
         email = body.get("email")
         password = body.get("password")
-
         if not email or not password:
             return create_response(400, {"error": "Email and password are required"})
 
-        # Authenticate with Cognito
-        auth_response = cognito_client.admin_initiate_auth(
+        auth = cognito_client.admin_initiate_auth(
             UserPoolId=USER_POOL_ID,
             ClientId=CLIENT_ID,
             AuthFlow="ADMIN_NO_SRP_AUTH",
             AuthParameters={"USERNAME": email, "PASSWORD": password},
         )
 
-        # Extract tokens
-        tokens = auth_response["AuthenticationResult"]
+        tokens = auth["AuthenticationResult"]
         access_token = tokens["AccessToken"]
         id_token = tokens["IdToken"]
-        refresh_token = tokens["RefreshToken"]
+        refresh_token = tokens.get("RefreshToken", "")
 
-        # Get user details from DynamoDB
-        user_id = get_user_id_from_token(access_token)
-        user_response = users_table.get_item(Key={"user_id": user_id})
-        user_data = user_response.get("Item", {})
+        # user_id は AccessToken の claims から（sub/username）
+        uid = get_user_id_from_token(access_token) or email
+        user = users_table.get_item(Key={"user_id": uid}).get("Item", {})
 
-        # Log successful login
         security_auditor.log_login_attempt(
-            user_id=user_id,
+            user_id=uid,
             success=True,
             source_ip=request_info.get("source_ip"),
             user_agent=request_info.get("user_agent"),
         )
 
-        logger.info(f"User logged in successfully: {email}")
-
-        return create_response(
-            200,
-            {
-                "message": "Login successful",
-                "tokens": {
-                    "access_token": access_token,
-                    "id_token": id_token,
-                    "refresh_token": refresh_token,
-                    "expires_in": tokens["ExpiresIn"],
-                },
-                "user": {
-                    "user_id": user_data.get("user_id"),
-                    "email": user_data.get("email"),
-                    "name": user_data.get("name"),
-                    "role": user_data.get("role"),
-                    "department": user_data.get("department"),
-                    "permissions": [
-                        perm.value
-                        for perm in rbac_manager.get_user_permissions(
-                            user_data.get("role", "")
-                        )
-                    ],
-                },
+        return create_response(200, {
+            "message": "Login successful",
+            "tokens": {
+                "access_token": access_token,
+                "id_token": id_token,
+                "refresh_token": refresh_token,
+                "expires_in": tokens["ExpiresIn"],
             },
-        )
+            "user": {
+                "user_id": user.get("user_id", uid),
+                "email": user.get("email", email),
+                "name": user.get("name", ""),
+                "role": user.get("role", ""),
+                "department": user.get("department", ""),
+                "permissions": [
+                    perm.value for perm in rbac_manager.get_user_permissions(user.get("role", ""))
+                ],
+            },
+        })
 
     except ClientError as e:
-        error_code = e.response["Error"]["Code"]
-
-        # Log failed login attempt
+        code = e.response["Error"]["Code"]
         security_auditor.log_login_attempt(
-            user_id=email,  # Use email as identifier for failed attempts
+            user_id=email or "unknown",
             success=False,
             source_ip=request_info.get("source_ip"),
             user_agent=request_info.get("user_agent"),
-            failure_reason=error_code,
+            failure_reason=code,
         )
-
-        if error_code in ["NotAuthorizedException", "UserNotFoundException"]:
+        if code in ["NotAuthorizedException", "UserNotFoundException"]:
             return create_response(401, {"error": "Invalid credentials"})
-        elif error_code == "UserNotConfirmedException":
+        if code == "UserNotConfirmedException":
             return create_response(401, {"error": "User not confirmed"})
-        else:
-            logger.error(f"Cognito login error: {str(e)}")
-            return create_response(500, {"error": "Login failed"})
-    except Exception as e:
-        # Log failed login attempt
+        logger.exception("Cognito login error")
+        return create_response(500, {"error": "Login failed"})
+    except Exception:
         security_auditor.log_login_attempt(
             user_id=email or "unknown",
             success=False,
@@ -283,155 +333,136 @@ def login_user(event: Dict[str, Any]) -> Dict[str, Any]:
             user_agent=request_info.get("user_agent"),
             failure_reason="system_error",
         )
-
-        logger.error(f"Login error: {str(e)}")
+        logger.exception("Login error")
         return create_response(500, {"error": "Login failed"})
 
 
 def logout_user(event: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Logout user by invalidating tokens.
-    """
+    """Global sign-out by Access Token."""
     request_info = extract_request_info(event)
-
     try:
-        # Extract access token from Authorization header
         access_token = extract_token_from_header(event)
         if not access_token:
             return create_response(401, {"error": "Access token required"})
 
-        # Get user ID for audit logging
-        user_id = get_user_id_from_token(access_token)
-
-        # Global sign out (invalidates all tokens)
+        uid = get_user_id_from_token(access_token)
         cognito_client.global_sign_out(AccessToken=access_token)
 
-        # Log logout
-        if user_id:
-            security_auditor.log_logout(
-                user_id=user_id, source_ip=request_info.get("source_ip")
-            )
-
-        logger.info("User logged out successfully")
+        if uid:
+            security_auditor.log_logout(user_id=uid, source_ip=request_info.get("source_ip"))
 
         return create_response(200, {"message": "Logout successful"})
-
-    except ClientError as e:
-        logger.error(f"Logout error: {str(e)}")
+    except ClientError:
+        logger.exception("Logout error")
         return create_response(500, {"error": "Logout failed"})
-    except Exception as e:
-        logger.error(f"Logout error: {str(e)}")
+    except Exception:
+        logger.exception("Logout error")
         return create_response(500, {"error": "Logout failed"})
 
 
 def refresh_token(event: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Refresh access token using refresh token.
-    """
+    """Refresh tokens using Refresh Token."""
     try:
         body = json.loads(event.get("body", "{}"))
         refresh_token = body.get("refresh_token")
-
         if not refresh_token:
             return create_response(400, {"error": "Refresh token required"})
 
-        # Refresh tokens
-        auth_response = cognito_client.admin_initiate_auth(
+        auth = cognito_client.admin_initiate_auth(
             UserPoolId=USER_POOL_ID,
             ClientId=CLIENT_ID,
             AuthFlow="REFRESH_TOKEN_AUTH",
             AuthParameters={"REFRESH_TOKEN": refresh_token},
         )
+        tokens = auth["AuthenticationResult"]
 
-        tokens = auth_response["AuthenticationResult"]
-
-        return create_response(
-            200,
-            {
-                "message": "Token refreshed successfully",
-                "tokens": {
-                    "access_token": tokens["AccessToken"],
-                    "id_token": tokens["IdToken"],
-                    "expires_in": tokens["ExpiresIn"],
-                },
+        return create_response(200, {
+            "message": "Token refreshed successfully",
+            "tokens": {
+                "access_token": tokens["AccessToken"],
+                "id_token": tokens["IdToken"],
+                "expires_in": tokens["ExpiresIn"],
             },
-        )
+        })
 
-    except ClientError as e:
-        logger.error(f"Token refresh error: {str(e)}")
+    except ClientError:
+        logger.exception("Token refresh error")
         return create_response(401, {"error": "Invalid refresh token"})
-    except Exception as e:
-        logger.error(f"Token refresh error: {str(e)}")
+    except Exception:
+        logger.exception("Token refresh error")
         return create_response(500, {"error": "Token refresh failed"})
 
 
 def get_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Get current user profile information.
+    Return current user profile.
+    If not found, create it on the fly (first access upsert).
     """
     try:
-        # Extract user ID from token
+        claims = get_claims_from_event(event)
         user_id = get_user_id_from_event(event)
         if not user_id:
             return create_response(401, {"error": "Invalid token"})
 
-        # Get user from DynamoDB
-        response = users_table.get_item(Key={"user_id": user_id})
+        resp = users_table.get_item(Key={"user_id": user_id})
+        item = resp.get("Item")
 
-        if "Item" not in response:
-            return create_response(404, {"error": "User not found"})
+        if not item:
+            now = _now_iso()
+            item = {
+                "user_id": user_id,
+                "employee_id": claims.get("custom:employee_id", ""),
+                "email": claims.get("email", ""),
+                "name": claims.get("name", ""),
+                "department": claims.get("custom:department", ""),
+                "role": claims.get("custom:role", "veteran"),
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now,
+            }
+            users_table.put_item(Item=item)
 
-        user_data = response["Item"]
-
-        # Remove sensitive information
         user_profile = {
-            "user_id": user_data["user_id"],
-            "employee_id": user_data["employee_id"],
-            "email": user_data["email"],
-            "name": user_data["name"],
-            "department": user_data["department"],
-            "role": user_data["role"],
-            "is_active": user_data["is_active"],
-            "created_at": user_data["created_at"],
+            "user_id": item.get("user_id"),
+            "employee_id": item.get("employee_id", ""),
+            "email": item.get("email", ""),
+            "name": item.get("name", ""),
+            "department": item.get("department", ""),
+            "role": item.get("role", ""),
+            "is_active": item.get("is_active", True),
+            "created_at": item.get("created_at", ""),
         }
-
         return create_response(200, {"user": user_profile})
 
-    except Exception as e:
-        logger.error(f"Get profile error: {str(e)}")
+    except Exception:
+        logger.exception("Get profile error")
         return create_response(500, {"error": "Failed to get user profile"})
 
 
 def update_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Update user profile information.
-    """
+    """Update whitelisted profile fields."""
     try:
-        # Extract user ID from token
         user_id = get_user_id_from_event(event)
         if not user_id:
             return create_response(401, {"error": "Invalid token"})
 
         body = json.loads(event.get("body", "{}"))
-
-        # Allowed fields to update
         allowed_fields = ["name", "department"]
+
         update_expression = "SET updated_at = :updated_at"
-        expression_values = {":updated_at": datetime.now(timezone.utc).isoformat()}
+        expression_values = {":updated_at": _now_iso()}
 
         for field in allowed_fields:
             if field in body:
                 update_expression += f", {field} = :{field}"
                 expression_values[f":{field}"] = body[field]
 
-        # Update in DynamoDB
         users_table.update_item(
             Key={"user_id": user_id},
             UpdateExpression=update_expression,
             ExpressionAttributeValues=expression_values,
         )
 
-        # Also update Cognito attributes if name is updated
         if "name" in body:
             cognito_client.admin_update_user_attributes(
                 UserPoolId=USER_POOL_ID,
@@ -441,98 +472,37 @@ def update_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
 
         return create_response(200, {"message": "Profile updated successfully"})
 
-    except Exception as e:
-        logger.error(f"Update profile error: {str(e)}")
-        return create_response(500, {"error": "Failed to update profile"})
+    except Exception:
+        logger.exception("Update profile error")
+        return create_response(500, {"error": "Failed to update user profile"})
 
 
 def verify_token(event: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Verify JWT token and return user information.
+    Verify token by calling Cognito GetUser with AccessToken.
     """
     try:
-        access_token = extract_token_from_header(event)
-        if not access_token:
+        token = extract_token_from_header(event)
+        if not token:
             return create_response(401, {"error": "Access token required"})
 
-        # Get user info from Cognito
-        user_info = cognito_client.get_user(AccessToken=access_token)
+        user_info = cognito_client.get_user(AccessToken=token)
+        attrs = {a["Name"]: a["Value"] for a in user_info.get("UserAttributes", [])}
 
-        # Extract user attributes
-        attributes = {
-            attr["Name"]: attr["Value"] for attr in user_info["UserAttributes"]
-        }
-
-        return create_response(
-            200,
-            {
-                "valid": True,
-                "user": {
-                    "user_id": user_info["Username"],
-                    "email": attributes.get("email"),
-                    "name": attributes.get("name"),
-                    "role": attributes.get("custom:role"),
-                    "department": attributes.get("custom:department"),
-                },
+        return create_response(200, {
+            "valid": True,
+            "user": {
+                "user_id": user_info.get("Username"),
+                "email": attrs.get("email"),
+                "name": attrs.get("name"),
+                "role": attrs.get("custom:role"),
+                "department": attrs.get("custom:department"),
             },
-        )
+        })
 
-    except ClientError as e:
-        logger.error(f"Token verification error: {str(e)}")
+    except ClientError:
+        logger.exception("Token verification error (Cognito)")
         return create_response(401, {"valid": False, "error": "Invalid token"})
-    except Exception as e:
-        logger.error(f"Token verification error: {str(e)}")
-        return create_response(500, {"error": "Token verification failed"})
-
-
-def extract_token_from_header(event: Dict[str, Any]) -> Optional[str]:
-    """
-    Extract JWT token from Authorization header.
-    """
-    headers = event.get("headers", {})
-    auth_header = headers.get("Authorization") or headers.get("authorization")
-
-    if auth_header and auth_header.startswith("Bearer "):
-        return auth_header[7:]  # Remove 'Bearer ' prefix
-
-    return None
-
-
-def get_user_id_from_token(access_token: str) -> Optional[str]:
-    """
-    Extract user ID from JWT access token without verification.
-    Note: This is for internal use only, token should be verified by API Gateway.
-    """
-    try:
-        # Decode without verification (API Gateway already verified it)
-        decoded = jwt.decode(access_token, options={"verify_signature": False})
-        return decoded.get("username")
     except Exception:
-        return None
-
-
-def get_user_id_from_event(event: Dict[str, Any]) -> Optional[str]:
-    """
-    Extract user ID from event (either from token or request context).
-    """
-    # Try to get from request context (set by API Gateway authorizer)
-    request_context = event.get("requestContext", {})
-    authorizer = request_context.get("authorizer", {})
-
-    if "claims" in authorizer:
-        return authorizer["claims"].get("username")
-
-    # Fallback: extract from token
-    access_token = extract_token_from_header(event)
-    if access_token:
-        return get_user_id_from_token(access_token)
-
-    return None
-
-
-def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Create standardized HTTP response with security headers.
-    """
-    origin = None  # Will be handled by security middleware
-    return create_secure_response(status_code, body, origin=origin)
+        logger.exception("Token verification error")
+        return create_response(500, {"error": "Token verification failed"})

@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Frontend deployment script for Honda Veteran Talent Matching
-# Builds the React app and deploys it to S3/CloudFront
-# - ENV を最優先して Cognito 設定を埋め込む
-# - 旧 ClientId（1179..., 2bggeik...）だけをブロック
-# - ログにはマスクして表示
+# - ENV最優先で .env.production を生成
+# - 静的アセットは 1年 + immutable、HTML/manifest/asset-manifest/SW は no-cache
+# - 古い ClientId / 古い UserPoolId の混入をビルド後に検知して安全停止
+# - CloudFront 全無効化
 
 set -Eeuo pipefail
 
@@ -15,7 +15,13 @@ SERVICE_NAME="honda-veteran-talent-matching"
 FRONTEND_DIR="frontend"
 BUILD_DIR="$FRONTEND_DIR/build"
 
-# Colors
+# デフォルト値（ENVで上書き可能）
+BUCKET_NAME="${FRONTEND_BUCKET_NAME:-honda-hr-bank}"
+BUCKET_REGION="${FRONTEND_BUCKET_REGION:-ap-northeast-1}"
+CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-E1T3WQ2YHO1BNA}"
+CLOUDFRONT_DOMAIN="${CLOUDFRONT_DOMAIN:-doy5alruji476.cloudfront.net}"
+
+# Colors / helpers
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 die(){ echo -e "${RED}❌ $*${NC}"; exit 1; }
 mask(){ local v="$1"; echo "${v:0:3}******${v: -3}"; }
@@ -37,38 +43,24 @@ CLIENT_ID="$REACT_APP_COGNITO_CLIENT_ID"
 USER_POOL_ID="$REACT_APP_COGNITO_USER_POOL_ID"
 
 echo -e "${GREEN}🔐 Cognito ClientId: $(mask "$CLIENT_ID")${NC}"
-echo -e "${GREEN}🔐 UserPoolId: $(mask "$USER_POOL_ID")${NC}"
+echo -e "${GREEN}🔐 UserPoolId:       $(mask "$USER_POOL_ID")${NC}"
 
-# 旧IDだけをブロック（誤検知しないように限定）
+# 旧IDだけをブロック（誤検知しないよう限定）
 if [[ "$CLIENT_ID" == "1179cu6f4a1g8hqhavmndtf8as" || \
       "$CLIENT_ID" == "2bggeikp7ijt5medn414pkfkmk" || \
       "$CLIENT_ID" == "placeholder-client-id" ]]; then
   die "Forbidden/placeholder ClientId detected. Abort."
 fi
 
-# フォーマット基本チェック（英数かつ 10〜64 文字程度）
-if ! [[ "$CLIENT_ID" =~ ^[a-z0-9]{10,64}$ ]]; then
-  die "Invalid ClientId format (must be lowercase alnum, length 10-64)"
-fi
-if ! [[ "$USER_POOL_ID" =~ ^ap-northeast-1_.+ ]]; then
-  die "Invalid UserPoolId format for ap-northeast-1"
-fi
+# 形式チェック
+[[ "$CLIENT_ID" =~ ^[a-z0-9]{10,64}$ ]] || die "Invalid ClientId format (lowercase alnum, 10-64)"
+[[ "$USER_POOL_ID" =~ ^ap-northeast-1_.+ ]] || die "Invalid UserPoolId format for ap-northeast-1"
 
-# ──────────────────────────────────────────────────────────────
-# Static hosting config (既存インフラを利用)
-# ──────────────────────────────────────────────────────────────
-echo -e "${YELLOW}📋 Using existing S3/CloudFront config...${NC}"
-BUCKET_NAME="${FRONTEND_BUCKET_NAME:-honda-hr-bank}"
-BUCKET_REGION="${FRONTEND_BUCKET_REGION:-ap-northeast-1}"
-CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-E1T3WQ2YHO1BNA}"
-CLOUDFRONT_DOMAIN="${CLOUDFRONT_DOMAIN:-doy5alruji476.cloudfront.net}"
-
+# S3/CF 存在チェック
 aws s3 ls "s3://$BUCKET_NAME" --region "$BUCKET_REGION" >/dev/null 2>&1 \
   || die "S3 bucket '$BUCKET_NAME' not found in region '$BUCKET_REGION'"
-
 echo -e "${GREEN}✅ S3 Bucket: $BUCKET_NAME${NC}"
 echo -e "${GREEN}✅ CloudFront Distribution: $CLOUDFRONT_DISTRIBUTION_ID${NC}"
-echo -e "${GREEN}✅ CloudFront Domain: $CLOUDFRONT_DOMAIN${NC}"
 
 # ──────────────────────────────────────────────────────────────
 # Backend endpoint
@@ -104,7 +96,7 @@ EOF
 echo -e "${GREEN}✅ .env.production created${NC}"
 
 # ──────────────────────────────────────────────────────────────
-# Build frontend
+# Build
 # ──────────────────────────────────────────────────────────────
 cd "$FRONTEND_DIR"
 echo -e "${YELLOW}📦 Installing dependencies...${NC}"
@@ -115,9 +107,12 @@ npm run build
 [ -d "build" ] || die "Build failed (build dir missing)"
 echo -e "${GREEN}✅ Build succeeded${NC}"
 
-# 念のため旧ID混入チェック
+# 旧ID混入チェック（追加の安全網）
 if grep -R -E "1179cu6f4a1g8hqhavmndtf8as|2bggeikp7ijt5medn414pkfkmk" build >/dev/null 2>&1; then
   die "Found forbidden old client id inside build artifacts"
+fi
+if grep -R "ap-northeast-1_wkRvKeooL" build >/dev/null 2>&1; then
+  die "Found old UserPoolId (wkRvKeooL) in build artifacts"
 fi
 cd ..
 
@@ -129,32 +124,66 @@ chmod +x scripts/fix-cloudfront-s3.sh 2>/dev/null || true
 ./scripts/fix-cloudfront-s3.sh 2>/dev/null || echo -e "${YELLOW}⚠️  Skipped/failed config fix, continue${NC}"
 
 # ──────────────────────────────────────────────────────────────
-# Upload to S3
+# Upload (改善版)
+#  1) 静的アセット: 1年 + immutable（HTML/manifest/SW/asset-manifest は除外）
+#  2) HTML/manifest/SW/asset-manifest: no-cache で個別アップロード
 # ──────────────────────────────────────────────────────────────
-echo -e "${YELLOW}☁️  Uploading static assets to S3...${NC}"
+echo -e "${YELLOW}☁️  Sync static assets → s3://$BUCKET_NAME (cache=1year, immutable)${NC}"
 aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
   --region "$BUCKET_REGION" \
   --delete \
-  --cache-control "public, max-age=31536000" \
+  --cache-control "public, max-age=31536000, immutable" \
   --exclude "*.html" \
   --exclude "service-worker.js" \
-  --exclude "manifest.json"
+  --exclude "service-worker-*" \
+  --exclude "manifest.json" \
+  --exclude "asset-manifest.json"
 
-echo -e "${YELLOW}☁️  Uploading HTML/manifest with no-cache...${NC}"
-aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" \
+echo -e "${YELLOW}🧾 Upload HTML (no-cache)${NC}"
+aws s3 cp "$BUILD_DIR/index.html" "s3://$BUCKET_NAME/index.html" \
   --region "$BUCKET_REGION" \
-  --delete \
-  --cache-control "no-cache, no-store, must-revalidate" \
-  --include "*.html" \
-  --include "service-worker.js" \
-  --include "manifest.json"
+  --cache-control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" \
+  --expires "0" \
+  --content-type "text/html; charset=utf-8"
 
-# Ensure index.html content-type
-aws s3 cp "s3://$BUCKET_NAME/index.html" "s3://$BUCKET_NAME/index.html" \
-  --region "$BUCKET_REGION" \
-  --metadata-directive REPLACE \
-  --content-type "text/html" \
-  --cache-control "no-cache, no-store, must-revalidate" || true
+# 追加の .html があれば同様に no-cache で上書き
+find "$BUILD_DIR" -name "*.html" ! -name "index.html" -print0 | while IFS= read -r -d '' f; do
+  rel="${f#$BUILD_DIR/}"
+  aws s3 cp "$f" "s3://$BUCKET_NAME/$rel" \
+    --region "$BUCKET_REGION" \
+    --cache-control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" \
+    --expires "0" \
+    --content-type "text/html; charset=utf-8"
+done
+
+# manifest.json（PWA用）
+if [ -f "$BUILD_DIR/manifest.json" ]; then
+  aws s3 cp "$BUILD_DIR/manifest.json" "s3://$BUCKET_NAME/manifest.json" \
+    --region "$BUCKET_REGION" \
+    --cache-control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" \
+    --expires "0" \
+    --content-type "application/manifest+json; charset=utf-8"
+fi
+
+# asset-manifest.json（CRA系）
+if [ -f "$BUILD_DIR/asset-manifest.json" ]; then
+  aws s3 cp "$BUILD_DIR/asset-manifest.json" "s3://$BUCKET_NAME/asset-manifest.json" \
+    --region "$BUCKET_REGION" \
+    --cache-control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" \
+    --expires "0" \
+    --content-type "application/json; charset=utf-8"
+fi
+
+# Service Worker
+for sw in "$BUILD_DIR"/service-worker*.js; do
+  [ -e "$sw" ] || continue
+  rel="${sw#$BUILD_DIR/}"
+  aws s3 cp "$sw" "s3://$BUCKET_NAME/$rel" \
+    --region "$BUCKET_REGION" \
+    --cache-control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" \
+    --expires "0" \
+    --content-type "application/javascript; charset=utf-8"
+done
 
 echo -e "${GREEN}✅ S3 upload complete${NC}"
 
