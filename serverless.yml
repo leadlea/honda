@@ -155,8 +155,9 @@ functions:
             authorizerId:
               Ref: ApiGatewayAuthorizer
 
-  questionnaireHandler:
-    handler: src/handlers/questionnaire_handler.handler
+  # --- Questionnaire endpoints: 個別関数に分割 ---
+  questionnaireGet:
+    handler: src/handlers/questionnaire.generate_questionnaire
     timeout: 29
     memorySize: 1024
     events:
@@ -171,6 +172,12 @@ functions:
             type: COGNITO_USER_POOLS
             authorizerId:
               Ref: ApiGatewayAuthorizer
+
+  questionnaireSubmit:
+    handler: src/handlers/questionnaire.submit_questionnaire
+    timeout: 29
+    memorySize: 1024
+    events:
       - http:
           path: questionnaire/{userId}/submit
           method: POST
@@ -182,6 +189,12 @@ functions:
             type: COGNITO_USER_POOLS
             authorizerId:
               Ref: ApiGatewayAuthorizer
+
+  questionnaireHistory:
+    handler: src/handlers/questionnaire.get_questionnaire_history
+    timeout: 29
+    memorySize: 1024
+    events:
       - http:
           path: questionnaire/{userId}/history
           method: GET
@@ -193,6 +206,12 @@ functions:
             type: COGNITO_USER_POOLS
             authorizerId:
               Ref: ApiGatewayAuthorizer
+
+  questionnaireRegenerate:
+    handler: src/handlers/questionnaire.regenerate_questionnaire
+    timeout: 29
+    memorySize: 1024
+    events:
       - http:
           path: questionnaire/{userId}/regenerate
           method: PUT
@@ -300,7 +319,6 @@ functions:
 
 resources:
   Resources:
-    # === Keep existing Cognito UserPool under the stack (do NOT delete) ===
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
       DeletionPolicy: Retain
@@ -319,7 +337,6 @@ resources:
             RequireNumbers: true
             RequireSymbols: true
 
-    # === Authorizer: 既存UserPoolを参照（ENVにIDを渡す） ===
     ApiGatewayAuthorizer:
       Type: AWS::ApiGateway::Authorizer
       Properties:
@@ -331,7 +348,6 @@ resources:
         ProviderARNs:
           - Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}
 
-    # === KMS ===
     KMSKey:
       Type: AWS::KMS::Key
       Properties:
@@ -366,7 +382,6 @@ resources:
         TargetKeyId:
           Ref: KMSKey
 
-    # === API Key / Usage Plan ===
     ApiGatewayUsagePlan:
       Type: AWS::ApiGateway::UsagePlan
       Properties:
@@ -399,7 +414,6 @@ resources:
         UsagePlanId:
           Ref: ApiGatewayUsagePlan
 
-    # === GatewayResponses (CORS 4xx/5xx) ===
     ApiGatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -422,7 +436,6 @@ resources:
           gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
           gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
 
-    # === DynamoDB Tables ===
     UsersTable:
       Type: AWS::DynamoDB::Table
       Properties:
