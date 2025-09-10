@@ -32,7 +32,7 @@ class BedrockRegion(Enum):
 class ClaudeModel(Enum):
     """Supported Claude models."""
 
-    CLAUDE_3_5_SONNET = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+    CLAUDE_3_5_SONNET = "anthropic.claude-3-5-sonnet-20240620-v1:0"
     CLAUDE_3_HAIKU = "anthropic.claude-3-haiku-20240307-v1:0"
 
 

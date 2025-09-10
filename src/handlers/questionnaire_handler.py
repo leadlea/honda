@@ -25,7 +25,7 @@ logger.setLevel(logging.INFO)
 # ---------- Env & clients ----------
 REGION = os.environ.get("AWS_REGION") or os.environ.get("REGION") or "ap-northeast-1"
 PREFIX = os.environ.get("DYNAMODB_TABLE_PREFIX", "honda-veteran-talent-matching-dev")
-MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0")
+MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20240620-v1:0")
 
 ddb = boto3.resource("dynamodb", region_name=REGION)
 bedrock = boto3.client("bedrock-runtime", region_name=REGION)

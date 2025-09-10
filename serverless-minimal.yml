@@ -14,7 +14,7 @@ provider:
     STAGE: ${self:provider.stage}
     REGION: ${self:provider.region}
     DYNAMODB_TABLE_PREFIX: ${self:service}-${self:provider.stage}
-    BEDROCK_MODEL_ID: anthropic.claude-3-5-sonnet-20241022-v2:0
+    BEDROCK_MODEL_ID: anthropic.claude-3-5-sonnet-20240620-v1:0
     COGNITO_USER_POOL_ID: ${cf:${self:service}-${self:provider.stage}.CognitoUserPoolId, ''}
     COGNITO_CLIENT_ID: ${cf:${self:service}-${self:provider.stage}.CognitoClientId, ''}
     KMS_KEY_ID: ${cf:${self:service}-${self:provider.stage}.KMSKeyId, ''}
@@ -49,7 +49,7 @@ provider:
           Action:
             - bedrock:InvokeModel
           Resource:
-            - "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+            - "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
         - Effect: Allow
           Action:
             - cognito-idp:AdminGetUser
