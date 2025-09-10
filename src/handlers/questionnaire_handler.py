@@ -1,4 +1,3 @@
-# src/handlers/questionnaire_handler.py
 """
 AI Questionnaire Lambda (sync version, no crypto deps)
 - Uses API Gateway Cognito authorizer claims for the user.
@@ -13,6 +12,7 @@ import os
 import uuid
 import logging
 import base64
+from decimal import Decimal
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -25,7 +25,9 @@ logger.setLevel(logging.INFO)
 # ---------- Env & clients ----------
 REGION = os.environ.get("AWS_REGION") or os.environ.get("REGION") or "ap-northeast-1"
 PREFIX = os.environ.get("DYNAMODB_TABLE_PREFIX", "honda-veteran-talent-matching-dev")
+# v1 はオンデマンド可
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20240620-v1:0")
+PROFILE_ARN = os.environ.get("BEDROCK_INFERENCE_PROFILE_ARN")  # 任意
 
 ddb = boto3.resource("dynamodb", region_name=REGION)
 bedrock = boto3.client("bedrock-runtime", region_name=REGION)
@@ -83,7 +85,6 @@ def _parse_body(event: Dict[str, Any]) -> Dict[str, Any]:
             raw = base64.b64decode(raw).decode("utf-8")
         parsed = json.loads(raw)
         if isinstance(parsed, str):
-            # double-encoded
             try:
                 parsed2 = json.loads(parsed)
                 return parsed2 if isinstance(parsed2, dict) else {}
@@ -111,6 +112,23 @@ def _get_profile(uid: str) -> Optional[Dict[str, Any]]:
     except ClientError as e:
         logger.error("Get profile failed: %s", e)
         return None
+
+
+def _ensure_profile(uid: str) -> Dict[str, Any]:
+    prof = _get_profile(uid)
+    if prof:
+        return prof
+    item = {
+        "user_id": uid,
+        "created_at": _now_iso(),
+        "business_title": "",
+        "skills": [],
+        "preferences": {"preferred_roles": []},
+        "questionnaire_responses": [],
+    }
+    TBL_PROFILES.put_item(Item=item)
+    logger.info("Profile created for user %s", uid)
+    return item
 
 
 def _save_questionnaire(uid: str, qdata: Dict[str, Any]) -> Dict[str, Any]:
@@ -154,10 +172,7 @@ def _submit_responses(qid: str, responses: List[Dict[str, Any]]) -> None:
 
 
 def _update_profile_from_responses(uid: str, responses: List[Dict[str, Any]]) -> None:
-    profile = _get_profile(uid)
-    if not profile:
-        logger.warning("No profile for user %s", uid)
-        return
+    profile = _ensure_profile(uid)
 
     new_skills: List[str] = []
     new_interests: List[str] = []
@@ -210,6 +225,21 @@ def _update_profile_from_responses(uid: str, responses: List[Dict[str, Any]]) ->
         )
 
 
+# ---------- JSON/Decimal ----------
+def _to_plain(obj: Any) -> Any:
+    """DynamoDB Decimal を JSON 可能な型に再帰変換"""
+    if isinstance(obj, Decimal):
+        try:
+            return int(obj) if obj == obj.to_integral_value() else float(obj)
+        except Exception:
+            return float(obj)
+    if isinstance(obj, list):
+        return [_to_plain(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _to_plain(v) for k, v in obj.items()}
+    return obj
+
+
 # ---------- Bedrock ----------
 def _fallback_questionnaire(name: str) -> Dict[str, Any]:
     return {
@@ -235,23 +265,28 @@ def _generate_with_bedrock(name: str, department: str, years_experience: int,
         "as compact JSON with fields: title (string), questions (array of {id,text,type,category,required,options?}). "
         "Use types: text|multiple_choice|rating|boolean. Keep 6-10 questions. Return ONLY JSON."
     )
-    user_msg = {
+    user_msg = _to_plain({
         "name": name,
         "department": department,
         "years_experience": years_experience,
         "current_role": current_role,
         "previous_responses": previous_responses,
-    }
-    body = json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1000,
-        "temperature": 0.3,
-        "system": system,
-        "messages": [{"role": "user", "content": [{"type": "text", "text": json.dumps(user_msg, ensure_ascii=False)}]}],
     })
 
     try:
-        res = bedrock.invoke_model(modelId=MODEL_ID, body=body)
+        body = json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1000,
+            "temperature": 0.3,
+            "system": system,
+            "messages": [{"role": "user", "content": [{"type": "text", "text": json.dumps(user_msg, ensure_ascii=False)}]}],
+        })
+
+        if PROFILE_ARN:
+            res = bedrock.invoke_model(inferenceProfileId=PROFILE_ARN, body=body)
+        else:
+            res = bedrock.invoke_model(modelId=MODEL_ID, body=body)
+
         payload = res["body"].read().decode("utf-8")
         data = json.loads(payload)
         text = ""
@@ -320,7 +355,6 @@ def submit_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _resp(401, {"error": "Unauthorized"})
 
         body = _parse_body(event)
-        # allow path fallback
         path = event.get("pathParameters") or {}
         qid = body.get("questionnaire_id") or path.get("questionnaire_id") or path.get("id")
         responses = body.get("responses") or []
@@ -376,7 +410,6 @@ def regenerate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, A
 
         body = _parse_body(event)
         path = event.get("pathParameters") or {}
-        # path > body の順で取得（URLに入っていれば body は不要）
         from_qid = path.get("questionnaire_id") or path.get("id") \
                    or (body.get("questionnaire_id") if isinstance(body, dict) else None)
 

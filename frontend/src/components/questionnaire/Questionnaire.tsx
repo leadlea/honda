@@ -14,7 +14,6 @@ const CAT_LABELS: Record<string, string> = {
 function unwrapQuestionnaire(data: any): any {
   return data && typeof data === 'object' && 'questionnaire' in data ? (data as any).questionnaire : data;
 }
-
 function unwrapHistory(data: any): any[] {
   if (data && typeof data === 'object' && 'questionnaires' in data) return (data as any).questionnaires;
   return Array.isArray(data) ? data : [];
@@ -31,7 +30,6 @@ const Questionnaire: React.FC = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [questionnaireHistory, setQuestionnaireHistory] = useState<any[]>([]);
 
-  // ---- API 呼び出し ----
   const loadQuestionnaire = useCallback(async () => {
     if (!user) return;
     try {
@@ -51,7 +49,6 @@ const Questionnaire: React.FC = () => {
           responses: resps,
         } as QuestionnaireType);
 
-        // 既存回答を state へ
         const existing: Record<string, any> = {};
         resps.forEach((r: any) => {
           if (r && typeof r === 'object' && r.question_id != null) {
@@ -89,7 +86,6 @@ const Questionnaire: React.FC = () => {
     }
   }, [user, loadQuestionnaire, loadQuestionnaireHistory]);
 
-  // ---- UI ハンドラ ----
   const handleResponseChange = (questionId: string, value: any) => {
     setResponses(prev => ({ ...prev, [questionId]: value }));
   };
@@ -150,7 +146,6 @@ const Questionnaire: React.FC = () => {
     }
   };
 
-  // ---- 表示用ユーティリティ ----
   const renderQuestion = (question: Question) => {
     const value = responses[question.id] ?? '';
 
@@ -244,14 +239,12 @@ const Questionnaire: React.FC = () => {
     const required = (questionnaire.questions ?? []).filter((q) => q.required);
     return required.every(q => {
       const v = responses[q.id];
-      // 空文字は不可、true/false や数値は OK
       if (v === undefined) return false;
       if (typeof v === 'string' && v.trim() === '') return false;
       return true;
     });
   };
 
-  // ---- 画面描画 ----
   if (loading) {
     return (
       <div className="questionnaire-container">
@@ -268,7 +261,7 @@ const Questionnaire: React.FC = () => {
       <div className="questionnaire-container">
         <div className="error-state">
           <h2>エラーが発生しました</h2>
-        <p>{error}</p>
+          <p>{error}</p>
           <button onClick={loadQuestionnaire} className="btn btn-primary">再試行</button>
         </div>
       </div>
@@ -280,7 +273,7 @@ const Questionnaire: React.FC = () => {
       <div className="questionnaire-container">
         <div className="empty-state">
           <h2>問診が見つかりません</h2>
-          <p>新しい問診を生成しますか？</p>
+        <p>新しい問診を生成しますか？</p>
           <button onClick={handleRegenerate} className="btn btn-primary">問診を生成</button>
         </div>
       </div>
