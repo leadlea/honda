@@ -1,3 +1,4 @@
+# src/handlers/questionnaire_handler.py
 """
 AI Questionnaire Lambda (sync version, no crypto deps)
 - Uses API Gateway Cognito authorizer claims for the user.
@@ -11,6 +12,7 @@ import json
 import os
 import uuid
 import logging
+import base64
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -44,6 +46,8 @@ def _resp(status: int, body: Dict[str, Any]) -> Dict[str, Any]:
         "headers": {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Methods": "OPTIONS,GET,POST,PUT",
         },
         "body": json.dumps(body, default=str),
     }
@@ -61,6 +65,33 @@ def _get_user_from_event(event: Dict[str, Any]) -> Optional[str]:
         path = event.get("pathParameters") or {}
         uid = path.get("userId") or path.get("user_id")
     return uid
+
+
+def _parse_body(event: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Robust JSON body parser:
+    - Handles empty body
+    - Handles isBase64Encoded=True
+    - Handles double-encoded JSON strings: '"{}"', '"{...}"'
+    - Returns {} on any parsing problem
+    """
+    raw = event.get("body")
+    if not raw:
+        return {}
+    try:
+        if event.get("isBase64Encoded"):
+            raw = base64.b64decode(raw).decode("utf-8")
+        parsed = json.loads(raw)
+        if isinstance(parsed, str):
+            # double-encoded
+            try:
+                parsed2 = json.loads(parsed)
+                return parsed2 if isinstance(parsed2, dict) else {}
+            except Exception:
+                return {}
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
 
 
 # ---------- Dynamo helpers ----------
@@ -288,12 +319,10 @@ def submit_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if not uid:
             return _resp(401, {"error": "Unauthorized"})
 
-        try:
-            body = json.loads(event.get("body") or "{}")
-        except json.JSONDecodeError:
-            return _resp(400, {"error": "Invalid JSON in request body"})
-
-        qid = body.get("questionnaire_id")
+        body = _parse_body(event)
+        # allow path fallback
+        path = event.get("pathParameters") or {}
+        qid = body.get("questionnaire_id") or path.get("questionnaire_id") or path.get("id")
         responses = body.get("responses") or []
         if not qid or not isinstance(responses, list) or not responses:
             return _resp(400, {"error": "Missing questionnaire_id or responses"})
@@ -345,13 +374,11 @@ def regenerate_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, A
         if not uid:
             return _resp(401, {"error": "Unauthorized"})
 
-        body = {}
-        if event.get("body"):
-            try:
-                body = json.loads(event["body"])
-            except json.JSONDecodeError:
-                body = {}
-        from_qid = body.get("questionnaire_id")
+        body = _parse_body(event)
+        path = event.get("pathParameters") or {}
+        # path > body の順で取得（URLに入っていれば body は不要）
+        from_qid = path.get("questionnaire_id") or path.get("id") \
+                   or (body.get("questionnaire_id") if isinstance(body, dict) else None)
 
         user = _get_user(uid) or {}
         profile = _get_profile(uid) or {}
