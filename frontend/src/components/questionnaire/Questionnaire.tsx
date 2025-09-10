@@ -4,10 +4,25 @@ import { profileService } from '../../services/profileService';
 import { Questionnaire as QuestionnaireType, Question } from '../../types/profile';
 import './Questionnaire.css';
 
+const CAT_LABELS: Record<string, string> = {
+  skills: 'スキル',
+  experience: '経験',
+  preferences: '希望',
+  goals: '目標',
+};
+
+function unwrapQuestionnaire(data: any): any {
+  return data && typeof data === 'object' && 'questionnaire' in data ? (data as any).questionnaire : data;
+}
+
+function unwrapHistory(data: any): any[] {
+  if (data && typeof data === 'object' && 'questionnaires' in data) return (data as any).questionnaires;
+  return Array.isArray(data) ? data : [];
+}
+
 const Questionnaire: React.FC = () => {
   const { user } = useAuth();
 
-  // サーバーが返す形に合わせて、最低限の型ガードを入れた状態管理
   const [questionnaire, setQuestionnaire] = useState<QuestionnaireType | null>(null);
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
@@ -23,23 +38,24 @@ const Questionnaire: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const data = await profileService.getQuestionnaire(user.user_id);
+      const raw = await profileService.getQuestionnaire(user.user_id);
+      const data = unwrapQuestionnaire(raw);
 
       if (data && typeof data === 'object') {
-        // サーバーは { questionnaire: { ... } } ではなく、サービス側で中身を返す想定
-        // ここでは data が QuestionnaireType であることを前提に安全に扱う
+        const qs = Array.isArray((data as any).questions) ? (data as any).questions : [];
+        const resps = Array.isArray((data as any).responses) ? (data as any).responses : [];
+
         setQuestionnaire({
           ...data,
-          questions: Array.isArray((data as any).questions) ? (data as any).questions : [],
-          responses: Array.isArray((data as any).responses) ? (data as any).responses : [],
+          questions: qs,
+          responses: resps,
         } as QuestionnaireType);
 
         // 既存回答を state へ
         const existing: Record<string, any> = {};
-        const respArray: any[] = Array.isArray((data as any).responses) ? (data as any).responses : [];
-        respArray.forEach(r => {
-          if (r && typeof r === 'object' && r.question_id) {
-            existing[r.question_id] = r.answer;
+        resps.forEach((r: any) => {
+          if (r && typeof r === 'object' && r.question_id != null) {
+            existing[String(r.question_id)] = r.answer;
           }
         });
         setResponses(existing);
@@ -58,8 +74,9 @@ const Questionnaire: React.FC = () => {
   const loadQuestionnaireHistory = useCallback(async () => {
     if (!user) return;
     try {
-      const history = await profileService.getQuestionnaireHistory(user.user_id);
-      setQuestionnaireHistory(Array.isArray(history) ? history : []);
+      const raw = await profileService.getQuestionnaireHistory(user.user_id);
+      const history = unwrapHistory(raw);
+      setQuestionnaireHistory(history);
     } catch (e) {
       console.error('Load questionnaire history error:', e);
     }
@@ -89,8 +106,11 @@ const Questionnaire: React.FC = () => {
         answered_at: new Date().toISOString(),
       }));
 
-      // ★ questionnaire_id を必ず送る
-      await profileService.submitQuestionnaire(user.user_id, responseArray, questionnaire.questionnaire_id);
+      await profileService.submitQuestionnaire(
+        user.user_id,
+        responseArray,
+        questionnaire.questionnaire_id
+      );
 
       await loadQuestionnaire();
       alert('問診の回答が正常に送信されました！');
@@ -107,7 +127,13 @@ const Questionnaire: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await profileService.regenerateQuestionnaire(user.user_id);
+
+      const raw = await profileService.regenerateQuestionnaire(
+        user.user_id,
+        questionnaire?.questionnaire_id
+      );
+      const data = unwrapQuestionnaire(raw);
+
       if (data) {
         setQuestionnaire({
           ...data,
@@ -166,8 +192,8 @@ const Questionnaire: React.FC = () => {
                     type="radio"
                     name={question.id}
                     value={r}
-                    checked={value === r}
-                    onChange={(e) => handleResponseChange(question.id, parseInt(e.target.value))}
+                    checked={Number(value) === r}
+                    onChange={(e) => handleResponseChange(question.id, parseInt(e.target.value, 10))}
                   />
                   <span className="rating-number">{r}</span>
                 </label>
@@ -216,7 +242,13 @@ const Questionnaire: React.FC = () => {
   const canSubmit = () => {
     if (!questionnaire) return false;
     const required = (questionnaire.questions ?? []).filter((q) => q.required);
-    return required.every(q => responses[q.id] !== undefined && responses[q.id] !== '');
+    return required.every(q => {
+      const v = responses[q.id];
+      // 空文字は不可、true/false や数値は OK
+      if (v === undefined) return false;
+      if (typeof v === 'string' && v.trim() === '') return false;
+      return true;
+    });
   };
 
   // ---- 画面描画 ----
@@ -236,7 +268,7 @@ const Questionnaire: React.FC = () => {
       <div className="questionnaire-container">
         <div className="error-state">
           <h2>エラーが発生しました</h2>
-          <p>{error}</p>
+        <p>{error}</p>
           <button onClick={loadQuestionnaire} className="btn btn-primary">再試行</button>
         </div>
       </div>
@@ -272,15 +304,12 @@ const Questionnaire: React.FC = () => {
       </div>
 
       <div className="questionnaire-content">
-        {(questionnaire.questions ?? []).map((question, index) => (
-          <div key={question.id ?? index} className="question-card">
+        {(questionnaire.questions ?? []).map((question: Question, index: number) => (
+          <div key={String(question.id ?? index)} className="question-card">
             <div className="question-header">
               <span className="question-number">質問 {index + 1}</span>
-              <span className={`question-category ${question.category}`}>
-                {question.category === 'skills' && 'スキル'}
-                {question.category === 'experience' && '経験'}
-                {question.category === 'preferences' && '希望'}
-                {question.category === 'goals' && '目標'}
+              <span className={`question-category ${String(question.category)}`}>
+                {CAT_LABELS[String(question.category)] ?? String(question.category)}
               </span>
               {question.required && <span className="required-indicator">必須</span>}
             </div>
@@ -325,7 +354,9 @@ const Questionnaire: React.FC = () => {
                 <div className="history-header">
                   <h4>問診 #{idx + 1}</h4>
                   <div className="history-meta">
-                    <span className={`status-badge ${h.status}`}>{h.status === 'completed' ? '完了' : h.status === 'in_progress' ? '進行中' : '生成済み'}</span>
+                    <span className={`status-badge ${h.status}`}>
+                      {h.status === 'completed' ? '完了' : h.status === 'in_progress' ? '進行中' : '生成済み'}
+                    </span>
                     <span className="history-date">
                       {h.generated_at ? new Date(h.generated_at).toLocaleDateString('ja-JP') :
                        h.created_at ? new Date(h.created_at).toLocaleDateString('ja-JP') : ''}
