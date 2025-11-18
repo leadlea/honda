@@ -2,20 +2,10 @@ service: honda-veteran-talent-matching
 
 frameworkVersion: "4"
 
-plugins:
-  - serverless-python-requirements
-
 custom:
   pythonRequirements:
     dockerizePip: true
     layer: true
-    slim: true
-    strip: false
-    zip: true
-    usePoetry: false
-    usePipenv: false
-    pipCmdExtraArgs:
-      - --no-cache-dir
 
 provider:
   name: aws

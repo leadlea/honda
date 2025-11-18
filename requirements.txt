@@ -9,6 +9,8 @@ boto3==1.34.0
 botocore==1.34.0
 
 # Database and data handling
+cryptography==41.0.7
+python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
 # Utilities
