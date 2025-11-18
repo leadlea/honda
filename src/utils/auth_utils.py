@@ -9,7 +9,6 @@ from functools import wraps
 from typing import Any, Dict, List, Optional
 
 import boto3
-from jose import jwt
 import requests
 
 logger = logging.getLogger()
@@ -43,13 +42,18 @@ def get_jwks() -> Dict[str, Any]:
 def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
     """
     Verify JWT token signature and return decoded claims.
+    Note: This function requires python-jose[cryptography] which may not be available.
+    Prefer using extract_user_from_event() with API Gateway Cognito Authorizer instead.
     """
     try:
+        # Lazy import to avoid cryptography dependency at module load time
+        from jose import jwt as jose_jwt
+        
         # Get JWKS
         jwks = get_jwks()
 
         # Decode header to get key ID
-        unverified_header = jwt.get_unverified_header(token)
+        unverified_header = jose_jwt.get_unverified_header(token)
         kid = unverified_header.get("kid")
 
         if not kid:
@@ -68,7 +72,7 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
             return None
 
         # Verify and decode token using python-jose
-        decoded_token = jwt.decode(
+        decoded_token = jose_jwt.decode(
             token,
             key,
             algorithms=["RS256"],
@@ -87,11 +91,8 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
             "raw_claims": decoded_token,  # Keep original claims for reference
         }
 
-    except jwt.ExpiredSignatureError:
-        logger.error("Token has expired")
-        return None
-    except jwt.JWTError as e:
-        logger.error(f"Invalid token: {str(e)}")
+    except ImportError:
+        logger.error("python-jose not available - use API Gateway Cognito Authorizer instead")
         return None
     except Exception as e:
         logger.error(f"Token verification error: {str(e)}")
