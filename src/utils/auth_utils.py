@@ -60,8 +60,9 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
         key = None
         for jwk in jwks["keys"]:
             if jwk["kid"] == kid:
-                rsa_alg = jwt.get_algorithm_by_name("RS256")
-                key = rsa_alg.from_jwk(jwk)
+                # Convert JWK to PEM format for PyJWT 2.x
+                from jwt.algorithms import RSAAlgorithm
+                key = RSAAlgorithm.from_jwk(jwk)
                 break
 
         if not key:
@@ -77,7 +78,16 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
             issuer=f"https://cognito-idp.{REGION}.amazonaws.com/{USER_POOL_ID}",
         )
 
-        return decoded_token
+        # Normalize the token data for easier use
+        return {
+            "user_id": decoded_token.get("username") or decoded_token.get("sub"),
+            "email": decoded_token.get("email"),
+            "name": decoded_token.get("name"),
+            "role": decoded_token.get("custom:role"),
+            "department": decoded_token.get("custom:department"),
+            "employee_id": decoded_token.get("custom:employee_id"),
+            "raw_claims": decoded_token,  # Keep original claims for reference
+        }
 
     except jwt.ExpiredSignatureError:
         logger.error("Token has expired")
