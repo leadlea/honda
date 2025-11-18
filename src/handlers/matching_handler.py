@@ -87,19 +87,8 @@ def handle_get_recommendations(event: Dict[str, Any], context: Any) -> Dict[str,
     Handle GET /recommendations/{user_id} - Get recommendations for a user.
     """
     try:
-        # Verify authentication
-        token = event.get("headers", {}).get("Authorization", "").replace("Bearer ", "")
-        if not token:
-            return {
-                "statusCode": 401,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({"error": "Authorization token required"}),
-            }
-
-        user_data = verify_jwt_token(token)
+        # Get user data from API Gateway authorizer context
+        user_data = extract_user_from_event(event)
         if not user_data:
             return {
                 "statusCode": 401,
@@ -107,7 +96,7 @@ def handle_get_recommendations(event: Dict[str, Any], context: Any) -> Dict[str,
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": json.dumps({"error": "Invalid or expired token"}),
+                "body": json.dumps({"error": "Authentication required"}),
             }
 
         # Check permissions
