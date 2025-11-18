@@ -9,6 +9,9 @@ custom:
   pythonRequirements:
     dockerizePip: true
     layer: true
+    slim: true
+    strip: false
+    zip: true
 
 provider:
   name: aws
