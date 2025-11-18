@@ -12,6 +12,10 @@ custom:
     slim: true
     strip: false
     zip: true
+    usePoetry: false
+    usePipenv: false
+    pipCmdExtraArgs:
+      - --no-cache-dir
 
 provider:
   name: aws
