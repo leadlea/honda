@@ -125,40 +125,22 @@ def get_user_from_token(token: str) -> Optional[Dict[str, Any]]:
 
 def extract_user_from_event(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    Extract user information from Lambda event.
+    Extract user information from Lambda event (API Gateway authorizer context).
     """
-    # Try to get from request context (API Gateway authorizer)
+    # Get from request context (API Gateway Cognito authorizer)
     request_context = event.get("requestContext", {})
     authorizer = request_context.get("authorizer", {})
 
     if "claims" in authorizer:
         claims = authorizer["claims"]
         return {
-            "user_id": claims.get("username"),
+            "user_id": claims.get("username") or claims.get("sub"),
             "email": claims.get("email"),
             "name": claims.get("name"),
             "role": claims.get("custom:role"),
             "department": claims.get("custom:department"),
             "employee_id": claims.get("custom:employee_id"),
         }
-
-    # Fallback: extract from Authorization header
-    headers = event.get("headers", {})
-    auth_header = headers.get("Authorization") or headers.get("authorization")
-
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-        decoded = verify_jwt_token(token)
-
-        if decoded:
-            return {
-                "user_id": decoded.get("username"),
-                "email": decoded.get("email"),
-                "name": decoded.get("name"),
-                "role": decoded.get("custom:role"),
-                "department": decoded.get("custom:department"),
-                "employee_id": decoded.get("custom:employee_id"),
-            }
 
     return None
 
