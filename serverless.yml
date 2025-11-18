@@ -2,6 +2,14 @@ service: honda-veteran-talent-matching
 
 frameworkVersion: "4"
 
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+    layer: true
+
 provider:
   name: aws
   runtime: python3.12
