@@ -8,13 +8,11 @@ import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
-
-from src.utils.auth_utils import extract_user_from_event
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -27,19 +25,31 @@ PREFIX = os.environ.get("DYNAMODB_TABLE_PREFIX", "honda-veteran-talent-matching-
 ddb = boto3.resource("dynamodb", region_name=REGION)
 
 
+def extract_user_id_from_claims(event: Dict[str, Any]) -> Optional[str]:
+    """
+    Extract user ID from Cognito authorizer claims.
+    """
+    try:
+        request_context = event.get("requestContext", {})
+        authorizer = request_context.get("authorizer", {})
+        claims = authorizer.get("claims", {})
+        return claims.get("sub")
+    except Exception as e:
+        logger.error(f"Error extracting user from claims: {str(e)}")
+        return None
+
+
 def get_user_statistics(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Get user statistics data.
     Retrieves completed questionnaires, recommendations, applications, and profile views.
     """
     try:
-        # Extract user from event
-        user = extract_user_from_event(event)
-        if not user:
+        # Extract user ID from Cognito claims
+        user_id = extract_user_id_from_claims(event)
+        if not user_id:
+            logger.error("No user ID found in Cognito claims")
             return create_response(401, {"error": "Authentication required"})
-
-        user_id = user.get("user_id")
-        user_role = user.get("role")
 
         # Extract target user ID from path
         path_parameters = event.get("pathParameters") or {}
@@ -49,8 +59,7 @@ def get_user_statistics(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return create_response(400, {"error": "User ID required"})
 
         # Authorization check: users can only access their own statistics
-        # (admins could access any user's stats in future enhancement)
-        if user_id != target_user_id and user_role != "admin":
+        if user_id != target_user_id:
             logger.warning(
                 f"User {user_id} attempted to access statistics for user {target_user_id}"
             )
