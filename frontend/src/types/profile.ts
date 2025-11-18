@@ -118,3 +118,10 @@ export interface Application {
   updated_at: string;
   notes?: string;
 }
+
+export interface UserStatistics {
+  completed_questionnaires: number;
+  received_recommendations: number;
+  submitted_applications: number;
+  profile_views: number;
+}

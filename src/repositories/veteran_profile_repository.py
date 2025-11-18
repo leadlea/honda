@@ -165,3 +165,21 @@ class VeteranProfileRepository(BaseRepository):
         except Exception as e:
             logger.error(f"Error checking if profile exists for user {user_id}: {e}")
             raise
+
+    def increment_profile_views(self, user_id: str) -> bool:
+        """
+        Increment the profile view count for a user.
+        Uses atomic counter increment to avoid race conditions.
+        """
+        try:
+            self.table.update_item(
+                Key={"user_id": user_id},
+                UpdateExpression="SET profile_views = if_not_exists(profile_views, :zero) + :inc",
+                ExpressionAttributeValues={":zero": 0, ":inc": 1},
+            )
+            logger.info(f"Incremented profile views for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error incrementing profile views for user {user_id}: {e}")
+            # Don't raise exception - profile view tracking is non-critical
+            return False

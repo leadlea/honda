@@ -317,6 +317,22 @@ functions:
             headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
 
+  statsHandler:
+    handler: src/handlers/stats_handler.get_user_statistics
+    timeout: 29
+    events:
+      - http:
+          path: stats/{userId}
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
 resources:
   Resources:
     CognitoUserPool:

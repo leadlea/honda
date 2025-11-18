@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import RoleBasedComponent from '../common/RoleBasedComponent';
+import { statisticsService } from '../../services/statisticsService';
+import { UserStatistics } from '../../types/profile';
 import './Dashboard.css';
 
 interface DashboardProps {
@@ -9,6 +11,39 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { user } = useAuth();
+  const [statistics, setStatistics] = useState<UserStatistics | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    if (user && user.role === 'veteran') {
+      loadStatistics();
+    }
+  }, [user]);
+
+  const loadStatistics = async () => {
+    if (!user) {
+      console.log('[Dashboard] No user available, skipping statistics load');
+      return;
+    }
+    
+    console.log('[Dashboard] Loading statistics for user:', user.user_id);
+    try {
+      setLoadingStats(true);
+      const stats = await statisticsService.getUserStatistics(user.user_id);
+      console.log('[Dashboard] Statistics loaded:', stats);
+      setStatistics(stats);
+    } catch (error) {
+      console.error('[Dashboard] Failed to load statistics:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const renderStatValue = (value: number | undefined) => {
+    console.log('[Dashboard] renderStatValue called with:', value, 'loadingStats:', loadingStats);
+    if (loadingStats) return '...';
+    return value !== undefined ? value.toString() : '-';
+  };
 
   if (!user) {
     return <div className="dashboard-loading">ダッシュボードを読み込み中...</div>;
@@ -104,19 +139,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <h2>あなたの統計</h2>
           <div className="stats-grid">
             <div className="stat-card">
-              <div className="stat-number">-</div>
+              <div className="stat-number">
+                {renderStatValue(statistics?.completed_questionnaires)}
+              </div>
               <div className="stat-label">完了した問診</div>
             </div>
             <div className="stat-card">
-              <div className="stat-number">-</div>
+              <div className="stat-number">
+                {renderStatValue(statistics?.received_recommendations)}
+              </div>
               <div className="stat-label">受信した推薦</div>
             </div>
             <div className="stat-card">
-              <div className="stat-number">-</div>
+              <div className="stat-number">
+                {renderStatValue(statistics?.submitted_applications)}
+              </div>
               <div className="stat-label">応募した機会</div>
             </div>
             <div className="stat-card">
-              <div className="stat-number">-</div>
+              <div className="stat-number">
+                {renderStatValue(statistics?.profile_views)}
+              </div>
               <div className="stat-label">プロフィール閲覧数</div>
             </div>
           </div>
