@@ -9,7 +9,7 @@ from functools import wraps
 from typing import Any, Dict, List, Optional
 
 import boto3
-import jwt
+from jose import jwt
 import requests
 
 logger = logging.getLogger()
@@ -60,16 +60,14 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
         key = None
         for jwk in jwks["keys"]:
             if jwk["kid"] == kid:
-                # Convert JWK to PEM format for PyJWT 2.x
-                from jwt.algorithms import RSAAlgorithm
-                key = RSAAlgorithm.from_jwk(jwk)
+                key = jwk
                 break
 
         if not key:
             logger.error(f"Unable to find key with kid: {kid}")
             return None
 
-        # Verify and decode token
+        # Verify and decode token using python-jose
         decoded_token = jwt.decode(
             token,
             key,
@@ -92,7 +90,7 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
     except jwt.ExpiredSignatureError:
         logger.error("Token has expired")
         return None
-    except jwt.InvalidTokenError as e:
+    except jwt.JWTError as e:
         logger.error(f"Invalid token: {str(e)}")
         return None
     except Exception as e:
