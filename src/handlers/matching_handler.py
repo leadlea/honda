@@ -13,7 +13,7 @@ from ..services.recommendation_service import (
     RecommendationFeedback,
     get_recommendation_service,
 )
-from ..utils.auth_utils import verify_jwt_token
+from ..utils.auth_utils import extract_user_from_event
 from ..utils.rbac import Permission, require_permission
 
 # Configure logging
