@@ -1,13 +1,17 @@
 import { Recommendation, Application } from '../types/profile';
+import { authService } from './authService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
 export class RecommendationService {
-  private static getAuthHeaders(): HeadersInit {
-    const token = localStorage.getItem('authToken');
+  private static async getAuthHeaders(): Promise<HeadersInit> {
+    const token = await authService.getAuthToken();
+    if (!token) {
+      throw new Error('認証トークンが見つかりません。再度ログインしてください。');
+    }
     return {
       'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : '',
+      'Authorization': `Bearer ${token}`,
     };
   }
 
@@ -15,7 +19,7 @@ export class RecommendationService {
     try {
       const response = await fetch(`${API_BASE_URL}/recommendations/${userId}`, {
         method: 'GET',
-        headers: this.getAuthHeaders(),
+        headers: await this.getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -34,7 +38,7 @@ export class RecommendationService {
     try {
       const response = await fetch(`${API_BASE_URL}/recommendations/${recommendationId}/view`, {
         method: 'PUT',
-        headers: this.getAuthHeaders(),
+        headers: await this.getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -50,7 +54,7 @@ export class RecommendationService {
     try {
       const response = await fetch(`${API_BASE_URL}/recommendations/${recommendationId}/dismiss`, {
         method: 'PUT',
-        headers: this.getAuthHeaders(),
+        headers: await this.getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -66,7 +70,7 @@ export class RecommendationService {
     try {
       const response = await fetch(`${API_BASE_URL}/applications/${userId}`, {
         method: 'POST',
-        headers: this.getAuthHeaders(),
+        headers: await this.getAuthHeaders(),
         body: JSON.stringify({
           opportunity_id: opportunityId,
           notes: notes || '',
@@ -89,7 +93,7 @@ export class RecommendationService {
     try {
       const response = await fetch(`${API_BASE_URL}/applications/${userId}`, {
         method: 'GET',
-        headers: this.getAuthHeaders(),
+        headers: await this.getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -108,7 +112,7 @@ export class RecommendationService {
     try {
       const response = await fetch(`${API_BASE_URL}/applications/${applicationId}/withdraw`, {
         method: 'PUT',
-        headers: this.getAuthHeaders(),
+        headers: await this.getAuthHeaders(),
       });
 
       if (!response.ok) {
