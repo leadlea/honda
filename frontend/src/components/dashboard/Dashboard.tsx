@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import RoleBasedComponent from '../common/RoleBasedComponent';
 import { statisticsService } from '../../services/statisticsService';
@@ -14,13 +14,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [statistics, setStatistics] = useState<UserStatistics | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
-  useEffect(() => {
-    if (user && user.role === 'veteran') {
-      loadStatistics();
-    }
-  }, [user]);
-
-  const loadStatistics = async () => {
+  const loadStatistics = useCallback(async () => {
     if (!user) {
       console.log('[Dashboard] No user available, skipping statistics load');
       return;
@@ -37,7 +31,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     } finally {
       setLoadingStats(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user && user.role === 'veteran') {
+      loadStatistics();
+    }
+  }, [user, loadStatistics]);
 
   const renderStatValue = (value: number | undefined) => {
     console.log('[Dashboard] renderStatValue called with:', value, 'loadingStats:', loadingStats);
