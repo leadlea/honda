@@ -41,19 +41,19 @@ describe('RecommendationService Authentication Fix', () => {
         expect.any(String),
         expect.objectContaining({
           headers: expect.objectContaining({
-            Authorization: `Bearer ${mockToken}`,
+            Authorization: mockToken,
           }),
         })
       );
     });
 
-    it('should include Bearer token in Authorization header', async () => {
+    it('should include token in Authorization header without Bearer prefix', async () => {
       await RecommendationService.getRecommendations(mockUserId);
 
       const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
       const headers = fetchCall[1].headers;
 
-      expect(headers.Authorization).toBe(`Bearer ${mockToken}`);
+      expect(headers.Authorization).toBe(mockToken);
       expect(headers['Content-Type']).toBe('application/json');
     });
 
@@ -67,7 +67,7 @@ describe('RecommendationService Authentication Fix', () => {
   });
 
   describe('API Methods with Authentication', () => {
-    it('should call getRecommendations with valid Bearer token', async () => {
+    it('should call getRecommendations with valid token without Bearer prefix', async () => {
       const result = await RecommendationService.getRecommendations(mockUserId);
 
       expect(result).toEqual(mockRecommendations);
@@ -76,13 +76,13 @@ describe('RecommendationService Authentication Fix', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `Bearer ${mockToken}`,
+            Authorization: mockToken,
           }),
         })
       );
     });
 
-    it('should call markRecommendationAsViewed with valid Bearer token', async () => {
+    it('should call markRecommendationAsViewed with valid token without Bearer prefix', async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({}),
@@ -95,13 +95,13 @@ describe('RecommendationService Authentication Fix', () => {
         expect.objectContaining({
           method: 'PUT',
           headers: expect.objectContaining({
-            Authorization: `Bearer ${mockToken}`,
+            Authorization: mockToken,
           }),
         })
       );
     });
 
-    it('should call applyToOpportunity with valid Bearer token', async () => {
+    it('should call applyToOpportunity with valid token without Bearer prefix', async () => {
       const mockApplication = { id: 'app-1', status: 'pending' };
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
@@ -120,7 +120,7 @@ describe('RecommendationService Authentication Fix', () => {
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            Authorization: `Bearer ${mockToken}`,
+            Authorization: mockToken,
           }),
         })
       );
