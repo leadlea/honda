@@ -242,7 +242,7 @@ functions:
     memorySize: 1024
     events:
       - http:
-          path: recommendations/{user_id}
+          path: recommendations/{userId}
           method: GET
           cors:
             origin: "*"

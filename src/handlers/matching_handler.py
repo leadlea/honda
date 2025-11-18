@@ -110,9 +110,9 @@ def handle_get_recommendations(event: Dict[str, Any], context: Any) -> Dict[str,
                 "body": json.dumps({"error": "Insufficient permissions"}),
             }
 
-        # Extract user ID from path
+        # Extract user ID from path (support both userId and user_id)
         path_params = event.get("pathParameters", {})
-        user_id = path_params.get("user_id")
+        user_id = path_params.get("userId") or path_params.get("user_id")
 
         if not user_id:
             return {
