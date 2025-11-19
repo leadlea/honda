@@ -150,14 +150,66 @@ functions:
             authorizerId:
               Ref: ApiGatewayAuthorizer
 
-  businessTitleHandler:
-    handler: src/handlers/business_title_handler.handler
+  # --- Business Title endpoints: ビジネスタイトル生成 ---
+  businessTitleGenerate:
+    handler: src/handlers/business_title_handler.generate_business_titles
     timeout: 29
     memorySize: 1024
     events:
       - http:
           path: profiles/{userId}/business-title
           method: POST
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  businessTitleSelect:
+    handler: src/handlers/business_title_handler.select_business_title
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: profiles/{userId}/business-title
+          method: PUT
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  businessTitleRegenerate:
+    handler: src/handlers/business_title_handler.regenerate_business_titles
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: profiles/{userId}/business-title/regenerate
+          method: POST
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  businessTitleHistory:
+    handler: src/handlers/business_title_handler.get_title_history
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: profiles/{userId}/business-title/history
+          method: GET
           cors:
             origin: "*"
             headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]

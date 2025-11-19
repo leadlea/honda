@@ -17,31 +17,52 @@ const BusinessTitleGenerator: React.FC<BusinessTitleGeneratorProps> = ({ profile
   const [customTitle, setCustomTitle] = useState(profile?.business_title || '');
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number | null>(null);
 
-  const generateTitles = async () => {
+  const generateTitles = async (regenerate: boolean = false) => {
     if (!user) return;
 
     try {
       setLoading(true);
       setError(null);
-      const titleSuggestions = await profileService.generateBusinessTitle(user.user_id);
+      
+      const titleSuggestions = regenerate 
+        ? await profileService.regenerateBusinessTitle(user.user_id)
+        : await profileService.generateBusinessTitle(user.user_id);
+        
       setSuggestions(titleSuggestions);
+      setSelectedSuggestionIndex(null); // 新しい候補が生成されたら選択をリセット
     } catch (error) {
-      setError('ビジネスタイトルの生成に失敗しました');
+      setError(regenerate ? 'ビジネスタイトルの再生成に失敗しました' : 'ビジネスタイトルの生成に失敗しました');
       console.error('Generate business title error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const selectTitle = (title: string, index: number) => {
-    setCustomTitle(title);
-    setSelectedSuggestionIndex(index);
-    if (profile) {
-      const updatedProfile = {
-        ...profile,
-        business_title: title
-      };
-      onUpdate(updatedProfile);
+  const selectTitle = async (title: string, index: number) => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // バックエンドにタイトル選択を送信
+      await profileService.selectBusinessTitle(user.user_id, title);
+      
+      setCustomTitle(title);
+      setSelectedSuggestionIndex(index);
+      
+      if (profile) {
+        const updatedProfile = {
+          ...profile,
+          business_title: title
+        };
+        onUpdate(updatedProfile);
+      }
+    } catch (error) {
+      setError('ビジネスタイトルの選択に失敗しました');
+      console.error('Select business title error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -88,7 +109,7 @@ const BusinessTitleGenerator: React.FC<BusinessTitleGeneratorProps> = ({ profile
               className="title-input"
             />
             <button 
-              onClick={generateTitles} 
+              onClick={() => generateTitles(false)} 
               className="btn btn-primary"
               disabled={loading}
             >
@@ -112,7 +133,16 @@ const BusinessTitleGenerator: React.FC<BusinessTitleGeneratorProps> = ({ profile
 
         {suggestions.length > 0 && (
           <div className="suggestions-section">
-            <h4>AI生成されたタイトル候補</h4>
+            <div className="suggestions-header">
+              <h4>AI生成されたタイトル候補</h4>
+              <button 
+                onClick={() => generateTitles(true)} 
+                className="btn btn-secondary"
+                disabled={loading}
+              >
+                {loading ? '再生成中...' : '再生成'}
+              </button>
+            </div>
             <div className="suggestions-list">
               {suggestions.map((suggestion, index) => (
                 <div key={index} className="suggestion-card">
