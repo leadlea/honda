@@ -833,3 +833,46 @@ def update_application_status_with_workflow(event, context):
     """Lambda handler for updating application status with workflow"""
     handler = ApplicationHandler()
     return handler.update_application_status_with_workflow(event, context)
+
+
+def handler(event, context):
+    """Main Lambda handler that routes requests based on HTTP method and path"""
+    try:
+        http_method = event.get("httpMethod")
+        path = event.get("path", "")
+        path_parameters = event.get("pathParameters") or {}
+        
+        handler_instance = ApplicationHandler()
+        
+        # Route based on method and path
+        if "/applications/" in path and "userId" in path_parameters:
+            user_id = path_parameters.get("userId")
+            if http_method == "GET":
+                return handler_instance.get_user_applications(event, context)
+            elif http_method == "POST":
+                return handler_instance.submit_application(event, context)
+                
+        elif "/applications/status/" in path and "applicationId" in path_parameters:
+            if http_method == "PUT":
+                return handler_instance.update_application_status(event, context)
+                
+        elif "/opportunities/search" in path:
+            if http_method == "GET":
+                # This should be handled by a different handler
+                return {
+                    "statusCode": 404,
+                    "body": json.dumps({"error": "Not found"})
+                }
+        
+        # Default: not found
+        return {
+            "statusCode": 404,
+            "body": json.dumps({"error": "Endpoint not found"})
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in main handler: {e}")
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": "Internal server error"})
+        }

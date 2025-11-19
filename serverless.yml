@@ -259,6 +259,17 @@ functions:
     events:
       - http:
           path: applications/{userId}
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+      - http:
+          path: applications/{userId}
           method: POST
           cors:
             origin: "*"
