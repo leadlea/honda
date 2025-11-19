@@ -837,10 +837,27 @@ def update_application_status_with_workflow(event, context):
 
 def handler(event, context):
     """Main Lambda handler that routes requests based on HTTP method and path"""
+    
+    # CORS headers to include in all responses
+    cors_headers = {
+        "Access-Control-Allow-Origin": "https://doy5alruji476.cloudfront.net",
+        "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Credentials": "false"
+    }
+    
     try:
         http_method = event.get("httpMethod")
         path = event.get("path", "")
         path_parameters = event.get("pathParameters") or {}
+        
+        # Handle OPTIONS preflight requests
+        if http_method == "OPTIONS":
+            return {
+                "statusCode": 200,
+                "headers": cors_headers,
+                "body": ""
+            }
         
         handler_instance = ApplicationHandler()
         
@@ -848,31 +865,54 @@ def handler(event, context):
         if "/applications/" in path and "userId" in path_parameters:
             user_id = path_parameters.get("userId")
             if http_method == "GET":
-                return handler_instance.get_user_applications(event, context)
+                response = handler_instance.get_user_applications(event, context)
             elif http_method == "POST":
-                return handler_instance.submit_application(event, context)
+                response = handler_instance.submit_application(event, context)
+            else:
+                response = {
+                    "statusCode": 405,
+                    "body": json.dumps({"error": "Method not allowed"})
+                }
                 
         elif "/applications/status/" in path and "applicationId" in path_parameters:
             if http_method == "PUT":
-                return handler_instance.update_application_status(event, context)
+                response = handler_instance.update_application_status(event, context)
+            else:
+                response = {
+                    "statusCode": 405,
+                    "body": json.dumps({"error": "Method not allowed"})
+                }
                 
         elif "/opportunities/search" in path:
             if http_method == "GET":
                 # This should be handled by a different handler
-                return {
+                response = {
                     "statusCode": 404,
                     "body": json.dumps({"error": "Not found"})
                 }
+            else:
+                response = {
+                    "statusCode": 405,
+                    "body": json.dumps({"error": "Method not allowed"})
+                }
+        else:
+            # Default: not found
+            response = {
+                "statusCode": 404,
+                "body": json.dumps({"error": "Endpoint not found"})
+            }
         
-        # Default: not found
-        return {
-            "statusCode": 404,
-            "body": json.dumps({"error": "Endpoint not found"})
-        }
+        # Add CORS headers to response
+        if "headers" not in response:
+            response["headers"] = {}
+        response["headers"].update(cors_headers)
+        
+        return response
         
     except Exception as e:
         logger.error(f"Error in main handler: {e}")
         return {
             "statusCode": 500,
+            "headers": cors_headers,
             "body": json.dumps({"error": "Internal server error"})
         }
