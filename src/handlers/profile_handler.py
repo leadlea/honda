@@ -67,7 +67,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if action == "privacy":
                 return get_privacy_status(event)
             elif action and action != "profiles":
-                return get_profile(event)
+                return get_profile(event, context)
             else:
                 return list_profiles(event)
         elif http_method == "POST":
@@ -76,9 +76,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             elif action == "privacy":
                 return update_privacy_settings(event)
             else:
-                return create_profile(event)
+                return create_profile(event, context)
         elif http_method == "PUT":
-            return update_profile(event)
+            return update_profile(event, context)
         elif http_method == "DELETE":
             return delete_profile(event)
 
