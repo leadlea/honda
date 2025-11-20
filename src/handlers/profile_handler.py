@@ -49,12 +49,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 else ""
             )
 
-        logger.info(f"Processing {http_method} request for action: {action}")
+        logger.info(f"Processing {http_method} request for action: {action}, path: {path}")
 
         # Add user information to event for RBAC
         user = extract_user_from_event(event)
-        if user:
-            event["user"] = user
+        logger.info(f"Extracted user: {user}")
+        
+        if not user:
+            logger.error("No user information found in event")
+            logger.error(f"Request context: {event.get('requestContext', {})}")
+            return create_response(401, {"error": "Authentication required"})
+            
+        event["user"] = user
 
         # Route to appropriate handler
         if http_method == "GET":
