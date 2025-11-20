@@ -134,13 +134,16 @@ def extract_user_from_event(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
     if "claims" in authorizer:
         claims = authorizer["claims"]
+        # デフォルトでveteranロールを設定（custom:roleが未設定の場合）
+        role = claims.get("custom:role") or "veteran"
+        
         return {
             "user_id": claims.get("username") or claims.get("sub"),
             "email": claims.get("email"),
             "name": claims.get("name"),
-            "role": claims.get("custom:role"),
-            "department": claims.get("custom:department"),
-            "employee_id": claims.get("custom:employee_id"),
+            "role": role,
+            "department": claims.get("custom:department") or "未設定",
+            "employee_id": claims.get("custom:employee_id") or claims.get("email"),
         }
 
     return None
