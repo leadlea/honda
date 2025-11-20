@@ -48,16 +48,26 @@ class VeteranProfile:
     @classmethod
     def from_dynamodb_item(cls, item: Dict) -> "VeteranProfile":
         """Create instance from DynamoDB item"""
+        # DynamoDBは既にPythonのネイティブ型で返すので、json.loads()は不要
+        # ただし、文字列として保存されている場合もあるので、両方に対応
+        def parse_field(value, default):
+            if value is None:
+                return default
+            if isinstance(value, str):
+                try:
+                    return json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    return default
+            return value
+        
         return cls(
             user_id=item["user_id"],
             business_title=item.get("business_title", ""),
-            skills=json.loads(item.get("skills", "[]")),
-            experiences=json.loads(item.get("experiences", "[]")),
-            preferences=json.loads(item.get("preferences", "{}")),
-            privacy_settings=json.loads(item.get("privacy_settings", "{}")),
-            questionnaire_responses=json.loads(
-                item.get("questionnaire_responses", "[]")
-            ),
+            skills=parse_field(item.get("skills"), []),
+            experiences=parse_field(item.get("experiences"), []),
+            preferences=parse_field(item.get("preferences"), {}),
+            privacy_settings=parse_field(item.get("privacy_settings"), {}),
+            questionnaire_responses=parse_field(item.get("questionnaire_responses"), []),
             is_publicly_visible=item.get("is_publicly_visible", "false"),
             last_updated=item.get("last_updated", datetime.utcnow().isoformat()),
             created_at=item.get("created_at", datetime.utcnow().isoformat()),
