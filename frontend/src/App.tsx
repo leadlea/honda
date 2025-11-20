@@ -4,6 +4,7 @@ import AuthPage from './components/auth/AuthPage';
 import Layout from './components/layout/Layout';
 import Dashboard from './components/dashboard/Dashboard';
 import UserProfile from './components/profile/UserProfile';
+import ProfileManagement from './components/profile/ProfileManagement';
 import RecommendationsList from './components/recommendations/RecommendationsList';
 import ApplicationTracker from './components/recommendations/ApplicationTracker';
 import PublicVeteranSearch from './components/public/PublicVeteranSearch';
@@ -34,10 +35,16 @@ const AppContent: React.FC = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'user-profile':
-      case 'profile': // ← ナビが 'profile' を渡してもユーザープロフィールを表示
         return (
           <ProtectedRoute allowedRoles={['veteran']}>
             <UserProfile />
+          </ProtectedRoute>
+        );
+
+      case 'profile': // ← プロフィール管理（スキル、経験、ビジネスタイトルなど）
+        return (
+          <ProtectedRoute allowedRoles={['veteran']}>
+            <ProfileManagement />
           </ProtectedRoute>
         );
 
