@@ -120,7 +120,7 @@ class BusinessTitleHandler:
             user_id = user_info["user_id"]
 
             # Check if user has veteran role
-            user = await self.user_repo.get_by_id(user_id)
+            user = self.user_repo.get_user_by_id(user_id)
             if not user or user.role != "veteran":
                 return create_error_response(
                     ErrorType.ACCESS_DENIED,
@@ -128,7 +128,7 @@ class BusinessTitleHandler:
                 )
 
             # Get user profile
-            profile = await self.profile_repo.get_by_user_id(user_id)
+            profile = self.profile_repo.get_profile(user_id)
             if not profile:
                 return create_error_response(
                     ErrorType.PROFILE_NOT_FOUND,
@@ -153,7 +153,7 @@ class BusinessTitleHandler:
             )
 
             # Store generation history in profile
-            await self._store_title_generation_history(user_id, titles_data)
+            self._store_title_generation_history(user_id, titles_data)
 
             logger.info(f"Generated business titles for user {user_id}")
 
@@ -209,7 +209,7 @@ class BusinessTitleHandler:
                 )
 
             # Get current profile
-            profile = await self.profile_repo.get_by_user_id(user_id)
+            profile = self.profile_repo.get_profile(user_id)
             if not profile:
                 return create_error_response(ErrorType.PROFILE_NOT_FOUND)
 
@@ -230,7 +230,7 @@ class BusinessTitleHandler:
             )
             update_data["title_history"] = title_history
 
-            await self.profile_repo.update_profile(user_id, update_data)
+            self.profile_repo.update_profile(user_id, update_data)
 
             logger.info(
                 f"Updated business title for user {user_id} to: {selected_title}"
@@ -281,8 +281,8 @@ class BusinessTitleHandler:
             user_id = user_info["user_id"]
 
             # Get user and profile
-            user = await self.user_repo.get_by_id(user_id)
-            profile = await self.profile_repo.get_by_user_id(user_id)
+            user = self.user_repo.get_user_by_id(user_id)
+            profile = self.profile_repo.get_profile(user_id)
 
             if not user or not profile:
                 return {
@@ -321,7 +321,7 @@ class BusinessTitleHandler:
             )
 
             # Store regeneration history
-            await self._store_title_generation_history(
+            self._store_title_generation_history(
                 user_id, titles_data, regenerated=True
             )
 
@@ -385,7 +385,7 @@ class BusinessTitleHandler:
             user_id = user_info["user_id"]
 
             # Get profile
-            profile = await self.profile_repo.get_by_user_id(user_id)
+            profile = self.profile_repo.get_profile(user_id)
             if not profile:
                 return {
                     "statusCode": 404,
@@ -420,7 +420,7 @@ class BusinessTitleHandler:
                 "body": json.dumps({"error": "Internal server error"}),
             }
 
-    async def _store_title_generation_history(
+    def _store_title_generation_history(
         self, user_id: str, titles_data: Dict[str, Any], regenerated: bool = False
     ) -> None:
         """
@@ -432,7 +432,7 @@ class BusinessTitleHandler:
             regenerated: Whether this was a regeneration
         """
         try:
-            profile = await self.profile_repo.get_by_user_id(user_id)
+            profile = self.profile_repo.get_profile(user_id)
             if not profile:
                 return
 
@@ -456,7 +456,7 @@ class BusinessTitleHandler:
                 generation_history = generation_history[-10:]
 
             # Update profile
-            await self.profile_repo.update_profile(
+            self.profile_repo.update_profile(
                 user_id, {"title_generation_history": generation_history}
             )
 
