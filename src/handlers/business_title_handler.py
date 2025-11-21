@@ -12,7 +12,7 @@ from typing import Any, Dict
 from src.repositories.user_repository import UserRepository
 from src.repositories.veteran_profile_repository import VeteranProfileRepository
 from src.services.ai_utils import get_ai_service
-from src.utils.auth_utils import get_user_from_token
+from src.utils.auth_utils import extract_user_from_event
 from src.utils.error_handling import (
     ErrorType,
     create_error_response,
@@ -106,14 +106,8 @@ class BusinessTitleHandler:
             API Gateway response with generated business titles
         """
         try:
-            # Extract and verify user from JWT token
-            token = (
-                event.get("headers", {}).get("Authorization", "").replace("Bearer ", "")
-            )
-            if not token:
-                return create_error_response(ErrorType.MISSING_AUTH)
-
-            user_info = get_user_from_token(token)
+            # Extract and verify user from event (API Gateway authorizer)
+            user_info = extract_user_from_event(event)
             if not user_info:
                 return create_error_response(ErrorType.INVALID_AUTH)
 
@@ -121,7 +115,7 @@ class BusinessTitleHandler:
             user_name = user_info.get("name", "User")
             user_department = user_info.get("department", "")
 
-            # Check if user has veteran role (from JWT token)
+            # Check if user has veteran role
             user_role = user_info.get("role", "")
             if user_role != "veteran":
                 logger.warning(f"User {user_id} with role '{user_role}' attempted to access veteran-only feature")
@@ -186,14 +180,8 @@ class BusinessTitleHandler:
             API Gateway response with confirmation
         """
         try:
-            # Extract and verify user from JWT token
-            token = (
-                event.get("headers", {}).get("Authorization", "").replace("Bearer ", "")
-            )
-            if not token:
-                return create_error_response(ErrorType.MISSING_AUTH)
-
-            user_info = get_user_from_token(token)
+            # Extract and verify user from event (API Gateway authorizer)
+            user_info = extract_user_from_event(event)
             if not user_info:
                 return create_error_response(ErrorType.INVALID_AUTH)
 
@@ -264,17 +252,8 @@ class BusinessTitleHandler:
             API Gateway response with regenerated titles
         """
         try:
-            # Extract and verify user from JWT token
-            token = (
-                event.get("headers", {}).get("Authorization", "").replace("Bearer ", "")
-            )
-            if not token:
-                return {
-                    "statusCode": 401,
-                    "body": json.dumps({"error": "Missing authorization token"}),
-                }
-
-            user_info = get_user_from_token(token)
+            # Extract and verify user from event (API Gateway authorizer)
+            user_info = extract_user_from_event(event)
             if not user_info:
                 return {
                     "statusCode": 401,
@@ -369,17 +348,8 @@ class BusinessTitleHandler:
             API Gateway response with title history
         """
         try:
-            # Extract and verify user from JWT token
-            token = (
-                event.get("headers", {}).get("Authorization", "").replace("Bearer ", "")
-            )
-            if not token:
-                return {
-                    "statusCode": 401,
-                    "body": json.dumps({"error": "Missing authorization token"}),
-                }
-
-            user_info = get_user_from_token(token)
+            # Extract and verify user from event (API Gateway authorizer)
+            user_info = extract_user_from_event(event)
             if not user_info:
                 return {
                     "statusCode": 401,
