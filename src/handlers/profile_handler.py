@@ -265,6 +265,9 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         event["profile_user_id"] = profile_user_id
 
         body = json.loads(event.get("body", "{}"))
+        
+        logger.info(f"Update profile request body: {body}")
+        logger.info(f"Body type: {type(body)}, Body keys: {body.keys() if isinstance(body, dict) else 'NOT A DICT'}")
 
         # Initialize repository
         profile_repo = VeteranProfileRepository()
@@ -276,7 +279,22 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
 
         # Validate update data - only allow specific fields
         allowed_fields = ["business_title", "skills", "experiences", "preferences"]
-        update_data = {k: v for k, v in body.items() if k in allowed_fields}
+        
+        # Parse any JSON string fields in the body
+        parsed_body = {}
+        for key, value in body.items():
+            if key in allowed_fields:
+                # If value is a JSON string, parse it
+                if isinstance(value, str) and key in ["skills", "experiences", "preferences", "privacy_settings"]:
+                    try:
+                        parsed_body[key] = json.loads(value)
+                    except (json.JSONDecodeError, TypeError):
+                        parsed_body[key] = value
+                else:
+                    parsed_body[key] = value
+        
+        update_data = parsed_body
+        logger.info(f"Parsed update_data: {update_data}")
 
         if not update_data:
             return create_response(400, {"error": "No valid fields to update"})
