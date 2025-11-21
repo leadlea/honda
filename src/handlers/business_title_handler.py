@@ -118,10 +118,13 @@ class BusinessTitleHandler:
                 return create_error_response(ErrorType.INVALID_AUTH)
 
             user_id = user_info["user_id"]
+            user_name = user_info.get("name", "User")
+            user_department = user_info.get("department", "")
 
-            # Check if user has veteran role
-            user = self.user_repo.get_user_by_id(user_id)
-            if not user or user.role != "veteran":
+            # Check if user has veteran role (from JWT token)
+            user_role = user_info.get("role", "")
+            if user_role != "veteran":
+                logger.warning(f"User {user_id} with role '{user_role}' attempted to access veteran-only feature")
                 return create_error_response(
                     ErrorType.ACCESS_DENIED,
                     message="Access denied. Veteran role required."
@@ -144,8 +147,8 @@ class BusinessTitleHandler:
 
             # Generate business titles using AI
             titles_data = await self.ai_service.generate_business_titles(
-                name=user.name,
-                department=user.department,
+                name=user_name,
+                department=user_department,
                 skills=profile.skills or [],
                 experience=profile.experiences or [],
                 career_interests=career_interests,
@@ -279,15 +282,16 @@ class BusinessTitleHandler:
                 }
 
             user_id = user_info["user_id"]
+            user_name = user_info.get("name", "User")
+            user_department = user_info.get("department", "")
 
-            # Get user and profile
-            user = self.user_repo.get_user_by_id(user_id)
+            # Get profile
             profile = self.profile_repo.get_profile(user_id)
 
-            if not user or not profile:
+            if not profile:
                 return {
                     "statusCode": 404,
-                    "body": json.dumps({"error": "User or profile not found"}),
+                    "body": json.dumps({"error": "Profile not found"}),
                 }
 
             # Parse optional request body for additional context
@@ -312,8 +316,8 @@ class BusinessTitleHandler:
 
             # Generate new business titles
             titles_data = await self.ai_service.generate_business_titles(
-                name=user.name,
-                department=user.department,
+                name=user_name,
+                department=user_department,
                 skills=profile.skills or [],
                 experience=profile.experiences or [],
                 career_interests=career_interests,
