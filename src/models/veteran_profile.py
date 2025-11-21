@@ -38,16 +38,22 @@ class VeteranProfile:
 
     def to_dynamodb_item(self) -> Dict:
         """Convert to DynamoDB item format"""
+        def serialize_field(value):
+            """Serialize field to JSON string if it's not already a string"""
+            if isinstance(value, str):
+                return value
+            return json.dumps(value) if value is not None else json.dumps([]) if isinstance(value, list) else json.dumps({})
+        
         return {
             "user_id": self.user_id,
             "business_title": self.business_title,
-            "skills": json.dumps(self.skills),
-            "experiences": json.dumps(self.experiences),
-            "preferences": json.dumps(self.preferences),
-            "privacy_settings": json.dumps(self.privacy_settings),
-            "questionnaire_responses": json.dumps(self.questionnaire_responses),
-            "title_history": json.dumps(self.title_history),
-            "title_generation_history": json.dumps(self.title_generation_history),
+            "skills": serialize_field(self.skills),
+            "experiences": serialize_field(self.experiences),
+            "preferences": serialize_field(self.preferences),
+            "privacy_settings": serialize_field(self.privacy_settings),
+            "questionnaire_responses": serialize_field(self.questionnaire_responses),
+            "title_history": serialize_field(self.title_history),
+            "title_generation_history": serialize_field(self.title_generation_history),
             "is_publicly_visible": self.is_publicly_visible,
             "last_updated": self.last_updated,
             "created_at": self.created_at,
