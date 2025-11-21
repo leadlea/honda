@@ -52,6 +52,11 @@ class VeteranProfileRepository(BaseRepository):
             if not profile:
                 raise ValueError(f"Profile not found for user {user_id}")
 
+            # Ensure update_data is a dictionary
+            if not isinstance(update_data, dict):
+                logger.error(f"update_data is not a dict, it's a {type(update_data)}: {update_data}")
+                raise TypeError(f"update_data must be a dictionary, got {type(update_data)}")
+
             # Update profile fields from update_data
             for key, value in update_data.items():
                 if hasattr(profile, key):

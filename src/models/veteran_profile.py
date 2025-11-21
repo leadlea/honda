@@ -42,7 +42,9 @@ class VeteranProfile:
             """Serialize field to JSON string if it's not already a string"""
             if isinstance(value, str):
                 return value
-            return json.dumps(value) if value is not None else json.dumps([]) if isinstance(value, list) else json.dumps({})
+            if value is None:
+                return json.dumps([])
+            return json.dumps(value)
         
         return {
             "user_id": self.user_id,
