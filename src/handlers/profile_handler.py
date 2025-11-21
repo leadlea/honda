@@ -281,28 +281,17 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         if not update_data:
             return create_response(400, {"error": "No valid fields to update"})
 
-        # Update profile fields
-        if "business_title" in update_data:
-            existing_profile.business_title = update_data["business_title"]
-        if "skills" in update_data:
-            existing_profile.skills = update_data["skills"]
-        if "experiences" in update_data:
-            existing_profile.experiences = update_data["experiences"]
-        if "preferences" in update_data:
-            existing_profile.preferences = update_data["preferences"]
-
-        # Validate updated profile
-        validation_errors = existing_profile.validate()
-        if validation_errors:
-            return create_response(
-                400,
-                {"error": "Profile validation failed", "details": validation_errors},
-            )
-
-        # Update profile in database
-        success = profile_repo.update_profile(existing_profile)
+        # Build update_data dictionary from profile fields
+        # Note: update_data already contains only allowed fields from earlier filtering
+        # We can pass it directly to the repository
+        
+        # Update profile in database with correct parameters
+        success = profile_repo.update_profile(profile_user_id, update_data)
 
         if success:
+            # Get updated profile to return in response
+            updated_profile = profile_repo.get_profile(profile_user_id)
+            
             # Log profile update
             request_info = extract_request_info(event)
             security_auditor.log_profile_access(
@@ -319,13 +308,13 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
                     "message": "Profile updated successfully",
                     "updated_fields": list(update_data.keys()),
                     "profile": {
-                        "user_id": existing_profile.user_id,
-                        "business_title": existing_profile.business_title,
-                        "skills": existing_profile.skills,
-                        "experiences": existing_profile.experiences,
-                        "preferences": existing_profile.preferences,
-                        "privacy_settings": existing_profile.privacy_settings,
-                        "last_updated": existing_profile.last_updated,
+                        "user_id": updated_profile.user_id,
+                        "business_title": updated_profile.business_title,
+                        "skills": updated_profile.skills,
+                        "experiences": updated_profile.experiences,
+                        "preferences": updated_profile.preferences,
+                        "privacy_settings": updated_profile.privacy_settings,
+                        "last_updated": updated_profile.last_updated,
                     },
                 },
             )

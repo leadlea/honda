@@ -26,6 +26,12 @@ class VeteranProfile:
         default_factory=dict
     )  # {"is_publicly_visible": bool, "external_contact": bool}
     questionnaire_responses: List[Dict] = field(default_factory=list)
+    title_history: List[Dict] = field(
+        default_factory=list
+    )  # [{"title": str, "selected_at": str, "previous_title": str}]
+    title_generation_history: List[Dict] = field(
+        default_factory=list
+    )  # [{"generated_at": str, "titles": List[Dict], "recommended_title": str, "reasoning": str, "regenerated": bool, "title_count": int}]
     is_publicly_visible: str = "false"  # "true" or "false" for GSI
     last_updated: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
@@ -40,6 +46,8 @@ class VeteranProfile:
             "preferences": json.dumps(self.preferences),
             "privacy_settings": json.dumps(self.privacy_settings),
             "questionnaire_responses": json.dumps(self.questionnaire_responses),
+            "title_history": json.dumps(self.title_history),
+            "title_generation_history": json.dumps(self.title_generation_history),
             "is_publicly_visible": self.is_publicly_visible,
             "last_updated": self.last_updated,
             "created_at": self.created_at,
@@ -68,6 +76,8 @@ class VeteranProfile:
             preferences=parse_field(item.get("preferences"), {}),
             privacy_settings=parse_field(item.get("privacy_settings"), {}),
             questionnaire_responses=parse_field(item.get("questionnaire_responses"), []),
+            title_history=parse_field(item.get("title_history"), []),
+            title_generation_history=parse_field(item.get("title_generation_history"), []),
             is_publicly_visible=item.get("is_publicly_visible", "false"),
             last_updated=item.get("last_updated", datetime.utcnow().isoformat()),
             created_at=item.get("created_at", datetime.utcnow().isoformat()),

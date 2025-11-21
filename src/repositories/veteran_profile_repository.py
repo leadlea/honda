@@ -44,9 +44,19 @@ class VeteranProfileRepository(BaseRepository):
             logger.error(f"Error getting veteran profile for user {user_id}: {e}")
             raise
 
-    def update_profile(self, profile: VeteranProfile) -> bool:
-        """Update an existing veteran profile"""
+    def update_profile(self, user_id: str, update_data: dict) -> bool:
+        """Update an existing veteran profile with provided data"""
         try:
+            # Get existing profile
+            profile = self.get_profile(user_id)
+            if not profile:
+                raise ValueError(f"Profile not found for user {user_id}")
+
+            # Update profile fields from update_data
+            for key, value in update_data.items():
+                if hasattr(profile, key):
+                    setattr(profile, key, value)
+
             # Validate profile before updating
             errors = profile.validate()
             if errors:
@@ -119,8 +129,14 @@ class VeteranProfileRepository(BaseRepository):
             # Update privacy settings
             profile.update_privacy_settings(privacy_settings)
 
+            # Build update data dictionary
+            update_data = {
+                "privacy_settings": profile.privacy_settings,
+                "is_publicly_visible": profile.is_publicly_visible,
+            }
+
             # Save updated profile
-            return self.update_profile(profile)
+            return self.update_profile(user_id, update_data)
         except Exception as e:
             logger.error(f"Error updating privacy settings for user {user_id}: {e}")
             raise

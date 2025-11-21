@@ -274,8 +274,12 @@ class TestProfileHandler:
             assert "updated_fields" in response_body
             assert "profile" in response_body
 
-            mock_repo.get_profile.assert_called_once_with("test-user-123")
-            mock_repo.update_profile.assert_called_once()
+            # get_profile is called twice: once to check existence, once to get updated profile
+            assert mock_repo.get_profile.call_count == 2
+            mock_repo.get_profile.assert_called_with("test-user-123")
+            
+            # update_profile should be called with user_id and update_data
+            mock_repo.update_profile.assert_called_once_with("test-user-123", update_data)
             mock_auditor.log_profile_access.assert_called_once()
 
     @patch("src.handlers.profile_handler.VeteranProfileRepository")
