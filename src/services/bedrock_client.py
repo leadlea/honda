@@ -262,9 +262,10 @@ class BedrockClient:
             else [self.primary_region] + self.fallback_regions
         )
 
-        # Check cache first
+        # Check cache first (using messages content for hash)
+        messages_str = json.dumps(request.messages, sort_keys=True)
         prompt_hash = hashlib.md5(
-            request.prompt.encode(), usedforsecurity=False
+            messages_str.encode(), usedforsecurity=False
         ).hexdigest()
         cached_response = self.optimizer.get_cached_response(
             prompt_hash, self.model.value
@@ -278,16 +279,8 @@ class BedrockClient:
                 usage={"cached": True},
             )
 
-        # Optimize prompt
-        optimized_prompt = self.optimizer.optimize_prompt(request.prompt)
-        optimized_request = BedrockRequest(
-            prompt=optimized_prompt,
-            max_tokens=request.max_tokens,
-            temperature=request.temperature,
-            top_p=request.top_p,
-            stop_sequences=request.stop_sequences,
-            system_prompt=request.system_prompt,
-        )
+        # Use the request as-is (no prompt optimization for messages format)
+        optimized_request = request
 
         payload = self._prepare_claude_payload(optimized_request)
 
