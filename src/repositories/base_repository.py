@@ -3,6 +3,7 @@ Base repository class for DynamoDB operations
 """
 import logging
 import os
+from decimal import Decimal
 from typing import Any, Dict, List, Optional, TypeVar
 
 from botocore.exceptions import ClientError
@@ -19,6 +20,23 @@ from src.utils.performance import (
 T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
+
+
+def convert_decimals_to_native(obj):
+    """
+    Convert Decimal objects to native Python types for JSON serialization.
+    DynamoDB returns numbers as Decimal, which need to be converted.
+    """
+    if isinstance(obj, list):
+        return [convert_decimals_to_native(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_decimals_to_native(value) for key, value in obj.items()}
+    elif isinstance(obj, Decimal):
+        # Convert to int if it's a whole number, otherwise float
+        if obj % 1 == 0:
+            return int(obj)
+        return float(obj)
+    return obj
 
 
 class BaseRepository:
@@ -44,6 +62,10 @@ class BaseRepository:
             # Unprotect PII data after retrieval
             if item and unprotect_pii:
                 item = pii_protection_service.unprotect_pii_data(item)
+
+            # Convert Decimals to native Python types
+            if item:
+                item = convert_decimals_to_native(item)
 
             return item
         except ClientError as e:
@@ -128,6 +150,9 @@ class BaseRepository:
             response = self.table.query(**kwargs)
             items = response.get("Items", [])
 
+            # Convert Decimals to native Python types
+            items = [convert_decimals_to_native(item) for item in items]
+
             # Record performance metrics
             performance_monitor.record_metric(
                 f"dynamodb_query_items_returned_{self.table_name}", len(items), "count"
@@ -162,7 +187,10 @@ class BaseRepository:
                 kwargs["Limit"] = limit
 
             response = self.table.scan(**kwargs)
-            return response.get("Items", [])
+            items = response.get("Items", [])
+            
+            # Convert Decimals to native Python types
+            return [convert_decimals_to_native(item) for item in items]
         except ClientError as e:
             logger.error(f"Error scanning {self.table_name}: {e}")
             raise
