@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any, Dict
 
 from src.repositories.user_repository import UserRepository
@@ -22,6 +23,17 @@ from src.utils.error_handling import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def convert_decimals(obj):
+    """Convert Decimal objects to float for JSON serialization."""
+    if isinstance(obj, list):
+        return [convert_decimals(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_decimals(value) for key, value in obj.items()}
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    return obj
 
 
 class BusinessTitleHandler:
@@ -410,13 +422,14 @@ class BusinessTitleHandler:
             if not profile:
                 return
 
-            # Get existing history
-            generation_history = profile.title_generation_history.copy() if profile.title_generation_history else []
+            # Get existing history and convert any Decimals
+            existing_history = profile.title_generation_history if profile.title_generation_history else []
+            generation_history = convert_decimals(existing_history.copy() if isinstance(existing_history, list) else [])
 
-            # Add new generation record
+            # Add new generation record (convert Decimals in titles_data)
             generation_record = {
                 "generated_at": datetime.now(timezone.utc).isoformat(),
-                "titles": titles_data.get("titles", []),
+                "titles": convert_decimals(titles_data.get("titles", [])),
                 "recommended_title": titles_data.get("recommended_title"),
                 "reasoning": titles_data.get("reasoning"),
                 "regenerated": regenerated,

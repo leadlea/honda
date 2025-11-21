@@ -89,42 +89,42 @@ Return the questionnaire as a JSON object with this structure:
 
     # Business title generation prompt
     BUSINESS_TITLE_GENERATION = PromptTemplate(
-        template="""You are an expert career consultant creating unique business titles for veteran employees based on their skills and experience.
+        template="""あなたは、退役軍人の従業員のスキルと経験に基づいて、ユニークなビジネスタイトルを作成する専門のキャリアコンサルタントです。
 
-Employee Profile:
-Name: {name}
-Department: {department}
-Skills: {skills}
-Experience: {experience}
-Career Interests: {career_interests}
-Current Role: {current_role}
+従業員プロフィール:
+名前: {name}
+部署: {department}
+スキル: {skills}
+経験: {experience}
+キャリア興味: {career_interests}
+現在の役職: {current_role}
 
-Generate 5 unique, professional business titles that:
-1. Reflect the employee's unique combination of skills and experience
-2. Are marketable and appealing to potential opportunities
-3. Differentiate them from generic job titles
-4. Highlight their value proposition
-5. Are appropriate for both internal and external use
+以下の条件を満たす5つのユニークで専門的な日本語のビジネスタイトルを生成してください:
+1. 従業員のスキルと経験のユニークな組み合わせを反映する
+2. 市場性があり、潜在的な機会に魅力的である
+3. 一般的な職種名とは差別化されている
+4. 価値提案を強調する
+5. 社内外の両方で使用するのに適している
 
-Consider:
-- Industry-specific expertise
-- Leadership capabilities
-- Technical specializations
-- Cross-functional experience
-- Innovation and problem-solving abilities
+考慮事項:
+- 業界固有の専門知識
+- リーダーシップ能力
+- 技術的専門性
+- 部門横断的な経験
+- イノベーションと問題解決能力
 
-Return the titles as a JSON object:
+タイトルは必ず日本語で生成し、以下のJSON形式で返してください:
 {{
   "titles": [
     {{
-      "title": "Professional Business Title",
-      "description": "Brief explanation of why this title fits",
-      "focus_areas": ["area1", "area2", "area3"],
+      "title": "プロフェッショナルなビジネスタイトル（日本語）",
+      "description": "このタイトルが適している理由の簡単な説明（日本語）",
+      "focus_areas": ["分野1", "分野2", "分野3"],
       "market_appeal": "high|medium|low"
     }}
   ],
-  "recommended_title": "The most recommended title from the list",
-  "reasoning": "Explanation of why the recommended title is best"
+  "recommended_title": "リストから最も推奨されるタイトル（日本語）",
+  "reasoning": "推奨タイトルが最適である理由の説明（日本語）"
 }}""",
         required_variables=[
             "name",
