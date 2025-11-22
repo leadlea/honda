@@ -620,6 +620,400 @@ class TestErrorHandlingIntegration:
         assert "error" in response_body
 
 
+class TestProfileUpdateBodyParsingIntegration:
+    """
+    Integration tests for profile update body parsing fix.
+    
+    Feature: fix-profile-update-body-parsing
+    Validates: Requirements 1.5, 2.4, 3.4
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.test_user_id = "integration-test-body-parsing"
+        self.mock_user = {
+            "user_id": self.test_user_id,
+            "role": "veteran",
+            "email": "test@example.com",
+        }
+
+    @patch("src.handlers.profile_handler.VeteranProfileRepository")
+    @patch("src.handlers.profile_handler.security_auditor")
+    @patch("src.handlers.profile_handler.extract_request_info")
+    def test_profile_update_with_string_body_full_handler(
+        self, mock_extract_info, mock_auditor, mock_repo_class
+    ):
+        """
+        Test profile update with JSON string body through full handler.
+        
+        Validates:
+        - String body is correctly parsed to dictionary
+        - Profile update succeeds with string body
+        - Response contains updated profile data
+        - Logging captures body type and parsing
+        
+        Requirements: 1.5, 3.1, 3.4
+        """
+        mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+        
+        # Mock repository
+        mock_repo = Mock()
+        mock_repo_class.return_value = mock_repo
+
+        # Mock existing profile
+        existing_profile = VeteranProfile(
+            user_id=self.test_user_id,
+            business_title="Software Engineer",
+            skills=[
+                {"name": "Python", "level": "Advanced", "years": 3, "certifications": []}
+            ],
+            experiences=[],
+            preferences={},
+            privacy_settings={},
+            questionnaire_responses=[],
+            is_publicly_visible="false",
+            last_updated="2020-01-01T00:00:00Z",
+        )
+
+        # Mock updated profile
+        updated_profile = VeteranProfile(
+            user_id=self.test_user_id,
+            business_title="Senior Software Engineer",
+            skills=[
+                {"name": "Python", "level": "Expert", "years": 5, "certifications": []},
+            ],
+            experiences=[],
+            preferences={},
+            privacy_settings={},
+            questionnaire_responses=[],
+            is_publicly_visible="false",
+            last_updated=datetime.now(timezone.utc).isoformat(),
+        )
+
+        mock_repo.get_profile.side_effect = [existing_profile, updated_profile]
+        mock_repo.update_profile.return_value = True
+
+        # Create update event with STRING body (simulating Lambda proxy integration)
+        update_data = {
+            "business_title": "Senior Software Engineer",
+            "skills": [
+                {"name": "Python", "level": "Expert", "years": 5, "certifications": []},
+            ],
+        }
+
+        event = {
+            "user": self.mock_user,
+            "path": f"/profiles/{self.test_user_id}",
+            "body": json.dumps(update_data),  # STRING body
+            "profile_user_id": self.test_user_id,
+        }
+
+        # Execute update
+        with patch("src.handlers.profile_handler.logger") as mock_logger:
+            result = update_profile(event, {})
+
+            # Verify logging captured body type
+            mock_logger.info.assert_any_call(
+                f"Update profile request body: {update_data}"
+            )
+
+        # Verify response
+        assert result["statusCode"] == 200
+        response_body = json.loads(result["body"])
+        assert response_body["message"] == "Profile updated successfully"
+        assert "profile" in response_body
+        
+        # Verify profile data
+        profile_data = response_body["profile"]
+        assert profile_data["business_title"] == "Senior Software Engineer"
+        assert len(profile_data["skills"]) == 1
+        assert profile_data["skills"][0]["level"] == "Expert"
+
+        # Verify repository was called correctly
+        mock_repo.update_profile.assert_called_once()
+        call_args = mock_repo.update_profile.call_args
+        assert call_args[0][0] == self.test_user_id
+        assert call_args[0][1] == update_data
+
+    @patch("src.handlers.profile_handler.VeteranProfileRepository")
+    @patch("src.handlers.profile_handler.security_auditor")
+    @patch("src.handlers.profile_handler.extract_request_info")
+    def test_profile_update_with_dict_body_full_handler(
+        self, mock_extract_info, mock_auditor, mock_repo_class
+    ):
+        """
+        Test profile update with dictionary body through full handler.
+        
+        Validates:
+        - Dictionary body is used directly without parsing
+        - Profile update succeeds with dict body
+        - Response contains updated profile data
+        - Logging captures body type
+        
+        Requirements: 1.5, 3.1, 3.4
+        """
+        mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+        
+        # Mock repository
+        mock_repo = Mock()
+        mock_repo_class.return_value = mock_repo
+
+        # Mock existing profile
+        existing_profile = VeteranProfile(
+            user_id=self.test_user_id,
+            business_title="Engineer",
+            skills=[],
+            experiences=[],
+            preferences={},
+            privacy_settings={},
+            questionnaire_responses=[],
+            is_publicly_visible="false",
+            last_updated="2020-01-01T00:00:00Z",
+        )
+
+        # Mock updated profile
+        updated_profile = VeteranProfile(
+            user_id=self.test_user_id,
+            business_title="Lead Engineer",
+            skills=[],
+            experiences=[],
+            preferences={"preferred_roles": ["Tech Lead", "Manager"]},
+            privacy_settings={},
+            questionnaire_responses=[],
+            is_publicly_visible="false",
+            last_updated=datetime.now(timezone.utc).isoformat(),
+        )
+
+        mock_repo.get_profile.side_effect = [existing_profile, updated_profile]
+        mock_repo.update_profile.return_value = True
+
+        # Create update event with DICT body (simulating internal call)
+        update_data = {
+            "business_title": "Lead Engineer",
+            "preferences": {"preferred_roles": ["Tech Lead", "Manager"]},
+        }
+
+        event = {
+            "user": self.mock_user,
+            "path": f"/profiles/{self.test_user_id}",
+            "body": update_data,  # DICT body (not JSON string)
+            "profile_user_id": self.test_user_id,
+        }
+
+        # Execute update
+        with patch("src.handlers.profile_handler.logger") as mock_logger:
+            result = update_profile(event, {})
+
+            # Verify logging captured body type
+            mock_logger.info.assert_any_call(
+                f"Update profile request body: {update_data}"
+            )
+
+        # Verify response
+        assert result["statusCode"] == 200
+        response_body = json.loads(result["body"])
+        assert response_body["message"] == "Profile updated successfully"
+        assert "profile" in response_body
+        
+        # Verify profile data
+        profile_data = response_body["profile"]
+        assert profile_data["business_title"] == "Lead Engineer"
+        assert profile_data["preferences"]["preferred_roles"] == ["Tech Lead", "Manager"]
+
+        # Verify repository was called correctly
+        mock_repo.update_profile.assert_called_once()
+        call_args = mock_repo.update_profile.call_args
+        assert call_args[0][0] == self.test_user_id
+        assert call_args[0][1] == update_data
+
+    @patch("src.handlers.profile_handler.VeteranProfileRepository")
+    @patch("src.handlers.profile_handler.security_auditor")
+    @patch("src.handlers.profile_handler.extract_request_info")
+    def test_profile_update_with_invalid_body_type(
+        self, mock_extract_info, mock_auditor, mock_repo_class
+    ):
+        """
+        Test profile update with invalid body type (list).
+        
+        Validates:
+        - Invalid body types are rejected
+        - Returns 400 error with clear message
+        - Error is logged with actual type
+        - No database update is attempted
+        
+        Requirements: 2.2, 2.4, 3.2, 3.3
+        """
+        mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+        
+        # Mock repository
+        mock_repo = Mock()
+        mock_repo_class.return_value = mock_repo
+
+        # Create event with INVALID body type (list instead of string/dict)
+        event = {
+            "user": self.mock_user,
+            "path": f"/profiles/{self.test_user_id}",
+            "body": ["invalid", "body", "type"],  # LIST body (invalid)
+            "profile_user_id": self.test_user_id,
+        }
+
+        # Execute update
+        with patch("src.handlers.profile_handler.logger") as mock_logger:
+            result = update_profile(event, {})
+
+            # Verify error was logged with actual type
+            mock_logger.error.assert_called_once()
+            error_call = mock_logger.error.call_args[0][0]
+            assert "Unexpected body type" in error_call
+            assert "list" in error_call
+
+        # Verify error response
+        assert result["statusCode"] == 400
+        response_body = json.loads(result["body"])
+        assert "error" in response_body
+        assert response_body["error"] == "Invalid request body format"
+
+        # Verify repository was NOT called
+        mock_repo.get_profile.assert_not_called()
+        mock_repo.update_profile.assert_not_called()
+
+    @patch("src.handlers.profile_handler.VeteranProfileRepository")
+    @patch("src.handlers.profile_handler.security_auditor")
+    @patch("src.handlers.profile_handler.extract_request_info")
+    def test_profile_update_with_invalid_json_string(
+        self, mock_extract_info, mock_auditor, mock_repo_class
+    ):
+        """
+        Test profile update with invalid JSON string.
+        
+        Validates:
+        - Invalid JSON strings are caught
+        - Returns 400 error with clear message
+        - Error is logged
+        - No database update is attempted
+        
+        Requirements: 2.1, 2.4, 3.2
+        """
+        mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+        
+        # Mock repository
+        mock_repo = Mock()
+        mock_repo_class.return_value = mock_repo
+
+        # Create event with INVALID JSON string
+        event = {
+            "user": self.mock_user,
+            "path": f"/profiles/{self.test_user_id}",
+            "body": "{invalid json: missing quotes}",  # Invalid JSON
+            "profile_user_id": self.test_user_id,
+        }
+
+        # Execute update
+        result = update_profile(event, {})
+
+        # Verify error response
+        assert result["statusCode"] == 400
+        response_body = json.loads(result["body"])
+        assert "error" in response_body
+        assert response_body["error"] == "Invalid JSON in request body"
+
+        # Verify repository was NOT called
+        mock_repo.get_profile.assert_not_called()
+        mock_repo.update_profile.assert_not_called()
+
+    @patch("src.handlers.profile_handler.VeteranProfileRepository")
+    @patch("src.handlers.profile_handler.security_auditor")
+    @patch("src.handlers.profile_handler.extract_request_info")
+    def test_profile_update_logging_output_verification(
+        self, mock_extract_info, mock_auditor, mock_repo_class
+    ):
+        """
+        Test that logging output is correct for each scenario.
+        
+        Validates:
+        - Body type is logged before parsing
+        - Parsed body structure is logged after parsing
+        - Errors are logged with full context
+        - Unexpected types are logged with actual type
+        
+        Requirements: 3.1, 3.2, 3.3, 3.4
+        """
+        mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+        
+        # Mock repository
+        mock_repo = Mock()
+        mock_repo_class.return_value = mock_repo
+
+        # Mock existing profile
+        existing_profile = VeteranProfile(
+            user_id=self.test_user_id,
+            business_title="Engineer",
+            skills=[],
+            experiences=[],
+            preferences={},
+            privacy_settings={},
+            questionnaire_responses=[],
+            is_publicly_visible="false",
+            last_updated="2020-01-01T00:00:00Z",
+        )
+
+        updated_profile = VeteranProfile(
+            user_id=self.test_user_id,
+            business_title="Senior Engineer",
+            skills=[],
+            experiences=[],
+            preferences={},
+            privacy_settings={},
+            questionnaire_responses=[],
+            is_publicly_visible="false",
+            last_updated=datetime.now(timezone.utc).isoformat(),
+        )
+
+        mock_repo.get_profile.side_effect = [existing_profile, updated_profile]
+        mock_repo.update_profile.return_value = True
+
+        # Test 1: String body logging
+        update_data = {"business_title": "Senior Engineer"}
+        event_string = {
+            "user": self.mock_user,
+            "path": f"/profiles/{self.test_user_id}",
+            "body": json.dumps(update_data),
+            "profile_user_id": self.test_user_id,
+        }
+
+        with patch("src.handlers.profile_handler.logger") as mock_logger:
+            result = update_profile(event_string, {})
+            
+            # Verify body was logged
+            assert any(
+                "Update profile request body" in str(call)
+                for call in mock_logger.info.call_args_list
+            )
+            
+            # Verify body type was logged
+            assert any(
+                "Body type" in str(call) and "Body keys" in str(call)
+                for call in mock_logger.info.call_args_list
+            )
+
+        # Test 2: Invalid type logging
+        event_invalid = {
+            "user": self.mock_user,
+            "path": f"/profiles/{self.test_user_id}",
+            "body": 12345,  # Number (invalid)
+            "profile_user_id": self.test_user_id,
+        }
+
+        with patch("src.handlers.profile_handler.logger") as mock_logger:
+            result = update_profile(event_invalid, {})
+            
+            # Verify error was logged with type
+            mock_logger.error.assert_called_once()
+            error_message = mock_logger.error.call_args[0][0]
+            assert "Unexpected body type" in error_message
+            assert "int" in error_message
+
+
 class TestDynamoDBPersistence:
     """Integration tests verifying DynamoDB persistence after operations."""
 

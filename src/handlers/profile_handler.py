@@ -264,7 +264,19 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         # Add profile_user_id to event for RBAC decorator
         event["profile_user_id"] = profile_user_id
 
-        body = json.loads(event.get("body", "{}"))
+        # Parse body - handle both string and dict cases
+        raw_body = event.get("body", "{}")
+        if isinstance(raw_body, str):
+            body = json.loads(raw_body)
+            # Validate that parsed JSON is a dictionary
+            if not isinstance(body, dict):
+                logger.error(f"Parsed JSON is not a dictionary: {type(body)}")
+                return create_response(400, {"error": "Invalid JSON in request body"})
+        elif isinstance(raw_body, dict):
+            body = raw_body
+        else:
+            logger.error(f"Unexpected body type: {type(raw_body)}")
+            return create_response(400, {"error": "Invalid request body format"})
         
         logger.info(f"Update profile request body: {body}")
         logger.info(f"Body type: {type(body)}, Body keys: {body.keys() if isinstance(body, dict) else 'NOT A DICT'}")

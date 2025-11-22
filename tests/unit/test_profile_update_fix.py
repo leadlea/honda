@@ -111,3 +111,315 @@ def test_repository_update_profile_method_signature():
     
     if sig.parameters["update_data"].annotation != inspect.Parameter.empty:
         assert sig.parameters["update_data"].annotation == dict, "update_data should be typed as dict"
+
+
+# Edge case tests for body parsing (Task 3)
+
+def test_empty_body_defaults_to_empty_dict():
+    """
+    Test that a missing body defaults to an empty dict.
+    
+    This validates Requirements 1.1: "WHEN a user sends a profile update request 
+    with a JSON body THEN the system SHALL parse the body correctly"
+    """
+    with patch("src.handlers.profile_handler.VeteranProfileRepository") as mock_repo_class:
+        mock_repo = Mock()
+        mock_repo_class.return_value = mock_repo
+        
+        # Create existing profile
+        existing_profile = VeteranProfile(
+            user_id="test-user-123",
+            business_title="Software Engineer",
+            skills=[],
+            experiences=[],
+            preferences={},
+            privacy_settings={"is_publicly_visible": False, "external_contact": False},
+        )
+        
+        mock_repo.get_profile.return_value = existing_profile
+        
+        # Create event with missing body (defaults to "{}")
+        event = {
+            "user": {"user_id": "test-user-123", "role": "veteran"},
+            "path": "/profiles/test-user-123",
+            # No body field - should default to "{}"
+            "profile_user_id": "test-user-123",
+        }
+        
+        with patch("src.handlers.profile_handler.security_auditor") as mock_auditor, \
+             patch("src.handlers.profile_handler.extract_request_info") as mock_extract_info:
+            mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+            
+            # Call the handler
+            result = update_profile(event, {})
+            
+            # Should return 400 because no valid fields to update
+            assert result["statusCode"] == 400
+            response_body = json.loads(result["body"])
+            assert "No valid fields to update" in response_body["error"]
+
+
+def test_whitespace_only_json_string():
+    """
+    Test that a whitespace-only JSON string is handled correctly.
+    
+    This validates Requirements 1.2: "WHEN the request body is a JSON string 
+    THEN the system SHALL parse it into a dictionary before processing"
+    """
+    with patch("src.handlers.profile_handler.VeteranProfileRepository") as mock_repo_class:
+        mock_repo = Mock()
+        mock_repo_class.return_value = mock_repo
+        
+        # Create existing profile
+        existing_profile = VeteranProfile(
+            user_id="test-user-123",
+            business_title="Software Engineer",
+            skills=[],
+            experiences=[],
+            preferences={},
+            privacy_settings={"is_publicly_visible": False, "external_contact": False},
+        )
+        
+        mock_repo.get_profile.return_value = existing_profile
+        
+        # Create event with whitespace-only body
+        event = {
+            "user": {"user_id": "test-user-123", "role": "veteran"},
+            "path": "/profiles/test-user-123",
+            "body": "   \n\t  ",  # Whitespace-only string
+            "profile_user_id": "test-user-123",
+        }
+        
+        with patch("src.handlers.profile_handler.security_auditor") as mock_auditor, \
+             patch("src.handlers.profile_handler.extract_request_info") as mock_extract_info:
+            mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+            
+            # Call the handler
+            result = update_profile(event, {})
+            
+            # Should return 400 for invalid JSON
+            assert result["statusCode"] == 400
+            response_body = json.loads(result["body"])
+            assert "Invalid JSON in request body" in response_body["error"]
+
+
+def test_nested_json_structures():
+    """
+    Test that nested JSON structures are parsed correctly.
+    
+    This validates Requirements 1.1, 1.2: "WHEN a user sends a profile update request 
+    with a JSON body THEN the system SHALL parse the body correctly"
+    """
+    with patch("src.handlers.profile_handler.VeteranProfileRepository") as mock_repo_class:
+        mock_repo = Mock()
+        mock_repo_class.return_value = mock_repo
+        
+        # Create existing profile
+        existing_profile = VeteranProfile(
+            user_id="test-user-123",
+            business_title="Software Engineer",
+            skills=[],
+            experiences=[],
+            preferences={},
+            privacy_settings={"is_publicly_visible": False, "external_contact": False},
+        )
+        
+        mock_repo.get_profile.return_value = existing_profile
+        mock_repo.update_profile.return_value = True
+        
+        # Create nested update data
+        nested_data = {
+            "business_title": "Senior Engineer",
+            "skills": [
+                {
+                    "name": "Python",
+                    "level": "Expert",
+                    "years": 5,
+                    "certifications": ["AWS Certified", "Python Professional"]
+                }
+            ],
+            "preferences": {
+                "job_types": ["full-time", "contract"],
+                "locations": {
+                    "remote": True,
+                    "cities": ["San Francisco", "New York"]
+                }
+            }
+        }
+        
+        # Create event with nested JSON
+        event = {
+            "user": {"user_id": "test-user-123", "role": "veteran"},
+            "path": "/profiles/test-user-123",
+            "body": json.dumps(nested_data),
+            "profile_user_id": "test-user-123",
+        }
+        
+        with patch("src.handlers.profile_handler.security_auditor") as mock_auditor, \
+             patch("src.handlers.profile_handler.extract_request_info") as mock_extract_info:
+            mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+            
+            # Call the handler
+            result = update_profile(event, {})
+            
+            # Should succeed
+            assert result["statusCode"] == 200
+            
+            # Verify the nested structure was passed correctly
+            mock_repo.update_profile.assert_called_once()
+            call_args = mock_repo.update_profile.call_args[0]
+            update_data = call_args[1]
+            
+            # Verify nested structures are preserved
+            assert update_data["skills"][0]["certifications"] == ["AWS Certified", "Python Professional"]
+            assert update_data["preferences"]["locations"]["cities"] == ["San Francisco", "New York"]
+
+
+def test_large_json_payloads():
+    """
+    Test that large JSON payloads are handled correctly.
+    
+    This validates Requirements 1.1, 1.2: "WHEN a user sends a profile update request 
+    with a JSON body THEN the system SHALL parse the body correctly"
+    """
+    with patch("src.handlers.profile_handler.VeteranProfileRepository") as mock_repo_class:
+        mock_repo = Mock()
+        mock_repo_class.return_value = mock_repo
+        
+        # Create existing profile
+        existing_profile = VeteranProfile(
+            user_id="test-user-123",
+            business_title="Software Engineer",
+            skills=[],
+            experiences=[],
+            preferences={},
+            privacy_settings={"is_publicly_visible": False, "external_contact": False},
+        )
+        
+        mock_repo.get_profile.return_value = existing_profile
+        mock_repo.update_profile.return_value = True
+        
+        # Create large update data with many skills
+        large_data = {
+            "business_title": "Senior Engineer",
+            "skills": [
+                {
+                    "name": f"Skill_{i}",
+                    "level": "Expert",
+                    "years": i % 10,
+                    "certifications": [f"Cert_{j}" for j in range(5)]
+                }
+                for i in range(100)  # 100 skills
+            ],
+            "experiences": [
+                {
+                    "company": f"Company_{i}",
+                    "title": f"Title_{i}",
+                    "description": "A" * 500,  # Long description
+                    "years": i
+                }
+                for i in range(50)  # 50 experiences
+            ]
+        }
+        
+        # Create event with large JSON
+        event = {
+            "user": {"user_id": "test-user-123", "role": "veteran"},
+            "path": "/profiles/test-user-123",
+            "body": json.dumps(large_data),
+            "profile_user_id": "test-user-123",
+        }
+        
+        with patch("src.handlers.profile_handler.security_auditor") as mock_auditor, \
+             patch("src.handlers.profile_handler.extract_request_info") as mock_extract_info:
+            mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+            
+            # Call the handler
+            result = update_profile(event, {})
+            
+            # Should succeed
+            assert result["statusCode"] == 200
+            
+            # Verify the large data was passed correctly
+            mock_repo.update_profile.assert_called_once()
+            call_args = mock_repo.update_profile.call_args[0]
+            update_data = call_args[1]
+            
+            # Verify data integrity
+            assert len(update_data["skills"]) == 100
+            assert len(update_data["experiences"]) == 50
+
+
+def test_special_characters_in_json_strings():
+    """
+    Test that special characters in JSON strings are handled correctly.
+    
+    This validates Requirements 1.1, 1.2, 2.1: "WHEN a user sends a profile update 
+    request with a JSON body THEN the system SHALL parse the body correctly"
+    """
+    with patch("src.handlers.profile_handler.VeteranProfileRepository") as mock_repo_class:
+        mock_repo = Mock()
+        mock_repo_class.return_value = mock_repo
+        
+        # Create existing profile
+        existing_profile = VeteranProfile(
+            user_id="test-user-123",
+            business_title="Software Engineer",
+            skills=[],
+            experiences=[],
+            preferences={},
+            privacy_settings={"is_publicly_visible": False, "external_contact": False},
+        )
+        
+        mock_repo.get_profile.return_value = existing_profile
+        mock_repo.update_profile.return_value = True
+        
+        # Create data with special characters
+        special_char_data = {
+            "business_title": "Senior Engineer @ Tech Corp™",
+            "skills": [
+                {
+                    "name": "C++ & Python",
+                    "level": "Expert",
+                    "years": 5,
+                    "certifications": ["AWS™ Certified", "Python® Professional"]
+                }
+            ],
+            "experiences": [
+                {
+                    "company": "Tech Corp™",
+                    "title": "Lead Engineer (2020-2024)",
+                    "description": "Worked on: API design, DB optimization & cloud migration. Achieved 99.9% uptime!",
+                    "years": 4
+                }
+            ]
+        }
+        
+        # Create event with special characters
+        event = {
+            "user": {"user_id": "test-user-123", "role": "veteran"},
+            "path": "/profiles/test-user-123",
+            "body": json.dumps(special_char_data),
+            "profile_user_id": "test-user-123",
+        }
+        
+        with patch("src.handlers.profile_handler.security_auditor") as mock_auditor, \
+             patch("src.handlers.profile_handler.extract_request_info") as mock_extract_info:
+            mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+            
+            # Call the handler
+            result = update_profile(event, {})
+            
+            # Should succeed
+            assert result["statusCode"] == 200
+            
+            # Verify special characters are preserved
+            mock_repo.update_profile.assert_called_once()
+            call_args = mock_repo.update_profile.call_args[0]
+            update_data = call_args[1]
+            
+            # Verify special characters are intact
+            assert "™" in update_data["business_title"]
+            assert "&" in update_data["skills"][0]["name"]
+            assert "®" in update_data["skills"][0]["certifications"][1]
+            assert "99.9%" in update_data["experiences"][0]["description"]
