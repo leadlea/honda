@@ -72,6 +72,7 @@ GET /stats/{userId}
 ```json
 {
   "user_id": "string",
+  "business_title": "Senior Software Architect",
   "statistics": {
     "completed_questionnaires": 0,
     "received_recommendations": 0,
@@ -100,11 +101,12 @@ def get_user_statistics(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     user_id = event["pathParameters"]["userId"]
     
     # 並行でデータ取得
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         future_questionnaires = executor.submit(count_completed_questionnaires, user_id)
         future_recommendations = executor.submit(count_recommendations, user_id)
         future_applications = executor.submit(count_applications, user_id)
         future_views = executor.submit(get_profile_views, user_id)
+        future_business_title = executor.submit(get_business_title, user_id)
         
         stats = {
             "completed_questionnaires": future_questionnaires.result(),
@@ -112,11 +114,14 @@ def get_user_statistics(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             "submitted_applications": future_applications.result(),
             "profile_views": future_views.result()
         }
+        
+        business_title = future_business_title.result()
     
     return {
         "statusCode": 200,
         "body": json.dumps({
             "user_id": user_id,
+            "business_title": business_title,
             "statistics": stats,
             "last_updated": datetime.now(timezone.utc).isoformat()
         })
@@ -156,6 +161,13 @@ def get_profile_views(user_id: str) -> int:
     response = table.get_item(Key={"user_id": user_id})
     item = response.get("Item", {})
     return item.get("profile_views", 0)
+
+def get_business_title(user_id: str) -> str:
+    """ビジネスタイトルを取得"""
+    table = ddb.Table(f"{PREFIX}-veteran-profiles")
+    response = table.get_item(Key={"user_id": user_id})
+    item = response.get("Item", {})
+    return item.get("business_title", "")
 ```
 
 ### 2. Statistics Service (Frontend)
@@ -181,8 +193,13 @@ export interface UserStatistics {
   profile_views: number;
 }
 
+export interface DashboardData {
+  business_title: string;
+  statistics: UserStatistics;
+}
+
 class StatisticsService {
-  async getUserStatistics(userId: string): Promise<UserStatistics> {
+  async getDashboardData(userId: string): Promise<DashboardData> {
     try {
       const { tokens } = await fetchAuthSession();
       const idToken = tokens?.idToken?.toString();
@@ -203,17 +220,29 @@ class StatisticsService {
       }).response;
 
       const data = (await response.body.json()) as any;
-      return data.statistics;
+      return {
+        business_title: data.business_title || '',
+        statistics: data.statistics
+      };
     } catch (error) {
-      console.error('Get user statistics error:', error);
+      console.error('Get dashboard data error:', error);
       // エラー時はデフォルト値を返す
       return {
-        completed_questionnaires: 0,
-        received_recommendations: 0,
-        submitted_applications: 0,
-        profile_views: 0,
+        business_title: '',
+        statistics: {
+          completed_questionnaires: 0,
+          received_recommendations: 0,
+          submitted_applications: 0,
+          profile_views: 0,
+        }
       };
     }
+  }
+  
+  // 後方互換性のため残す
+  async getUserStatistics(userId: string): Promise<UserStatistics> {
+    const data = await this.getDashboardData(userId);
+    return data.statistics;
   }
 }
 
@@ -239,24 +268,24 @@ import { statisticsService, UserStatistics } from '../../services/statisticsServ
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const [statistics, setStatistics] = useState<UserStatistics | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     if (user && user.role === 'veteran') {
-      loadStatistics();
+      loadDashboardData();
     }
   }, [user]);
 
-  const loadStatistics = async () => {
+  const loadDashboardData = async () => {
     if (!user) return;
     
     try {
       setLoadingStats(true);
-      const stats = await statisticsService.getUserStatistics(user.user_id);
-      setStatistics(stats);
+      const data = await statisticsService.getDashboardData(user.user_id);
+      setDashboardData(data);
     } catch (error) {
-      console.error('Failed to load statistics:', error);
+      console.error('Failed to load dashboard data:', error);
     } finally {
       setLoadingStats(false);
     }
@@ -269,7 +298,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   return (
     <div className="dashboard-container">
-      {/* ... existing code ... */}
+      <div className="dashboard-header">
+        <h1>{getWelcomeMessage()}</h1>
+        {dashboardData?.business_title && (
+          <p className="business-title">{dashboardData.business_title}</p>
+        )}
+        <p className="dashboard-subtitle">
+          あなたのスキルを活かした新しい機会を見つけましょう
+        </p>
+      </div>
+      
+      {/* ... existing quick actions ... */}
       
       <RoleBasedComponent allowedRoles={['veteran']}>
         <div className="dashboard-stats">
@@ -277,25 +316,25 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-number">
-                {renderStatValue(statistics?.completed_questionnaires)}
+                {renderStatValue(dashboardData?.statistics.completed_questionnaires)}
               </div>
               <div className="stat-label">完了した問診</div>
             </div>
             <div className="stat-card">
               <div className="stat-number">
-                {renderStatValue(statistics?.received_recommendations)}
+                {renderStatValue(dashboardData?.statistics.received_recommendations)}
               </div>
               <div className="stat-label">受信した推薦</div>
             </div>
             <div className="stat-card">
               <div className="stat-number">
-                {renderStatValue(statistics?.submitted_applications)}
+                {renderStatValue(dashboardData?.statistics.submitted_applications)}
               </div>
               <div className="stat-label">応募した機会</div>
             </div>
             <div className="stat-card">
               <div className="stat-number">
-                {renderStatValue(statistics?.profile_views)}
+                {renderStatValue(dashboardData?.statistics.profile_views)}
               </div>
               <div className="stat-label">プロフィール閲覧数</div>
             </div>
@@ -436,6 +475,29 @@ with ThreadPoolExecutor(max_workers=4) as executor:
 - Dashboard コンポーネントのレンダリングテスト
 - ローディング状態の表示テスト
 - エラー時のフォールバック表示テスト
+
+## スタイリング
+
+### ビジネスタイトル表示
+
+ビジネスタイトルは、ウェルカムメッセージとサブタイトルの間に表示されます：
+
+```css
+.business-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin: 0.5rem 0;
+  font-style: italic;
+}
+```
+
+レイアウト構造：
+```
+[ウェルカムメッセージ]
+[ビジネスタイトル] ← 新規追加
+[サブタイトル]
+```
 
 ## セキュリティ考慮事項
 

@@ -208,6 +208,8 @@ def get_profile_views(user_id: str) -> int:
     Retrieves the profile_views field from VeteranProfiles table.
     """
     try:
+        from decimal import Decimal
+        
         table = ddb.Table(f"{PREFIX}-veteran-profiles")
         
         response = table.get_item(Key={"user_id": user_id})
@@ -216,7 +218,9 @@ def get_profile_views(user_id: str) -> int:
         profile_views = item.get("profile_views", 0)
         
         # Handle Decimal type from DynamoDB
-        if isinstance(profile_views, (int, float)):
+        if isinstance(profile_views, Decimal):
+            profile_views = int(profile_views)
+        elif isinstance(profile_views, (int, float)):
             profile_views = int(profile_views)
         else:
             profile_views = 0
