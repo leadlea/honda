@@ -264,10 +264,14 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         # Add profile_user_id to event for RBAC decorator
         event["profile_user_id"] = profile_user_id
 
-        # Parse body - handle both string and dict cases
+        # Parse body - handle both string and dict cases, including double-encoded JSON
         raw_body = event.get("body", "{}")
         if isinstance(raw_body, str):
             body = json.loads(raw_body)
+            # Handle double-encoded JSON (string containing JSON string)
+            if isinstance(body, str):
+                logger.info(f"Detected double-encoded JSON, parsing again")
+                body = json.loads(body)
             # Validate that parsed JSON is a dictionary
             if not isinstance(body, dict):
                 logger.error(f"Parsed JSON is not a dictionary: {type(body)}")

@@ -5,6 +5,7 @@ with user_id and update_data parameters (Requirements 2.1, 2.2, 2.3).
 """
 
 import json
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 from src.handlers.profile_handler import update_profile
@@ -423,3 +424,68 @@ def test_special_characters_in_json_strings():
             assert "&" in update_data["skills"][0]["name"]
             assert "®" in update_data["skills"][0]["certifications"][1]
             assert "99.9%" in update_data["experiences"][0]["description"]
+
+
+@patch("src.handlers.profile_handler.VeteranProfileRepository")
+@patch("src.handlers.profile_handler.security_auditor")
+@patch("src.handlers.profile_handler.extract_request_info")
+def test_double_encoded_json_body(mock_extract_info, mock_auditor, mock_repo_class):
+    """
+    Test profile update with double-encoded JSON (JSON string containing JSON string).
+    
+    Validates:
+    - Double-encoded JSON is correctly parsed
+    - Profile update succeeds after double parsing
+    
+    This handles cases where API Gateway or other proxies double-encode the body.
+    """
+    mock_extract_info.return_value = {"source_ip": "127.0.0.1"}
+    mock_repo = Mock()
+    mock_repo_class.return_value = mock_repo
+
+    # Mock existing and updated profiles
+    existing_profile = VeteranProfile(
+        user_id="test-user-123",
+        business_title="Engineer",
+        skills=[],
+        experiences=[],
+        preferences={},
+        privacy_settings={},
+        questionnaire_responses=[],
+        is_publicly_visible="false",
+        last_updated="2020-01-01T00:00:00Z",
+    )
+
+    updated_profile = VeteranProfile(
+        user_id="test-user-123",
+        business_title="Senior Engineer",
+        skills=[],
+        experiences=[],
+        preferences={},
+        privacy_settings={},
+        questionnaire_responses=[],
+        is_publicly_visible="false",
+        last_updated=datetime.now(timezone.utc).isoformat(),
+    )
+
+    mock_repo.get_profile.side_effect = [existing_profile, updated_profile]
+    mock_repo.update_profile.return_value = True
+
+    # Create double-encoded JSON (JSON string containing JSON string)
+    update_data = {"business_title": "Senior Engineer"}
+    json_string = json.dumps(update_data)
+    double_encoded = json.dumps(json_string)  # Encode it again
+
+    event = {
+        "user": {"user_id": "test-user-123", "role": "veteran"},
+        "path": "/profiles/test-user-123",
+        "body": double_encoded,  # Double-encoded JSON
+        "profile_user_id": "test-user-123",
+    }
+
+    result = update_profile(event, {})
+
+    assert result["statusCode"] == 200
+    response_body = json.loads(result["body"])
+    assert response_body["message"] == "Profile updated successfully"
+    assert response_body["profile"]["business_title"] == "Senior Engineer"
