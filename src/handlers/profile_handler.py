@@ -294,7 +294,7 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
             return create_response(404, {"error": "Profile not found"})
 
         # Validate update data - only allow specific fields
-        allowed_fields = ["business_title", "skills", "experiences", "preferences"]
+        allowed_fields = ["business_title", "skills", "experiences", "preferences", "privacy_settings"]
         
         # Parse any JSON string fields in the body
         parsed_body = {}
