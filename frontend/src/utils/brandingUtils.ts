@@ -26,7 +26,7 @@ export const TONE_GUIDELINES = {
   respectful_inclusive: '多様な経験と背景を尊重する包括的な表現'
 };
 
-export const TERM_MAPPINGS = {
+export const TERM_MAPPINGS: Record<string, string> = {
   'Honda Veteran Talent Bank': '製造業プラチナアドバイザリー',
   'ベテラン': '登録人材',
   '問診': 'スキル棚卸し',
@@ -287,7 +287,7 @@ export function validateBrandingConsistency(message: string): {
   Object.keys(TERM_MAPPINGS).forEach(legacyTerm => {
     if (message.includes(legacyTerm)) {
       issues.push(`Legacy term found: ${legacyTerm}`);
-      suggestions.push(`Replace "${legacyTerm}" with "${TERM_MAPPINGS[legacyTerm]}"`);
+      suggestions.push(`Replace "${legacyTerm}" with "${TERM_MAPPINGS[legacyTerm] as string}"`);
     }
   });
   
