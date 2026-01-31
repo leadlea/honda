@@ -54,7 +54,7 @@
   transition: border-color 0.3s ease;
   box-sizing: border-box;
   background: var(--bg-secondary, #2d2d2d);
-  color: #000000;
+  color: var(--text-primary, #ffffff);
 }
 
 .form-group input:focus,

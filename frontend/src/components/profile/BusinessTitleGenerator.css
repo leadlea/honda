@@ -34,7 +34,7 @@
   font-weight: 500;
   transition: border-color 0.2s ease;
   background: var(--bg-secondary, #2d2d2d);
-  color: #000000;
+  color: var(--text-primary, #ffffff);
 }
 
 .title-input:focus {
@@ -43,7 +43,7 @@
 }
 
 .title-input::placeholder {
-  color: #888888;
+  color: var(--text-muted, #a0aec0);
 }
 
 .error-message {

@@ -144,7 +144,7 @@
   resize: vertical;
   transition: border-color 0.2s ease;
   background: var(--bg-secondary, #2d2d2d);
-  color: #000000;
+  color: var(--text-primary, #ffffff);
 }
 
 .question-textarea:focus {
