@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from '../../types/auth';
+import { termMappingService } from '../../services/termMappingService';
 import './UserProfile.css';
 
 const UserProfile: React.FC = () => {
@@ -61,7 +62,7 @@ const UserProfile: React.FC = () => {
       case 'external_recruiter':
         return '外部リクルーター';
       default:
-        return 'ベテラン社員';
+        return termMappingService.getLocalizedTerm('navigation_talent');
     }
   };
 

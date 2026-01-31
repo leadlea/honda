@@ -4,6 +4,7 @@ import { PublicSearchService } from '../../services/publicSearchService';
 import SearchFiltersPanel from './SearchFiltersPanel';
 import VeteranSearchCard from './VeteranSearchCard';
 import VeteranProfileModal from './VeteranProfileModal';
+import { termMappingService } from '../../services/termMappingService';
 import './PublicVeteranSearch.css';
 
 const PublicVeteranSearch: React.FC = () => {
@@ -113,7 +114,7 @@ const PublicVeteranSearch: React.FC = () => {
   return (
     <div className="public-veteran-search">
       <div className="search-header">
-        <h1>HONDAベテランバンク</h1>
+        <h1>{termMappingService.getLocalizedTerm('app_title')}</h1>
         <p>経験豊富な専門家を見つけて、あなたのプロジェクトを成功に導きましょう</p>
         
         <div className="search-controls">
@@ -162,7 +163,7 @@ const PublicVeteranSearch: React.FC = () => {
             <>
               <div className="results-header">
                 <h2>
-                  検索結果: {searchResult.total_count}名のベテラン
+                  検索結果: {searchResult.total_count}名の{termMappingService.getLocalizedTerm('navigation_talent')}
                   {searchResult.total_count > 0 && (
                     <span className="page-info">
                       （{((currentPage - 1) * 12) + 1}-{Math.min(currentPage * 12, searchResult.total_count)}件目を表示）
@@ -173,7 +174,7 @@ const PublicVeteranSearch: React.FC = () => {
 
               {searchResult.profiles.length === 0 ? (
                 <div className="no-results">
-                  <h3>該当するベテランが見つかりませんでした</h3>
+                  <h3>該当する{termMappingService.getLocalizedTerm('navigation_talent')}が見つかりませんでした</h3>
                   <p>検索条件を変更してもう一度お試しください。</p>
                 </div>
               ) : (

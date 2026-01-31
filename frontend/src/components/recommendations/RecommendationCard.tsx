@@ -1,5 +1,6 @@
 import React from 'react';
 import { Recommendation } from '../../types/profile';
+import { termMappingService } from '../../services/termMappingService';
 import './RecommendationCard.css';
 
 interface RecommendationCardProps {
@@ -18,11 +19,11 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
   const getStatusBadge = () => {
     switch (status) {
       case 'generated':
-        return <span className="status-badge new">New</span>;
+        return <span className="status-badge new">新着</span>;
       case 'viewed':
-        return <span className="status-badge viewed">Viewed</span>;
+        return <span className="status-badge viewed">確認済み</span>;
       case 'applied':
-        return <span className="status-badge applied">Applied</span>;
+        return <span className="status-badge applied">{termMappingService.mapLegacyTerm('応募')}済み</span>;
       default:
         return null;
     }
@@ -45,11 +46,11 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
 
   const formatSalaryRange = () => {
     const { min, max, currency } = opportunity.salary_range;
-    if (min === 0 && max === 0) return 'Salary not specified';
+    if (min === 0 && max === 0) return '給与情報なし';
     
-    const formatter = new Intl.NumberFormat('en-US', {
+    const formatter = new Intl.NumberFormat('ja-JP', {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: currency || 'JPY',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     });
@@ -94,7 +95,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
 
         <div className="opportunity-meta">
           <span className="source-badge source-{opportunity.source}">
-            {opportunity.source === 'internal' ? 'Internal' : 'External'}
+            {opportunity.source === 'internal' ? '社内' : '社外'}
           </span>
           <span className="type-badge">{opportunity.type.replace('_', ' ')}</span>
         </div>
@@ -110,7 +111,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
         </div>
 
         <div className="match-reasons">
-          <h4>Why this matches you:</h4>
+          <h4>あなたにマッチする理由:</h4>
           <ul>
             {topMatchReasons.map((reason, index) => (
               <li key={index} className="match-reason">
@@ -122,13 +123,13 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
         </div>
 
         <div className="required-skills">
-          <h4>Key Skills Required:</h4>
+          <h4>必要なスキル:</h4>
           <div className="skills-tags">
             {opportunity.required_skills.slice(0, 5).map((skill, index) => (
               <span key={index} className="skill-tag">{skill}</span>
             ))}
             {opportunity.required_skills.length > 5 && (
-              <span className="skill-tag more">+{opportunity.required_skills.length - 5} more</span>
+              <span className="skill-tag more">+{opportunity.required_skills.length - 5} 他</span>
             )}
           </div>
         </div>
@@ -139,14 +140,14 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
           className="view-details-button"
           onClick={onView}
         >
-          View Details
+          詳細を見る
         </button>
         
         {status !== 'applied' && (
           <button 
             className="dismiss-button"
             onClick={onDismiss}
-            title="Dismiss this recommendation"
+            title={`この${termMappingService.mapLegacyTerm('推薦')}を却下`}
           >
             ✕
           </button>
@@ -155,9 +156,9 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
 
       <div className="card-footer">
         <small>
-          Posted: {new Date(opportunity.posted_date).toLocaleDateString()}
+          投稿日: {new Date(opportunity.posted_date).toLocaleDateString('ja-JP')}
           {opportunity.expiry_date && (
-            <span> • Expires: {new Date(opportunity.expiry_date).toLocaleDateString()}</span>
+            <span> • 期限: {new Date(opportunity.expiry_date).toLocaleDateString('ja-JP')}</span>
           )}
         </small>
       </div>

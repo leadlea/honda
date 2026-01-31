@@ -19,8 +19,14 @@ from typing import Any, Dict, List, Optional
 import boto3
 from botocore.exceptions import ClientError
 
+from src.utils.branding_logger import get_branding_logger
+from src.config.ai_content_config import ai_content_config
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# Initialize branding logger
+branding_logger = get_branding_logger('questionnaire_handler')
 
 # ---------- Env & clients ----------
 REGION = os.environ.get("AWS_REGION") or os.environ.get("REGION") or "ap-northeast-1"
@@ -128,6 +134,7 @@ def _ensure_profile(uid: str) -> Dict[str, Any]:
     }
     TBL_PROFILES.put_item(Item=item)
     logger.info("Profile created for user %s", uid)
+    branding_logger.log_custom_event('profile_created', {'user_id': uid})
     return item
 
 
@@ -242,17 +249,22 @@ def _to_plain(obj: Any) -> Any:
 
 # ---------- Bedrock ----------
 def _fallback_questionnaire(name: str) -> Dict[str, Any]:
+    # Use AI content config for fallback prompt
+    fallback_intro = ai_content_config.get_questionnaire_prompt('fallback_prompt')
+    
     return {
-        "title": f"{name}さん向けキャリアAI問診",
+        "title": f"{name}さん向けスキル棚卸し",
+        "description": fallback_intro,
         "questions": [
-            {"id": "skills_primary", "text": "現在の主な専門スキルは何ですか？", "type": "text", "category": "skills", "required": True},
-            {"id": "skills_lang", "text": "業務で使ったことのあるプログラミング言語を選んでください。", "type": "multiple_choice", "options": ["Python", "Java", "C/C++", "Go", "その他"], "category": "skills", "required": False},
-            {"id": "exp_years", "text": "現在の職種の経験年数を教えてください（1〜5で評価）。", "type": "rating", "category": "experience", "required": True},
-            {"id": "domain_exp", "text": "自動車・ロボティクス・モビリティ領域で携わったことのある分野を教えてください。", "type": "text", "category": "experience", "required": False},
-            {"id": "interest_roles", "text": "今後挑戦したいロール（職務）を教えてください。", "type": "text", "category": "preferences", "required": True},
-            {"id": "work_style", "text": "勤務地・働き方（出社/リモート/ハイブリッド）の希望はありますか？", "type": "text", "category": "preferences", "required": False},
-            {"id": "leadership", "text": "ピープルマネジメントに関心はありますか？", "type": "boolean", "category": "goals", "required": False},
-            {"id": "goal_6m", "text": "今後6か月で達成したいキャリア目標は何ですか？", "type": "text", "category": "goals", "required": False},
+            {"id": "skills_primary", "text": "現在の主な専門スキル・技術は何ですか？", "type": "text", "category": "skills", "required": True},
+            {"id": "manufacturing_exp", "text": "製造業での経験分野を教えてください（複数選択可）", "type": "multiple_choice", "options": ["生産技術", "品質管理", "設備保全", "工程改善", "安全管理", "その他"], "category": "experience", "required": True},
+            {"id": "exp_years", "text": "製造業での経験年数を教えてください（1〜5で評価）", "type": "rating", "category": "experience", "required": True},
+            {"id": "improvement_activities", "text": "これまでに取り組んだ改善活動や成果を教えてください", "type": "text", "category": "achievements", "required": False},
+            {"id": "leadership_exp", "text": "チームリーダーやマネジメントの経験はありますか？", "type": "boolean", "category": "experience", "required": False},
+            {"id": "participation_interest", "text": "今後参画したい分野・役割を教えてください", "type": "text", "category": "preferences", "required": True},
+            {"id": "work_style", "text": "希望する勤務形態を教えてください", "type": "multiple_choice", "options": ["常駐", "リモート", "ハイブリッド", "プロジェクト単位", "その他"], "category": "preferences", "required": False},
+            {"id": "skill_development", "text": "今後伸ばしたいスキルや学びたい技術はありますか？", "type": "text", "category": "goals", "required": False},
+            {"id": "contribution_goal", "text": "製造業の発展にどのような貢献をしたいですか？", "type": "text", "category": "goals", "required": False},
         ],
         "responses": [],
     }
@@ -260,11 +272,21 @@ def _fallback_questionnaire(name: str) -> Dict[str, Any]:
 
 def _generate_with_bedrock(name: str, department: str, years_experience: int,
                            current_role: str, previous_responses: List[Dict[str, Any]]) -> Dict[str, Any]:
-    system = (
-        "You are a career counselor. Create a short personalized questionnaire in Japanese "
-        "as compact JSON with fields: title (string), questions (array of {id,text,type,category,required,options?}). "
-        "Use types: text|multiple_choice|rating|boolean. Keep 6-10 questions. Return ONLY JSON."
+    # Use AI content config for branded prompts
+    system_prompt = ai_content_config.get_questionnaire_prompt('system_prompt')
+    
+    context_prompt = ai_content_config.get_questionnaire_prompt(
+        'context_prompt',
+        name=name,
+        department=department,
+        experience_years=years_experience,
+        skills=current_role,
+        achievements="過去の実績情報"  # This could be enhanced with actual achievements
     )
+    
+    # Combine system and context prompts
+    full_system_prompt = f"{system_prompt}\n\n{context_prompt}"
+    
     user_msg = _to_plain({
         "name": name,
         "department": department,
@@ -276,9 +298,9 @@ def _generate_with_bedrock(name: str, department: str, years_experience: int,
     try:
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1000,
+            "max_tokens": 1500,  # Increased for more detailed responses
             "temperature": 0.3,
-            "system": system,
+            "system": full_system_prompt,
             "messages": [{"role": "user", "content": [{"type": "text", "text": json.dumps(user_msg, ensure_ascii=False)}]}],
         })
 
@@ -296,9 +318,15 @@ def _generate_with_bedrock(name: str, department: str, years_experience: int,
         parsed = json.loads(text)
         if not isinstance(parsed.get("questions", []), list):
             raise ValueError("Invalid questions")
-        return {"title": parsed.get("title") or f"{name}さん向けAI問診", "questions": parsed["questions"], "responses": []}
+        
+        # Apply branding to the title
+        title = parsed.get("title") or f"{name}さん向けスキル棚卸し"
+        branded_title = ai_content_config.apply_branding_context(title)
+        
+        return {"title": branded_title, "questions": parsed["questions"], "responses": []}
     except Exception as e:
         logger.warning("Bedrock generation failed, fallback used: %s", e)
+        branding_logger.log_error_occurred('ai_generation_failed', str(e))
         return _fallback_questionnaire(name)
 
 
@@ -367,8 +395,11 @@ def submit_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         _submit_responses(qid, responses)
         _update_profile_from_responses(uid, responses)
+        
+        # Log questionnaire completion
+        branding_logger.log_questionnaire_completed(uid)
 
-        return _resp(200, {"message": "Questionnaire submitted successfully", "questionnaire_id": qid})
+        return _resp(200, {"message": "スキル棚卸しが正常に完了しました", "questionnaire_id": qid})
     except Exception as e:
         logger.exception("submit_questionnaire error: %s", e)
         return _resp(500, {"error": "Internal server error"})

@@ -24,6 +24,7 @@ from src.utils.rbac import (
     require_role,
 )
 from src.utils.security_audit import extract_request_info, security_auditor
+from src.config.message_config import message_config
 
 logger = logging.getLogger()
 
@@ -58,7 +59,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if not user:
             logger.error("No user information found in event")
             logger.error(f"Request context: {event.get('requestContext', {})}")
-            return create_response(401, {"error": "Authentication required"})
+            return create_response(401, {"error": message_config.get_error_message('authentication_failed')})
             
         event["user"] = user
 
@@ -82,11 +83,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif http_method == "DELETE":
             return delete_profile(event)
 
-        return create_response(400, {"error": "Invalid action or method"})
+        return create_response(400, {"error": message_config.get_error_message('invalid_input')})
 
     except Exception as e:
         logger.error(f"Error in profile handler: {str(e)}")
-        return create_response(500, {"error": "Internal server error"})
+        return create_response(500, {"error": message_config.get_error_message('internal_error')})
 
 
 def create_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
@@ -98,7 +99,7 @@ def create_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         user_id = user.get("user_id")
 
         if not user_id:
-            return create_response(401, {"error": "Authentication required"})
+            return create_response(401, {"error": message_config.get_error_message('authentication_failed')})
 
         body = json.loads(event.get("body", "{}"))
 
@@ -108,7 +109,7 @@ def create_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         # Check if profile already exists
         if profile_repo.profile_exists(user_id):
             return create_response(
-                409, {"error": "Profile already exists for this user"}
+                409, {"error": f"{message_config.map_legacy_term('ベテランプロフィール')}が既に存在します"}
             )
 
         # Create new profile with provided data
@@ -129,7 +130,7 @@ def create_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         if validation_errors:
             return create_response(
                 400,
-                {"error": "Profile validation failed", "details": validation_errors},
+                {"error": message_config.get_error_message('profile_validation_failed'), "details": validation_errors},
             )
 
         # Create profile in database
@@ -149,7 +150,7 @@ def create_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
             return create_response(
                 201,
                 {
-                    "message": "Profile created successfully",
+                    "message": message_config.get_success_message('profile_updated'),
                     "profile": {
                         "user_id": profile.user_id,
                         "business_title": profile.business_title,
@@ -162,15 +163,15 @@ def create_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
                 },
             )
         else:
-            return create_response(500, {"error": "Failed to create profile"})
+            return create_response(500, {"error": message_config.get_error_message('profile_validation_failed')})
 
     except json.JSONDecodeError:
-        return create_response(400, {"error": "Invalid JSON in request body"})
+        return create_response(400, {"error": message_config.get_error_message('invalid_input')})
     except ValueError as e:
         return create_response(400, {"error": str(e)})
     except Exception as e:
         logger.error(f"Error creating profile: {str(e)}")
-        return create_response(500, {"error": "Failed to create profile"})
+        return create_response(500, {"error": message_config.get_error_message('profile_validation_failed')})
 
 
 @require_permission(Permission.VIEW_OWN_PROFILE, resource_owner_field="profile_user_id")
@@ -208,7 +209,7 @@ def get_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
                 source_ip=request_info.get("source_ip"),
             )
 
-            return create_response(403, {"error": "Access denied"})
+            return create_response(403, {"error": message_config.get_error_message('access_denied')})
 
         # Initialize repository
         profile_repo = VeteranProfileRepository()
@@ -217,7 +218,7 @@ def get_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
         profile = profile_repo.get_profile(profile_user_id)
 
         if not profile:
-            return create_response(404, {"error": "Profile not found"})
+            return create_response(404, {"error": message_config.get_error_message('resource_not_found')})
 
         # Log successful access
         request_info = extract_request_info(event)
@@ -245,7 +246,7 @@ def get_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Error getting profile: {str(e)}")
-        return create_response(500, {"error": "Failed to get profile"})
+        return create_response(500, {"error": message_config.get_error_message('profile_validation_failed')})
 
 
 @require_permission(Permission.EDIT_OWN_PROFILE, resource_owner_field="profile_user_id")
@@ -291,7 +292,7 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         # Get existing profile
         existing_profile = profile_repo.get_profile(profile_user_id)
         if not existing_profile:
-            return create_response(404, {"error": "Profile not found"})
+            return create_response(404, {"error": message_config.get_error_message('resource_not_found')})
 
         # Validate update data - only allow specific fields
         allowed_fields = ["business_title", "skills", "experiences", "preferences", "privacy_settings"]
@@ -313,7 +314,7 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         logger.info(f"Parsed update_data: {update_data}")
 
         if not update_data:
-            return create_response(400, {"error": "No valid fields to update"})
+            return create_response(400, {"error": "更新する有効なフィールドがありません"})
 
         # Build update_data dictionary from profile fields
         # Note: update_data already contains only allowed fields from earlier filtering
@@ -339,7 +340,7 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
             return create_response(
                 200,
                 {
-                    "message": "Profile updated successfully",
+                    "message": message_config.get_success_message('profile_updated'),
                     "updated_fields": list(update_data.keys()),
                     "profile": {
                         "user_id": updated_profile.user_id,
@@ -353,15 +354,15 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
                 },
             )
         else:
-            return create_response(500, {"error": "Failed to update profile"})
+            return create_response(500, {"error": message_config.get_error_message('profile_validation_failed')})
 
     except json.JSONDecodeError:
-        return create_response(400, {"error": "Invalid JSON in request body"})
+        return create_response(400, {"error": message_config.get_error_message('invalid_input')})
     except ValueError as e:
         return create_response(400, {"error": str(e)})
     except Exception as e:
         logger.error(f"Error updating profile: {str(e)}")
-        return create_response(500, {"error": "Failed to update profile"})
+        return create_response(500, {"error": message_config.get_error_message('profile_validation_failed')})
 
 
 @require_role("admin")
@@ -378,14 +379,14 @@ def delete_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         profile_user_id = path_parts[1] if len(path_parts) > 1 else None
 
         if not profile_user_id:
-            return create_response(400, {"error": "Profile user ID required"})
+            return create_response(400, {"error": f"{message_config.map_legacy_term('ベテランプロフィール')}のユーザーIDが必要です"})
 
         # Initialize repository
         profile_repo = VeteranProfileRepository()
 
         # Check if profile exists
         if not profile_repo.profile_exists(profile_user_id):
-            return create_response(404, {"error": "Profile not found"})
+            return create_response(404, {"error": message_config.get_error_message('resource_not_found')})
 
         # Delete profile from database
         success = profile_repo.delete_profile(profile_user_id)
@@ -400,13 +401,13 @@ def delete_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
                 source_ip=request_info.get("source_ip"),
             )
 
-            return create_response(200, {"message": "Profile deleted successfully"})
+            return create_response(200, {"message": f"{message_config.map_legacy_term('ベテランプロフィール')}が正常に削除されました"})
         else:
-            return create_response(500, {"error": "Failed to delete profile"})
+            return create_response(500, {"error": f"{message_config.map_legacy_term('ベテランプロフィール')}の削除に失敗しました"})
 
     except Exception as e:
         logger.error(f"Error deleting profile: {str(e)}")
-        return create_response(500, {"error": "Failed to delete profile"})
+        return create_response(500, {"error": f"{message_config.map_legacy_term('ベテランプロフィール')}の削除に失敗しました"})
 
 
 def list_profiles(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:

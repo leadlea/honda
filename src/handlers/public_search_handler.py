@@ -1,20 +1,25 @@
 """
-Public Search Handler for Honda Veteran Bank
-Provides external access to veteran profiles with filtering and AI ranking
+Public Search Handler for Manufacturing Platinum Advisory
+Provides external access to registered talent profiles with filtering and AI ranking
 """
 
 import json
 import logging
 from typing import Any, Dict, List
 
+from src.config.message_config import message_config
 from src.repositories.public_profile_repository import PublicProfileRepository
 from src.repositories.veteran_profile_repository import VeteranProfileRepository
 from src.services.ai_utils import get_ai_service
 from src.services.bedrock_client import BedrockClient
+from src.utils.branding_logger import get_branding_logger
 
 # Public API - no authentication required for external access
 
 logger = logging.getLogger(__name__)
+
+# Initialize branding logger
+branding_logger = get_branding_logger('public_search_handler')
 
 
 class PublicSearchHandler:
@@ -26,7 +31,7 @@ class PublicSearchHandler:
 
     def search_veterans(self, event: Dict, context: Any) -> Dict:
         """
-        External API for searching veteran profiles
+        External API for searching registered talent profiles
         Supports filtering by skills, experience, and availability
         """
         try:
@@ -45,9 +50,9 @@ class PublicSearchHandler:
                     "headers": self._get_cors_headers(),
                     "body": json.dumps(
                         {
-                            "veterans": [],
+                            "talents": [],
                             "total_count": 0,
-                            "message": "No veterans found matching the criteria",
+                            "message": "検索条件に一致する登録人材が見つかりませんでした",
                         }
                     ),
                 }
@@ -56,8 +61,10 @@ class PublicSearchHandler:
             search_query = query_params.get("q", "")
             if search_query:
                 ranked_profiles = self._rank_profiles_with_ai(profiles, search_query)
+                branding_logger.log_search_performed(search_query)
             else:
                 ranked_profiles = profiles
+                branding_logger.log_search_performed("フィルターのみ検索")
 
             # Apply pagination
             page = int(query_params.get("page", 1))
@@ -77,7 +84,7 @@ class PublicSearchHandler:
                 "headers": self._get_cors_headers(),
                 "body": json.dumps(
                     {
-                        "veterans": formatted_profiles,
+                        "talents": formatted_profiles,
                         "total_count": len(ranked_profiles),
                         "page": page,
                         "limit": limit,
@@ -93,15 +100,15 @@ class PublicSearchHandler:
                 "headers": self._get_cors_headers(),
                 "body": json.dumps(
                     {
-                        "error": "Internal server error",
-                        "message": "Failed to search veterans",
+                        "error": message_config.get_error_message('internal_error'),
+                        "message": message_config.get_error_message('search_failed'),
                     }
                 ),
             }
 
     def get_veteran_profile(self, event: Dict, context: Any) -> Dict:
         """
-        Get detailed public profile of a specific veteran
+        Get detailed public profile of a specific registered talent
         """
         try:
             profile_id = event["pathParameters"]["profileId"]
@@ -115,8 +122,8 @@ class PublicSearchHandler:
                     "headers": self._get_cors_headers(),
                     "body": json.dumps(
                         {
-                            "error": "Profile not found",
-                            "message": "The requested veteran profile is not available",
+                            "error": "プロフィールが見つかりません",
+                            "message": "要求された登録人材のプロフィールは利用できません",
                         }
                     ),
                 }
@@ -132,7 +139,7 @@ class PublicSearchHandler:
             return {
                 "statusCode": 200,
                 "headers": self._get_cors_headers(),
-                "body": json.dumps({"veteran": formatted_profile}),
+                "body": json.dumps({"talent": formatted_profile}),
             }
 
         except Exception as e:
@@ -142,8 +149,8 @@ class PublicSearchHandler:
                 "headers": self._get_cors_headers(),
                 "body": json.dumps(
                     {
-                        "error": "Internal server error",
-                        "message": "Failed to retrieve veteran profile",
+                        "error": message_config.get_error_message('internal_error'),
+                        "message": "登録人材プロフィールの取得に失敗しました",
                     }
                 ),
             }
@@ -168,8 +175,8 @@ class PublicSearchHandler:
                 "headers": self._get_cors_headers(),
                 "body": json.dumps(
                     {
-                        "error": "Internal server error",
-                        "message": "Failed to retrieve categories",
+                        "error": message_config.get_error_message('internal_error'),
+                        "message": "カテゴリの取得に失敗しました",
                     }
                 ),
             }
@@ -277,23 +284,23 @@ class PublicSearchHandler:
             profiles_text += f"   Experience: {profile['experience_summary']}\n\n"
 
         return f"""
-You are helping rank veteran profiles based on a search query.
-Analyze the profiles and rank them by relevance to the search requirements.
+あなたは製造業プラチナアドバイザリーの登録人材プロフィールを検索クエリに基づいてランク付けするアシスタントです。
+プロフィールを分析し、検索要件への関連性でランク付けしてください。
 
-Search Query: "{search_query}"
+検索クエリ: "{search_query}"
 
-Veteran Profiles:
+登録人材プロフィール:
 {profiles_text}
 
-Instructions:
-1. Rank profiles by how well they match the search query
-2. Consider skills, experience, and job titles
-3. Return only the profile IDs in ranked order (most relevant first)
-4. Format as a simple comma-separated list of profile IDs
+指示:
+1. 検索クエリにどの程度マッチするかでプロフィールをランク付けしてください
+2. スキル、経験、職種を考慮してください
+3. 関連性の高い順にプロフィールIDのみを返してください
+4. プロフィールIDをカンマ区切りのリストで出力してください
 
-Example output: profile_1, profile_3, profile_2
+出力例: profile_1, profile_3, profile_2
 
-Ranked Profile IDs:
+ランク付けされたプロフィールID:
 """
 
     def _parse_ranking_response(self, response: str) -> List[str]:
@@ -322,12 +329,12 @@ Ranked Profile IDs:
         """Generate a brief experience summary"""
         experiences = profile.get("experiences", [])
         if not experiences:
-            return "No experience listed"
+            return "経験なし"
 
         total_years = sum(exp.get("duration", 0) for exp in experiences)
         departments = list(set(exp.get("department", "") for exp in experiences))
 
-        return f"{total_years} years across {', '.join(departments[:3])}"
+        return f"{total_years}年の経験 ({', '.join(departments[:3])})"
 
     def _paginate_results(
         self, profiles: List[Dict], page: int, limit: int
@@ -402,9 +409,9 @@ def handler(event, context):
         search_handler = PublicSearchHandler()
         
         # Route based on path
-        if "/public/veterans/search" in path and http_method == "GET":
+        if "/public/talents/search" in path and http_method == "GET":
             return search_handler.search_veterans(event, context)
-        elif "/public/veterans/" in path and http_method == "GET":
+        elif "/public/talents/" in path and http_method == "GET":
             return search_handler.get_veteran_profile(event, context)
         elif "/public/categories" in path and http_method == "GET":
             return search_handler.get_search_categories(event, context)
@@ -415,7 +422,7 @@ def handler(event, context):
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": json.dumps({"error": "Not found"}),
+                "body": json.dumps({"error": "見つかりません"}),
             }
     except Exception as e:
         logger.error(f"Error in public search handler: {str(e)}")
@@ -425,18 +432,18 @@ def handler(event, context):
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
             },
-            "body": json.dumps({"error": "Internal server error"}),
+            "body": json.dumps({"error": message_config.get_error_message('internal_error')}),
         }
 
 
 def search_veterans(event, context):
-    """Lambda handler for veteran search"""
+    """Lambda handler for registered talent search"""
     handler_instance = PublicSearchHandler()
     return handler_instance.search_veterans(event, context)
 
 
 def get_veteran_profile(event, context):
-    """Lambda handler for getting veteran profile"""
+    """Lambda handler for getting registered talent profile"""
     handler_instance = PublicSearchHandler()
     return handler_instance.get_veteran_profile(event, context)
 

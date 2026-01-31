@@ -4,6 +4,7 @@ import { profileService } from '../../services/profileService';
 import { VeteranProfile, Skill, Experience, Preferences } from '../../types/profile';
 import BusinessTitleGenerator from './BusinessTitleGenerator';
 import PrivacySettings from './PrivacySettings';
+import { termMappingService } from '../../services/termMappingService';
 import './ProfileManagement.css';
 
 const ProfileManagement: React.FC = () => {
@@ -25,7 +26,7 @@ const ProfileManagement: React.FC = () => {
       const data = await profileService.getProfile(user.user_id);
       setProfile(data);
     } catch (error) {
-      setError('プロフィールの読み込みに失敗しました');
+      setError(`${termMappingService.getLocalizedTerm('skill_portfolio')}の読み込みに失敗しました`);
       console.error('Load profile error:', error);
     } finally {
       setLoading(false);
@@ -45,12 +46,12 @@ const ProfileManagement: React.FC = () => {
       const updated = await profileService.updateProfile(user!.user_id, updatedProfile);
       setProfile(updated);
       setHasUnsavedChanges(false);
-      setSuccessMessage('プロフィールが正常に保存されました');
+      setSuccessMessage(termMappingService.getSuccessMessage('profile_updated'));
       
       // Clear success message after 3 seconds
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
-      setError('プロフィールの保存に失敗しました');
+      setError(termMappingService.getErrorMessage('profile_validation_failed'));
       console.error('Save profile error:', error);
     } finally {
       setSaving(false);
@@ -388,7 +389,7 @@ const ProfileManagement: React.FC = () => {
       <div className="profile-management-container">
         <div className="loading-state">
           <div className="loading-spinner"></div>
-          <p>プロフィールを読み込み中...</p>
+          <p>{termMappingService.getLocalizedTerm('skill_portfolio')}を読み込み中...</p>
         </div>
       </div>
     );
@@ -411,8 +412,8 @@ const ProfileManagement: React.FC = () => {
   return (
     <div className="profile-management-container">
       <div className="profile-header">
-        <h1>プロフィール管理</h1>
-        <p>あなたの詳細プロフィールを編集・管理できます</p>
+        <h1>{termMappingService.getLocalizedTerm('profile_section')}</h1>
+        <p>あなたの詳細{termMappingService.getLocalizedTerm('skill_portfolio')}を編集・管理できます</p>
         {hasUnsavedChanges && (
           <div className="unsaved-changes-notice">
             <span>⚠️ 未保存の変更があります</span>
@@ -489,7 +490,7 @@ const ProfileManagement: React.FC = () => {
           className="btn btn-primary"
           disabled={saving}
         >
-          {saving ? '保存中...' : 'プロフィールを保存'}
+          {saving ? '保存中...' : `${termMappingService.getLocalizedTerm('skill_portfolio')}を保存`}
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import RoleBasedComponent from '../common/RoleBasedComponent';
+import { termMappingService } from '../../services/termMappingService';
 import './Header.css';
 
 interface HeaderProps {
@@ -33,27 +34,27 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
     },
     {
       key: 'questionnaire',
-      label: '問診',
+      label: termMappingService.getLocalizedTerm('navigation_questionnaire'),
       roles: ['veteran'] as const,
     },
     {
       key: 'profile',
-      label: 'プロフィール',
+      label: termMappingService.getLocalizedTerm('navigation_profile'),
       roles: ['veteran'] as const,
     },
     {
       key: 'recommendations',
-      label: '推薦',
+      label: termMappingService.getLocalizedTerm('navigation_recommendations'),
       roles: ['veteran'] as const,
     },
     {
       key: 'applications',
-      label: '応募状況',
+      label: termMappingService.getLocalizedTerm('navigation_applications'),
       roles: ['veteran'] as const,
     },
     {
       key: 'public-search',
-      label: 'ベテラン検索',
+      label: termMappingService.getLocalizedTerm('talent_search'),
       roles: ['external_recruiter'] as const,
     },
     {
@@ -68,7 +69,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
       <div className="header-content">
         <div className="header-left">
           <h1 className="app-title" onClick={() => onNavigate('dashboard')}>
-            Honda Veteran Talent Bank
+            {termMappingService.getLocalizedTerm('app_title')}
           </h1>
         </div>
 
@@ -94,7 +95,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
               <span className="user-name">{user.name}</span>
               <span className="user-role">
                 {user.role === 'admin' ? '管理者' : 
-                 user.role === 'external_recruiter' ? '外部リクルーター' : 'ベテラン社員'}
+                 user.role === 'external_recruiter' ? '外部リクルーター' : termMappingService.getLocalizedTerm('navigation_talent')}
               </span>
               <span className="dropdown-arrow">▼</span>
             </button>

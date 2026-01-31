@@ -1,5 +1,6 @@
 import React from 'react';
 import { PublicVeteranProfile } from '../../types/public';
+import { termMappingService } from '../../services/termMappingService';
 import './VeteranSearchCard.css';
 
 interface VeteranSearchCardProps {
@@ -118,7 +119,7 @@ const VeteranSearchCard: React.FC<VeteranSearchCardProps> = ({ profile, onSelect
 
       <div className="card-footer">
         <button className="view-profile-btn">
-          詳細プロフィールを見る
+          詳細{termMappingService.getLocalizedTerm('skill_portfolio')}を見る
         </button>
         <div className="last-updated">
           更新: {new Date(profile.last_updated).toLocaleDateString('ja-JP')}

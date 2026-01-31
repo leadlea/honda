@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PublicVeteranProfile } from '../../types/public';
 import ContactForm from './ContactForm';
+import { termMappingService } from '../../services/termMappingService';
 import './VeteranProfileModal.css';
 
 interface VeteranProfileModalProps {
@@ -94,7 +95,7 @@ const VeteranProfileModal: React.FC<VeteranProfileModalProps> = ({ profile, onCl
           </div>
 
           <div className="profile-summary-section">
-            <h2>プロフィール概要</h2>
+            <h2>{termMappingService.getLocalizedTerm('skill_portfolio')}概要</h2>
             <p className="profile-summary-text">{profile.summary}</p>
           </div>
 

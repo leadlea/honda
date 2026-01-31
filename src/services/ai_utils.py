@@ -312,9 +312,11 @@ class AIService:
         experience: List[Dict],
         career_interests: List[str],
         current_role: str,
+        branding_context: str = "",
+        platform_name: str = "製造業プラチナアドバイザリー",
     ) -> Dict[str, Any]:
         """
-        Generate business titles for a veteran employee.
+        Generate business titles for a registered talent.
 
         Args:
             name: Employee name
@@ -323,19 +325,59 @@ class AIService:
             experience: List of experience entries
             career_interests: List of career interests
             current_role: Current job role
+            branding_context: Branding context for title generation
+            platform_name: Platform name for context
 
         Returns:
             Generated business titles as dictionary
         """
         try:
-            prompt = AIPrompts.BUSINESS_TITLE_GENERATION.format(
-                name=name,
-                department=department,
-                skills=json.dumps(skills),
-                experience=json.dumps(experience),
-                career_interests=json.dumps(career_interests),
-                current_role=current_role,
-            )
+            # Use branding context if provided, otherwise use default
+            if branding_context:
+                context_prompt = branding_context
+            else:
+                context_prompt = f"""
+{platform_name}のビジネスタイトル生成：
+
+【プラットフォームの特徴】
+- 製造業に特化した人材プラットフォーム
+- 登録人材の専門性と経験を重視
+- 「人を活かす、新しい製造業の生態系」の実現
+
+【タイトル生成の方針】
+1. 製造業の専門性を反映
+2. 登録人材の経験レベルを適切に表現
+3. 市場価値と成長可能性を示唆
+4. 企業にとって魅力的で理解しやすい表現
+5. 日本の製造業文化に適合した表現
+"""
+
+            prompt = f"""{context_prompt}
+
+登録人材情報：
+名前: {name}
+部署: {department}
+現在の役職: {current_role}
+スキル: {json.dumps(skills, ensure_ascii=False)}
+経験: {json.dumps(experience, ensure_ascii=False)}
+キャリア志向: {json.dumps(career_interests, ensure_ascii=False)}
+
+上記の情報を基に、この登録人材に適した複数のビジネスタイトルを生成してください。
+製造業の専門性を活かし、企業にとって魅力的で理解しやすいタイトルを提案してください。
+
+以下のJSON形式で回答してください：
+{{
+    "titles": [
+        {{
+            "title": "提案タイトル1",
+            "reasoning": "このタイトルを提案する理由",
+            "market_appeal": "市場での魅力度（1-5）",
+            "specialization": "専門分野"
+        }}
+    ],
+    "recommended_title": "最も推奨するタイトル",
+    "reasoning": "推奨理由の詳細説明"
+}}"""
 
             request = BedrockRequest(
                 messages=[{"role": "user", "content": prompt}],
@@ -350,6 +392,14 @@ class AIService:
 
             # Parse JSON response
             titles_data = json.loads(response.content)
+            
+            # Apply branding to titles if needed
+            if "titles" in titles_data:
+                for title_info in titles_data["titles"]:
+                    if "title" in title_info:
+                        # Apply any additional branding transformations
+                        title_info["title"] = title_info["title"].replace("ベテラン", "登録人材")
+            
             return titles_data
 
         except json.JSONDecodeError as e:

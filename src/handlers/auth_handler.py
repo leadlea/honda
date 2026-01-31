@@ -24,12 +24,17 @@ from src.utils.performance import optimize_lambda_handler
 from src.utils.rbac import get_available_roles, rbac_manager, validate_role
 from src.utils.security_audit import extract_request_info, security_auditor
 from src.utils.security_headers import create_secure_response, security_middleware
+from src.config.message_config import message_config
+from src.utils.branding_logger import get_branding_logger
 
 # ──────────────────────────────────────────────────────────────
 # Logging / AWS clients / Env
 # ──────────────────────────────────────────────────────────────
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+# Initialize branding logger
+branding_logger = get_branding_logger('auth_handler')
 
 cognito_client = boto3.client("cognito-idp")
 dynamodb = boto3.resource("dynamodb")
@@ -141,6 +146,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             )
 
         logger.info(f"Processing {http_method} request for action: {action}")
+        branding_logger.log_api_request(http_method, f"/auth/{action}")
 
         if http_method == "POST":
             if action == "register":
@@ -162,11 +168,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if action == "profile":
                 return update_user_profile(event)
 
-        return create_response(400, {"error": "Invalid action or method"})
+        return create_response(400, {"error": message_config.get_error_message('invalid_input')})
 
     except Exception as e:
         logger.exception("Error in auth handler")
-        return create_response(500, {"error": "Internal server error"})
+        return create_response(500, {"error": message_config.get_error_message('internal_error')})
 
 
 # ──────────────────────────────────────────────────────────────
@@ -183,7 +189,7 @@ def register_user(event: Dict[str, Any]) -> Dict[str, Any]:
         required_fields = ["email", "password", "name", "employee_id", "department"]
         for field in required_fields:
             if not body.get(field):
-                return create_response(400, {"error": f"Missing required field: {field}"})
+                return create_response(400, {"error": f"必須フィールドが不足しています: {field}"})
 
         email = body["email"]
         password = body["password"]
@@ -194,7 +200,7 @@ def register_user(event: Dict[str, Any]) -> Dict[str, Any]:
 
         if not validate_role(role):
             available = get_available_roles()
-            return create_response(400, {"error": f"Invalid role. Must be one of: {available}"})
+            return create_response(400, {"error": f"無効な役割です。次のいずれかである必要があります: {available}"})
 
         # Admin create
         u = cognito_client.admin_create_user(
@@ -235,8 +241,9 @@ def register_user(event: Dict[str, Any]) -> Dict[str, Any]:
         })
 
         logger.info(f"User registered successfully: {email}")
+        branding_logger.log_custom_event('user_registration', {'email': email, 'role': role})
         return create_response(201, {
-            "message": "User registered successfully",
+            "message": message_config.get_success_message('user_created'),
             "user_id": user_id,
             "email": email,
             "role": role,
@@ -245,14 +252,14 @@ def register_user(event: Dict[str, Any]) -> Dict[str, Any]:
     except ClientError as e:
         code = e.response["Error"]["Code"]
         if code == "UsernameExistsException":
-            return create_response(409, {"error": "User already exists"})
+            return create_response(409, {"error": "ユーザーが既に存在します"})
         if code == "InvalidPasswordException":
-            return create_response(400, {"error": "Password does not meet requirements"})
+            return create_response(400, {"error": "パスワードが要件を満たしていません"})
         logger.exception("Cognito error on register_user")
-        return create_response(500, {"error": "Registration failed"})
+        return create_response(500, {"error": message_config.get_error_message('registration_failed')})
     except Exception:
         logger.exception("Registration error")
-        return create_response(500, {"error": "Registration failed"})
+        return create_response(500, {"error": message_config.get_error_message('registration_failed')})
 
 
 def login_user(event: Dict[str, Any]) -> Dict[str, Any]:
@@ -265,7 +272,7 @@ def login_user(event: Dict[str, Any]) -> Dict[str, Any]:
         email = body.get("email")
         password = body.get("password")
         if not email or not password:
-            return create_response(400, {"error": "Email and password are required"})
+            return create_response(400, {"error": "メールアドレスとパスワードが必要です"})
 
         auth = cognito_client.admin_initiate_auth(
             UserPoolId=USER_POOL_ID,
@@ -291,7 +298,7 @@ def login_user(event: Dict[str, Any]) -> Dict[str, Any]:
         )
 
         return create_response(200, {
-            "message": "Login successful",
+            "message": message_config.get_success_message('authentication_success'),
             "tokens": {
                 "access_token": access_token,
                 "id_token": id_token,
@@ -320,11 +327,11 @@ def login_user(event: Dict[str, Any]) -> Dict[str, Any]:
             failure_reason=code,
         )
         if code in ["NotAuthorizedException", "UserNotFoundException"]:
-            return create_response(401, {"error": "Invalid credentials"})
+            return create_response(401, {"error": message_config.get_error_message('invalid_credentials')})
         if code == "UserNotConfirmedException":
-            return create_response(401, {"error": "User not confirmed"})
+            return create_response(401, {"error": "ユーザーが確認されていません"})
         logger.exception("Cognito login error")
-        return create_response(500, {"error": "Login failed"})
+        return create_response(500, {"error": message_config.get_error_message('authentication_failed')})
     except Exception:
         security_auditor.log_login_attempt(
             user_id=email or "unknown",
@@ -334,7 +341,7 @@ def login_user(event: Dict[str, Any]) -> Dict[str, Any]:
             failure_reason="system_error",
         )
         logger.exception("Login error")
-        return create_response(500, {"error": "Login failed"})
+        return create_response(500, {"error": message_config.get_error_message('authentication_failed')})
 
 
 def logout_user(event: Dict[str, Any]) -> Dict[str, Any]:
@@ -343,7 +350,7 @@ def logout_user(event: Dict[str, Any]) -> Dict[str, Any]:
     try:
         access_token = extract_token_from_header(event)
         if not access_token:
-            return create_response(401, {"error": "Access token required"})
+            return create_response(401, {"error": "アクセストークンが必要です"})
 
         uid = get_user_id_from_token(access_token)
         cognito_client.global_sign_out(AccessToken=access_token)
@@ -351,13 +358,13 @@ def logout_user(event: Dict[str, Any]) -> Dict[str, Any]:
         if uid:
             security_auditor.log_logout(user_id=uid, source_ip=request_info.get("source_ip"))
 
-        return create_response(200, {"message": "Logout successful"})
+        return create_response(200, {"message": "ログアウトが成功しました"})
     except ClientError:
         logger.exception("Logout error")
-        return create_response(500, {"error": "Logout failed"})
+        return create_response(500, {"error": "ログアウトに失敗しました"})
     except Exception:
         logger.exception("Logout error")
-        return create_response(500, {"error": "Logout failed"})
+        return create_response(500, {"error": "ログアウトに失敗しました"})
 
 
 def refresh_token(event: Dict[str, Any]) -> Dict[str, Any]:
@@ -366,7 +373,7 @@ def refresh_token(event: Dict[str, Any]) -> Dict[str, Any]:
         body = json.loads(event.get("body", "{}"))
         refresh_token = body.get("refresh_token")
         if not refresh_token:
-            return create_response(400, {"error": "Refresh token required"})
+            return create_response(400, {"error": "リフレッシュトークンが必要です"})
 
         auth = cognito_client.admin_initiate_auth(
             UserPoolId=USER_POOL_ID,
@@ -377,7 +384,7 @@ def refresh_token(event: Dict[str, Any]) -> Dict[str, Any]:
         tokens = auth["AuthenticationResult"]
 
         return create_response(200, {
-            "message": "Token refreshed successfully",
+            "message": "トークンが正常に更新されました",
             "tokens": {
                 "access_token": tokens["AccessToken"],
                 "id_token": tokens["IdToken"],
@@ -387,10 +394,10 @@ def refresh_token(event: Dict[str, Any]) -> Dict[str, Any]:
 
     except ClientError:
         logger.exception("Token refresh error")
-        return create_response(401, {"error": "Invalid refresh token"})
+        return create_response(401, {"error": "無効なリフレッシュトークンです"})
     except Exception:
         logger.exception("Token refresh error")
-        return create_response(500, {"error": "Token refresh failed"})
+        return create_response(500, {"error": "トークンの更新に失敗しました"})
 
 
 def get_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
@@ -436,7 +443,7 @@ def get_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
 
     except Exception:
         logger.exception("Get profile error")
-        return create_response(500, {"error": "Failed to get user profile"})
+        return create_response(500, {"error": message_config.get_error_message('profile_validation_failed')})
 
 
 def update_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
@@ -470,11 +477,11 @@ def update_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
                 UserAttributes=[{"Name": "name", "Value": body["name"]}],
             )
 
-        return create_response(200, {"message": "Profile updated successfully"})
+        return create_response(200, {"message": message_config.get_success_message('profile_updated')})
 
     except Exception:
         logger.exception("Update profile error")
-        return create_response(500, {"error": "Failed to update user profile"})
+        return create_response(500, {"error": message_config.get_error_message('profile_validation_failed')})
 
 
 def verify_token(event: Dict[str, Any]) -> Dict[str, Any]:
@@ -484,7 +491,7 @@ def verify_token(event: Dict[str, Any]) -> Dict[str, Any]:
     try:
         token = extract_token_from_header(event)
         if not token:
-            return create_response(401, {"error": "Access token required"})
+            return create_response(401, {"error": "アクセストークンが必要です"})
 
         user_info = cognito_client.get_user(AccessToken=token)
         attrs = {a["Name"]: a["Value"] for a in user_info.get("UserAttributes", [])}
@@ -502,7 +509,7 @@ def verify_token(event: Dict[str, Any]) -> Dict[str, Any]:
 
     except ClientError:
         logger.exception("Token verification error (Cognito)")
-        return create_response(401, {"valid": False, "error": "Invalid token"})
+        return create_response(401, {"valid": False, "error": "無効なトークンです"})
     except Exception:
         logger.exception("Token verification error")
-        return create_response(500, {"error": "Token verification failed"})
+        return create_response(500, {"error": "トークンの検証に失敗しました"})

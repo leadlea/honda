@@ -13,6 +13,7 @@ import Verified from './components/Verified';
 import Questionnaire from './components/questionnaire/Questionnaire'; // ← 追加
 import './config/amplify';
 import './App.css';
+import './styles/theme.css'; // ← 製造業プラチナアドバイザリーテーマを追加
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -114,7 +115,7 @@ const AppContent: React.FC = () => {
 function App() {
   return (
     <AuthProvider>
-      <div className="App">
+      <div className="App theme-manufacturing">
         <AppContent />
       </div>
     </AuthProvider>

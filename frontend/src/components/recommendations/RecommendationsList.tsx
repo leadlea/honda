@@ -4,6 +4,7 @@ import { RecommendationService } from '../../services/recommendationService';
 import { useAuth } from '../../contexts/AuthContext';
 import RecommendationCard from './RecommendationCard';
 import OpportunityDetail from './OpportunityDetail';
+import { termMappingService } from '../../services/termMappingService';
 import './RecommendationsList.css';
 
 const RecommendationsList: React.FC = () => {
@@ -31,7 +32,7 @@ const RecommendationsList: React.FC = () => {
       const data = await RecommendationService.getRecommendations(user.user_id);
       setRecommendations(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load recommendations');
+      setError(err instanceof Error ? err.message : `${termMappingService.getLocalizedTerm('navigation_recommendations')}の読み込みに失敗しました`);
     } finally {
       setLoading(false);
     }
@@ -67,7 +68,7 @@ const RecommendationsList: React.FC = () => {
         )
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to dismiss recommendation');
+      setError(err instanceof Error ? err.message : `${termMappingService.getLocalizedTerm('navigation_recommendations')}の却下に失敗しました`);
     }
   };
 
@@ -90,9 +91,9 @@ const RecommendationsList: React.FC = () => {
       setSelectedRecommendation(null);
       
       // Show success message
-      alert('Application submitted successfully!');
+      alert(`${termMappingService.mapLegacyTerm('応募')}が正常に送信されました！`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to apply to opportunity');
+      setError(err instanceof Error ? err.message : `${termMappingService.mapLegacyTerm('応募')}に失敗しました`);
     }
   };
 
@@ -113,7 +114,7 @@ const RecommendationsList: React.FC = () => {
     return (
       <div className="recommendations-loading">
         <div className="loading-spinner"></div>
-        <p>Loading your personalized recommendations...</p>
+        <p>あなた専用の{termMappingService.getLocalizedTerm('navigation_recommendations')}を読み込み中...</p>
       </div>
     );
   }
@@ -121,10 +122,10 @@ const RecommendationsList: React.FC = () => {
   if (error) {
     return (
       <div className="recommendations-error">
-        <h3>Error Loading Recommendations</h3>
+        <h3>{termMappingService.getLocalizedTerm('navigation_recommendations')}の読み込みエラー</h3>
         <p>{error}</p>
         <button onClick={loadRecommendations} className="retry-button">
-          Try Again
+          再試行
         </button>
       </div>
     );
@@ -133,24 +134,24 @@ const RecommendationsList: React.FC = () => {
   return (
     <div className="recommendations-container">
       <div className="recommendations-header">
-        <h2>Recommended Opportunities</h2>
-        <p>AI-powered recommendations based on your profile and preferences</p>
+        <h2>{termMappingService.getLocalizedTerm('navigation_recommendations')}</h2>
+        <p>あなたのプロフィールと希望に基づくAI駆動の{termMappingService.mapLegacyTerm('推薦')}</p>
         
         <div className="recommendations-controls">
           <div className="filter-controls">
-            <label>Filter by source:</label>
+            <label>ソースでフィルター:</label>
             <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-              <option value="all">All Opportunities</option>
-              <option value="internal">Internal Only</option>
-              <option value="external">External Only</option>
+              <option value="all">すべての機会</option>
+              <option value="internal">社内のみ</option>
+              <option value="external">社外のみ</option>
             </select>
           </div>
           
           <div className="sort-controls">
-            <label>Sort by:</label>
+            <label>並び順:</label>
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
-              <option value="match_score">Match Score</option>
-              <option value="date">Date Generated</option>
+              <option value="match_score">マッチスコア</option>
+              <option value="date">生成日時</option>
             </select>
           </div>
         </div>
@@ -158,13 +159,13 @@ const RecommendationsList: React.FC = () => {
 
       {filteredRecommendations.length === 0 ? (
         <div className="no-recommendations">
-          <h3>No Recommendations Available</h3>
+          <h3>{termMappingService.getLocalizedTerm('navigation_recommendations')}がありません</h3>
           <p>
-            We're working on finding opportunities that match your profile. 
-            Check back later or update your profile to get better recommendations.
+            あなたのプロフィールに合った機会を探しています。
+            後でもう一度確認するか、プロフィールを更新してより良い{termMappingService.mapLegacyTerm('推薦')}を受け取ってください。
           </p>
           <button onClick={loadRecommendations} className="refresh-button">
-            Refresh Recommendations
+            {termMappingService.getLocalizedTerm('navigation_recommendations')}を更新
           </button>
         </div>
       ) : (

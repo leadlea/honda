@@ -1,0 +1,143 @@
+{
+  "termMappings": {
+    "legacy_terms": {
+      "Honda Veteran Talent Bank": "製造業プラチナアドバイザリー",
+      "ベテラン": "登録人材",
+      "問診": "スキル棚卸し",
+      "ベテランプロフィール": "スキルポートフォリオ",
+      "推薦機会": "参画機会レコメンド",
+      "応募": "参画申請",
+      "興味表明": "参画意向",
+      "ベテラン検索": "登録人材検索",
+      "ベテラン人材": "登録人材",
+      "ベテラン登録": "人材登録",
+      "ベテラン情報": "人材情報",
+      "ベテラン一覧": "登録人材一覧",
+      "ベテラン詳細": "人材詳細",
+      "推薦": "レコメンド",
+      "推薦システム": "レコメンドシステム",
+      "推薦理由": "レコメンド理由",
+      "応募状況": "参画申請状況",
+      "応募履歴": "参画申請履歴",
+      "応募者": "参画申請者"
+    },
+    "ui_labels": {
+      "app_title": "製造業プラチナアドバイザリー",
+      "dashboard_title": "製造業プラチナアドバイザリー ダッシュボード",
+      "navigation_talent": "登録人材",
+      "navigation_questionnaire": "スキル棚卸し",
+      "navigation_profile": "スキルポートフォリオ",
+      "navigation_recommendations": "参画機会レコメンド",
+      "navigation_applications": "参画申請",
+      "profile_section": "スキルポートフォリオ管理",
+      "questionnaire_section": "スキル棚卸し",
+      "recommendations_section": "参画機会レコメンド",
+      "applications_section": "参画申請状況",
+      "search_section": "登録人材検索",
+      "talent_search": "登録人材検索",
+      "talent_list": "登録人材一覧",
+      "talent_profile": "人材プロフィール",
+      "skill_portfolio": "スキルポートフォリオ",
+      "skill_assessment": "スキル棚卸し",
+      "opportunity_recommendation": "参画機会レコメンド",
+      "participation_application": "参画申請",
+      "participation_intent": "参画意向",
+      "application_status": "参画申請状況",
+      "application_history": "参画申請履歴"
+    }
+  },
+  "branding": {
+    "theme": {
+      "primary": "#2C5282",
+      "secondary": "#4A5568", 
+      "accent": "#3182CE",
+      "background": "#F7FAFC",
+      "surface": "#FFFFFF",
+      "text_primary": "#2D3748",
+      "text_secondary": "#4A5568",
+      "success": "#38A169",
+      "warning": "#D69E2E",
+      "error": "#E53E3E"
+    },
+    "messaging": {
+      "tagline": "人を活かす、新しい製造業の生態系",
+      "tone": "professional_supportive",
+      "voice": "empowering_collaborative",
+      "brand_concept": "製造業における人材の価値を最大化し、持続可能な産業エコシステムを構築する"
+    }
+  },
+  "messages": {
+    "success": {
+      "profile_updated": "スキルポートフォリオが正常に更新されました",
+      "application_submitted": "参画申請が正常に送信されました",
+      "questionnaire_completed": "スキル棚卸しが完了しました",
+      "registration_completed": "人材登録が完了しました",
+      "recommendation_generated": "参画機会レコメンドが生成されました",
+      "search_completed": "登録人材検索が完了しました",
+      "authentication_success": "認証が成功しました",
+      "data_saved": "データが正常に保存されました",
+      "user_created": "ユーザーが正常に作成されました",
+      "password_updated": "パスワードが正常に更新されました",
+      "email_sent": "メールが正常に送信されました",
+      "file_uploaded": "ファイルが正常にアップロードされました",
+      "data_exported": "データが正常にエクスポートされました",
+      "settings_updated": "設定が正常に更新されました"
+    },
+    "errors": {
+      "profile_validation_failed": "スキルポートフォリオの検証に失敗しました",
+      "application_failed": "参画申請の処理中にエラーが発生しました",
+      "questionnaire_incomplete": "スキル棚卸しが不完全です",
+      "registration_failed": "人材登録に失敗しました",
+      "recommendation_failed": "参画機会レコメンドの生成に失敗しました",
+      "search_failed": "登録人材検索に失敗しました",
+      "authentication_failed": "認証に失敗しました",
+      "authorization_failed": "権限が不足しています",
+      "validation_error": "データの検証に失敗しました",
+      "database_error": "データベースエラーが発生しました",
+      "internal_error": "内部エラーが発生しました",
+      "user_not_found": "ユーザーが見つかりません",
+      "invalid_credentials": "認証情報が無効です",
+      "access_denied": "アクセスが拒否されました",
+      "resource_not_found": "リソースが見つかりません",
+      "duplicate_entry": "重複するエントリです",
+      "invalid_input": "入力データが無効です",
+      "service_unavailable": "サービスが利用できません",
+      "rate_limit_exceeded": "レート制限を超過しました"
+    },
+    "info": {
+      "welcome_message": "製造業プラチナアドバイザリーへようこそ",
+      "profile_help": "スキルポートフォリオを充実させて、最適な参画機会を見つけましょう",
+      "questionnaire_help": "スキル棚卸しを通じて、あなたの専門性を可視化します",
+      "recommendation_help": "AIが分析した参画機会レコメンドをご確認ください",
+      "application_help": "参画申請の状況をこちらで確認できます",
+      "search_help": "登録人材検索で最適な人材を見つけましょう",
+      "system_maintenance": "システムメンテナンス中です",
+      "data_processing": "データを処理中です",
+      "loading": "読み込み中...",
+      "no_data": "データがありません",
+      "coming_soon": "近日公開予定",
+      "beta_feature": "ベータ機能です"
+    }
+  },
+  "api_responses": {
+    "success": {
+      "200": "リクエストが正常に処理されました",
+      "201": "リソースが正常に作成されました",
+      "202": "リクエストが受け付けられました",
+      "204": "リクエストが正常に処理されました（コンテンツなし）"
+    },
+    "errors": {
+      "400": "リクエストが無効です",
+      "401": "認証が必要です",
+      "403": "アクセスが禁止されています",
+      "404": "リソースが見つかりません",
+      "409": "リソースが競合しています",
+      "422": "処理できないエンティティです",
+      "429": "リクエストが多すぎます",
+      "500": "内部サーバーエラーが発生しました",
+      "502": "不正なゲートウェイです",
+      "503": "サービスが利用できません",
+      "504": "ゲートウェイタイムアウトです"
+    }
+  }
+}

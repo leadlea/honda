@@ -9,13 +9,18 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from ..config.ai_content_config import ai_content_config
 from ..models.recommendation import Recommendation
 from ..repositories.opportunity_repository import OpportunityRepository
 from ..repositories.recommendation_repository import RecommendationRepository
 from ..repositories.veteran_profile_repository import VeteranProfileRepository
 from .matching_engine import MatchingCriteria, get_matching_engine
+from ..utils.branding_logger import get_branding_logger
 
 logger = logging.getLogger(__name__)
+
+# Initialize branding logger
+branding_logger = get_branding_logger('recommendation_service')
 
 
 @dataclass
@@ -119,17 +124,23 @@ class RecommendationService:
             personalized_recommendations = await self._apply_personalization(
                 user_id, filtered_recommendations
             )
+            
+            # Enhance recommendation reasons with branding context
+            enhanced_recommendations = await self._enhance_recommendation_reasons(
+                user_id, personalized_recommendations
+            )
 
             # Limit the number of recommendations
-            if len(personalized_recommendations) > self.max_recommendations_per_batch:
-                personalized_recommendations = personalized_recommendations[
+            if len(enhanced_recommendations) > self.max_recommendations_per_batch:
+                enhanced_recommendations = enhanced_recommendations[
                     : self.max_recommendations_per_batch
                 ]
 
             logger.info(
-                f"Generated {len(personalized_recommendations)} personalized recommendations for user {user_id}"
+                f"Generated {len(enhanced_recommendations)} personalized recommendations for user {user_id}"
             )
-            return personalized_recommendations
+            branding_logger.log_recommendation_generated(user_id)
+            return enhanced_recommendations
 
         except Exception as e:
             logger.error(
@@ -193,6 +204,173 @@ class RecommendationService:
             recommendations.sort(key=lambda x: x.match_score, reverse=True)
 
             return recommendations
+
+        except Exception as e:
+            logger.error(f"Error applying personalization: {e}")
+            return recommendations
+
+    async def _enhance_recommendation_reasons(
+        self, user_id: str, recommendations: List[Recommendation]
+    ) -> List[Recommendation]:
+        """Enhance recommendation reasons with branding context and detailed explanations."""
+        try:
+            # Get user profile for context
+            user_profile = self.veteran_repo.get_profile(user_id)
+            if not user_profile:
+                return recommendations
+
+            for rec in recommendations:
+                # Get opportunity details
+                opportunity = self.opportunity_repo.get_opportunity(rec.opportunity_id)
+                if not opportunity:
+                    continue
+
+                # Calculate detailed match metrics
+                skill_match_score = self._calculate_skill_match_score(user_profile, opportunity)
+                experience_match_score = self._calculate_experience_match_score(user_profile, opportunity)
+                growth_potential = self._assess_growth_potential(user_profile, opportunity)
+                ecosystem_contribution = self._assess_ecosystem_contribution(user_profile, opportunity)
+
+                # Generate personalized message using AI content config
+                personalized_message = self._generate_personalized_message(
+                    user_profile, opportunity, rec.match_score
+                )
+
+                # Create enhanced match reason using template
+                enhanced_reason = ai_content_config.get_recommendation_template(
+                    'match_reason_template',
+                    skill_match_score=int(skill_match_score * 100),
+                    skill_match_details=self._format_skill_match_details(user_profile, opportunity),
+                    experience_match_score=int(experience_match_score * 100),
+                    experience_match_details=self._format_experience_match_details(user_profile, opportunity),
+                    growth_potential=growth_potential,
+                    growth_details=self._format_growth_details(user_profile, opportunity),
+                    ecosystem_contribution=ecosystem_contribution,
+                    contribution_details=self._format_contribution_details(user_profile, opportunity),
+                    personalized_message=personalized_message
+                )
+
+                # Add enhanced reason to match_reasons
+                rec.match_reasons.append({
+                    "category": "detailed_analysis",
+                    "description": "製造業プラチナアドバイザリー詳細分析",
+                    "weight": 1.0,
+                    "details": {
+                        "enhanced_reason": enhanced_reason,
+                        "skill_match_score": skill_match_score,
+                        "experience_match_score": experience_match_score,
+                        "growth_potential": growth_potential,
+                        "ecosystem_contribution": ecosystem_contribution
+                    }
+                })
+
+            return recommendations
+
+        except Exception as e:
+            logger.error(f"Error enhancing recommendation reasons: {e}")
+            return recommendations
+
+    def _calculate_skill_match_score(self, user_profile, opportunity) -> float:
+        """Calculate skill match score between user and opportunity."""
+        try:
+            user_skills = set(skill.get('name', '').lower() for skill in user_profile.skills)
+            required_skills = set(skill.lower() for skill in opportunity.required_skills)
+            
+            if not required_skills:
+                return 0.8  # Default score if no specific skills required
+            
+            matched_skills = user_skills.intersection(required_skills)
+            return len(matched_skills) / len(required_skills)
+        except:
+            return 0.7  # Default score on error
+
+    def _calculate_experience_match_score(self, user_profile, opportunity) -> float:
+        """Calculate experience match score between user and opportunity."""
+        try:
+            # Simple experience matching based on years and domain
+            user_years = sum(exp.get('duration', 0) for exp in user_profile.experiences)
+            required_years = opportunity.required_experience_years or 0
+            
+            if required_years == 0:
+                return 0.8
+            
+            experience_ratio = min(user_years / required_years, 1.0)
+            return experience_ratio
+        except:
+            return 0.7
+
+    def _assess_growth_potential(self, user_profile, opportunity) -> str:
+        """Assess growth potential for the user in this opportunity."""
+        try:
+            # Assess based on skill gaps and opportunity requirements
+            user_skills = set(skill.get('name', '').lower() for skill in user_profile.skills)
+            opportunity_skills = set(skill.lower() for skill in opportunity.required_skills)
+            
+            skill_gaps = opportunity_skills - user_skills
+            if len(skill_gaps) <= 2:
+                return "高い成長可能性"
+            elif len(skill_gaps) <= 4:
+                return "中程度の成長可能性"
+            else:
+                return "新分野への挑戦機会"
+        except:
+            return "成長機会あり"
+
+    def _assess_ecosystem_contribution(self, user_profile, opportunity) -> str:
+        """Assess potential contribution to manufacturing ecosystem."""
+        try:
+            # Assess based on experience and opportunity type
+            total_experience = sum(exp.get('duration', 0) for exp in user_profile.experiences)
+            
+            if total_experience >= 15:
+                return "シニアエキスパートとしての指導・メンタリング"
+            elif total_experience >= 10:
+                return "専門知識の共有と技術伝承"
+            elif total_experience >= 5:
+                return "実践的スキルの活用と改善提案"
+            else:
+                return "新しい視点での価値創造"
+        except:
+            return "製造業生態系への貢献"
+
+    def _generate_personalized_message(self, user_profile, opportunity, match_score) -> str:
+        """Generate personalized message for the recommendation."""
+        try:
+            user_name = user_profile.basic_info.get('name', '登録人材')
+            
+            if match_score >= 0.8:
+                return f"{user_name}さんの豊富な経験と専門スキルが、この参画機会で大いに活かされることが期待されます。製造業の新しい生態系において、あなたの価値創造力を存分に発揮していただけるでしょう。"
+            elif match_score >= 0.6:
+                return f"{user_name}さんの持つスキルと経験が、この参画機会での成功につながります。新たな挑戦を通じて、さらなる専門性の向上と製造業への貢献が期待できます。"
+            else:
+                return f"{user_name}さんにとって新しい分野への挑戦となりますが、これまでの経験を活かしながら新たなスキルを習得し、製造業の多様性に貢献する絶好の機会です。"
+        except:
+            return "あなたの専門性を活かし、製造業の新しい生態系で価値創造に貢献する機会です。"
+
+    def _format_skill_match_details(self, user_profile, opportunity) -> str:
+        """Format skill match details."""
+        try:
+            user_skills = [skill.get('name', '') for skill in user_profile.skills[:5]]
+            return f"主要スキル: {', '.join(user_skills)}"
+        except:
+            return "スキル情報を分析中"
+
+    def _format_experience_match_details(self, user_profile, opportunity) -> str:
+        """Format experience match details."""
+        try:
+            total_years = sum(exp.get('duration', 0) for exp in user_profile.experiences)
+            departments = list(set(exp.get('department', '') for exp in user_profile.experiences))[:3]
+            return f"{total_years}年の経験 ({', '.join(departments)})"
+        except:
+            return "経験情報を分析中"
+
+    def _format_growth_details(self, user_profile, opportunity) -> str:
+        """Format growth potential details."""
+        return "新しい技術習得と専門性向上の機会"
+
+    def _format_contribution_details(self, user_profile, opportunity) -> str:
+        """Format ecosystem contribution details."""
+        return "製造業の持続的発展と人材育成への貢献"
 
         except Exception as e:
             logger.error(f"Error applying personalization: {e}")

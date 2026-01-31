@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from ..config.message_config import message_config
 from ..models.application import Application
 from ..models.opportunity import Opportunity
 from ..repositories.application_repository import ApplicationRepository
@@ -14,8 +15,12 @@ from ..repositories.user_repository import UserRepository
 from ..services.application_status_service import ApplicationStatusService
 from ..utils.auth_utils import extract_user_from_event
 from ..utils.rbac import Permission, rbac_manager
+from ..utils.branding_logger import get_branding_logger
 
 logger = logging.getLogger(__name__)
+
+# Initialize branding logger
+branding_logger = get_branding_logger('application_handler')
 
 
 class ApplicationHandler:
@@ -115,12 +120,15 @@ class ApplicationHandler:
 
             # Send notifications to stakeholders
             self._notify_stakeholders(application, opportunity, "application_submitted")
+            
+            # Log the application submission
+            branding_logger.log_application_submitted(user_id, opportunity_id)
 
             return {
                 "statusCode": 201,
                 "body": json.dumps(
                     {
-                        "message": "Application submitted successfully",
+                        "message": message_config.get_success_message('application_submitted'),
                         "application_id": application.application_id,
                         "status": application.status,
                     }
@@ -293,10 +301,13 @@ class ApplicationHandler:
 
             # Notify stakeholders
             self._notify_stakeholders(application, opportunity, "application_withdrawn")
+            
+            # Log the application withdrawal
+            branding_logger.log_application_withdrawn(user_id, application.opportunity_id)
 
             return {
                 "statusCode": 200,
-                "body": json.dumps({"message": "Application withdrawn successfully"}),
+                "body": json.dumps({"message": message_config.get_success_message('application_withdrawn')}),
             }
 
         except ValueError as e:

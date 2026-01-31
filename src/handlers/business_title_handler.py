@@ -21,8 +21,13 @@ from src.utils.error_handling import (
     handle_exception,
     parse_json_body,
 )
+from src.utils.branding_logger import get_branding_logger
+from src.config.ai_content_config import ai_content_config
 
 logger = logging.getLogger(__name__)
+
+# Initialize branding logger
+branding_logger = get_branding_logger('business_title_handler')
 
 
 def convert_decimals(obj):
@@ -151,20 +156,25 @@ class BusinessTitleHandler:
                 if "career_interests" in profile.preferences:
                     career_interests.extend(profile.preferences["career_interests"])
 
-            # Generate business titles using AI
+            # Generate business titles using AI with branding context
+            branding_context = ai_content_config.get_business_title_context()
+            
             titles_data = await self.ai_service.generate_business_titles(
                 name=user_name,
                 department=user_department,
                 skills=profile.skills or [],
                 experience=profile.experiences or [],
                 career_interests=career_interests,
-                current_role=profile.business_title or "Employee",
+                current_role=profile.business_title or "登録人材",
+                branding_context=branding_context,
+                platform_name=ai_content_config.get_brand_context('platform_name')
             )
 
             # Store generation history in profile
             self._store_title_generation_history(user_id, titles_data)
 
             logger.info(f"Generated business titles for user {user_id}")
+            branding_logger.log_ai_generation('business_title', user_id)
 
             return create_success_response(
                 {
@@ -305,14 +315,18 @@ class BusinessTitleHandler:
             if "additional_interests" in additional_context:
                 career_interests.extend(additional_context["additional_interests"])
 
-            # Generate new business titles
+            # Generate new business titles with branding context
+            branding_context = ai_content_config.get_business_title_context()
+            
             titles_data = await self.ai_service.generate_business_titles(
                 name=user_name,
                 department=user_department,
                 skills=profile.skills or [],
                 experience=profile.experiences or [],
                 career_interests=career_interests,
-                current_role=profile.business_title or "Employee",
+                current_role=profile.business_title or "登録人材",
+                branding_context=branding_context,
+                platform_name=ai_content_config.get_brand_context('platform_name')
             )
 
             # Store regeneration history
@@ -321,6 +335,7 @@ class BusinessTitleHandler:
             )
 
             logger.info(f"Regenerated business titles for user {user_id}")
+            branding_logger.log_ai_generation('business_title_regeneration', user_id)
 
             return {
                 "statusCode": 200,

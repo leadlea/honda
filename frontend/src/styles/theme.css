@@ -1,0 +1,295 @@
+/* 
+Manufacturing Platinum Advisory Theme
+製造業プラチナアドバイザリー カラーテーマ設定
+*/
+
+:root {
+  /* Primary Colors - 製造業らしい信頼感のある色合い */
+  --primary-blue: #2C5282;           /* 深いブルー - 信頼性と専門性 */
+  --primary-blue-light: #3182CE;     /* ライトブルー - アクセント */
+  --primary-blue-dark: #1A365D;      /* ダークブルー - 強調 */
+  
+  /* Secondary Colors - 製造業の力強さを表現 */
+  --secondary-gray: #4A5568;         /* チャコールグレー - 安定感 */
+  --secondary-gray-light: #718096;   /* ライトグレー - サブテキスト */
+  --secondary-gray-dark: #2D3748;    /* ダークグレー - ヘッダー */
+  
+  /* Accent Colors - 製造業の革新性を表現 */
+  --accent-orange: #ED8936;          /* オレンジ - エネルギーと革新 */
+  --accent-orange-light: #F6AD55;    /* ライトオレンジ - ホバー */
+  --accent-orange-dark: #C05621;     /* ダークオレンジ - アクティブ */
+  
+  /* Background Colors - 清潔感と信頼性 */
+  --bg-primary: #FFFFFF;             /* 純白 - メインコンテンツ */
+  --bg-secondary: #F7FAFC;           /* オフホワイト - セクション背景 */
+  --bg-tertiary: #EDF2F7;            /* ライトグレー - カード背景 */
+  --bg-dark: #1A202C;                /* ダークモード用 */
+  
+  /* Text Colors - 可読性重視 */
+  --text-primary: #1A202C;           /* メインテキスト */
+  --text-secondary: #4A5568;         /* セカンダリテキスト */
+  --text-muted: #718096;             /* 補助テキスト */
+  --text-inverse: #FFFFFF;           /* 反転テキスト */
+  
+  /* Status Colors - 製造業の品質管理を表現 */
+  --success-green: #38A169;          /* 成功・完了 */
+  --success-green-light: #68D391;    /* 成功ライト */
+  --warning-yellow: #D69E2E;         /* 警告・注意 */
+  --warning-yellow-light: #F6E05E;   /* 警告ライト */
+  --error-red: #E53E3E;              /* エラー・危険 */
+  --error-red-light: #FC8181;        /* エラーライト */
+  --info-blue: #3182CE;              /* 情報・ヒント */
+  --info-blue-light: #63B3ED;        /* 情報ライト */
+  
+  /* Border Colors - 構造化された印象 */
+  --border-light: #E2E8F0;           /* ライトボーダー */
+  --border-medium: #CBD5E0;          /* ミディアムボーダー */
+  --border-dark: #A0AEC0;            /* ダークボーダー */
+  
+  /* Shadow Colors - 立体感と品質感 */
+  --shadow-light: rgba(0, 0, 0, 0.1);
+  --shadow-medium: rgba(0, 0, 0, 0.15);
+  --shadow-dark: rgba(0, 0, 0, 0.2);
+  
+  /* Manufacturing Specific Colors - 製造業特有の色彩 */
+  --steel-blue: #4682B4;             /* スチールブルー - 金属加工 */
+  --industrial-gray: #708090;        /* インダストリアルグレー - 機械 */
+  --safety-orange: #FF6347;          /* セーフティオレンジ - 安全管理 */
+  --precision-green: #228B22;        /* プレシジョングリーン - 品質 */
+  
+  /* Gradient Definitions - 高級感のあるグラデーション */
+  --gradient-primary: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+  --gradient-secondary: linear-gradient(135deg, var(--secondary-gray) 0%, var(--secondary-gray-light) 100%);
+  --gradient-accent: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-light) 100%);
+  
+  /* Component Specific Colors */
+  --header-bg: var(--primary-blue);
+  --header-text: var(--text-inverse);
+  --sidebar-bg: var(--bg-secondary);
+  --sidebar-text: var(--text-primary);
+  --card-bg: var(--bg-primary);
+  --card-border: var(--border-light);
+  --button-primary-bg: var(--primary-blue);
+  --button-primary-text: var(--text-inverse);
+  --button-secondary-bg: var(--secondary-gray);
+  --button-secondary-text: var(--text-inverse);
+  --button-accent-bg: var(--accent-orange);
+  --button-accent-text: var(--text-inverse);
+  
+  /* Interactive States */
+  --hover-opacity: 0.8;
+  --active-opacity: 0.9;
+  --disabled-opacity: 0.5;
+  --focus-ring: 0 0 0 3px rgba(44, 82, 130, 0.3);
+  
+  /* Typography Scale */
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-lg: 1.125rem;   /* 18px */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-2xl: 1.5rem;    /* 24px */
+  --font-size-3xl: 1.875rem;  /* 30px */
+  --font-size-4xl: 2.25rem;   /* 36px */
+  
+  /* Spacing Scale */
+  --spacing-xs: 0.25rem;   /* 4px */
+  --spacing-sm: 0.5rem;    /* 8px */
+  --spacing-md: 1rem;      /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  --spacing-2xl: 3rem;     /* 48px */
+  --spacing-3xl: 4rem;     /* 64px */
+  
+  /* Border Radius */
+  --radius-sm: 0.25rem;    /* 4px */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 0.75rem;    /* 12px */
+  --radius-xl: 1rem;       /* 16px */
+  --radius-full: 9999px;   /* Full circle */
+  
+  /* Transitions */
+  --transition-fast: 150ms ease-in-out;
+  --transition-normal: 250ms ease-in-out;
+  --transition-slow: 350ms ease-in-out;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1A202C;
+    --bg-secondary: #2D3748;
+    --bg-tertiary: #4A5568;
+    --text-primary: #F7FAFC;
+    --text-secondary: #E2E8F0;
+    --text-muted: #A0AEC0;
+    --card-bg: var(--bg-secondary);
+    --card-border: var(--border-dark);
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root {
+    --primary-blue: #1A365D;
+    --text-primary: #000000;
+    --text-secondary: #2D3748;
+    --border-light: #4A5568;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0ms;
+    --transition-normal: 0ms;
+    --transition-slow: 0ms;
+  }
+}
+
+/* Manufacturing Theme Utilities */
+.theme-manufacturing {
+  --primary-color: var(--primary-blue);
+  --secondary-color: var(--secondary-gray);
+  --accent-color: var(--accent-orange);
+  --success-color: var(--success-green);
+  --warning-color: var(--warning-yellow);
+  --error-color: var(--error-red);
+  --info-color: var(--info-blue);
+}
+
+/* Component Theme Classes */
+.btn-primary {
+  background-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: 1px solid var(--button-primary-bg);
+  transition: all var(--transition-normal);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-blue-dark);
+  border-color: var(--primary-blue-dark);
+  opacity: var(--hover-opacity);
+}
+
+.btn-secondary {
+  background-color: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
+  border: 1px solid var(--button-secondary-bg);
+  transition: all var(--transition-normal);
+}
+
+.btn-secondary:hover {
+  background-color: var(--secondary-gray-dark);
+  border-color: var(--secondary-gray-dark);
+  opacity: var(--hover-opacity);
+}
+
+.btn-accent {
+  background-color: var(--button-accent-bg);
+  color: var(--button-accent-text);
+  border: 1px solid var(--button-accent-bg);
+  transition: all var(--transition-normal);
+}
+
+.btn-accent:hover {
+  background-color: var(--accent-orange-dark);
+  border-color: var(--accent-orange-dark);
+  opacity: var(--hover-opacity);
+}
+
+.card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px var(--shadow-light);
+  transition: all var(--transition-normal);
+}
+
+.card:hover {
+  box-shadow: 0 4px 6px var(--shadow-medium);
+  transform: translateY(-1px);
+}
+
+.header {
+  background: var(--gradient-primary);
+  color: var(--header-text);
+  box-shadow: 0 2px 4px var(--shadow-light);
+}
+
+.sidebar {
+  background-color: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  border-right: 1px solid var(--border-light);
+}
+
+/* Status Indicators */
+.status-success {
+  color: var(--success-green);
+  background-color: rgba(56, 161, 105, 0.1);
+}
+
+.status-warning {
+  color: var(--warning-yellow);
+  background-color: rgba(214, 158, 46, 0.1);
+}
+
+.status-error {
+  color: var(--error-red);
+  background-color: rgba(229, 62, 62, 0.1);
+}
+
+.status-info {
+  color: var(--info-blue);
+  background-color: rgba(49, 130, 206, 0.1);
+}
+
+/* Manufacturing Specific Styles */
+.manufacturing-badge {
+  background: var(--gradient-accent);
+  color: var(--text-inverse);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.skill-tag {
+  background-color: var(--steel-blue);
+  color: var(--text-inverse);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.experience-indicator {
+  background-color: var(--precision-green);
+  color: var(--text-inverse);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+/* Focus States for Accessibility */
+.focusable:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Print Styles */
+@media print {
+  :root {
+    --bg-primary: white;
+    --bg-secondary: white;
+    --text-primary: black;
+    --text-secondary: #333;
+    --border-light: #ccc;
+  }
+  
+  .card {
+    box-shadow: none;
+    border: 1px solid var(--border-light);
+  }
+}

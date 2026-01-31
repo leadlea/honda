@@ -3,6 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import RoleBasedComponent from '../common/RoleBasedComponent';
 import { statisticsService } from '../../services/statisticsService';
 import { UserStatistics } from '../../types/profile';
+import { termMappingService } from '../../services/termMappingService';
+import { getBrandedMessage, applyBrandingTone } from '../../utils/brandingUtils';
 import './Dashboard.css';
 
 interface DashboardProps {
@@ -51,36 +53,36 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const quickActions = [
     {
-      title: 'AI問診を受ける',
-      description: 'あなたのスキルと興味を評価するためのAI生成問診',
+      title: getBrandedMessage('questionnaire', 'title'),
+      description: getBrandedMessage('questionnaire', 'helpText'),
       action: () => onNavigate('questionnaire'),
       roles: ['veteran'] as const,
       color: 'blue',
     },
     {
-      title: 'プロフィール管理',
-      description: 'あなたの詳細プロフィールを編集・管理',
+      title: getBrandedMessage('profile', 'title'),
+      description: applyBrandingTone('あなたの詳細プロフィールを編集・管理'),
       action: () => onNavigate('profile'),
       roles: ['veteran'] as const,
       color: 'green',
     },
     {
-      title: '推薦機会を見る',
-      description: 'あなたに合った機会の推薦を確認',
+      title: getBrandedMessage('recommendations', 'title'),
+      description: getBrandedMessage('recommendations', 'subtitle'),
       action: () => onNavigate('recommendations'),
       roles: ['veteran'] as const,
       color: 'purple',
     },
     {
-      title: '応募状況を確認',
-      description: 'あなたの応募状況と進捗を追跡',
+      title: getBrandedMessage('applications', 'title'),
+      description: getBrandedMessage('applications', 'subtitle'),
       action: () => onNavigate('applications'),
       roles: ['veteran'] as const,
       color: 'teal',
     },
     {
-      title: 'ベテラン検索',
-      description: '公開されているベテランプロフィールを検索',
+      title: getBrandedMessage('search', 'title'),
+      description: getBrandedMessage('search', 'subtitle'),
       action: () => onNavigate('public-search'),
       roles: ['external_recruiter'] as const,
       color: 'orange',
@@ -95,11 +97,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   ];
 
   const getWelcomeMessage = () => {
+    const brandedWelcome = getBrandedMessage('welcome', 'title');
     switch (user.role) {
       case 'admin':
-        return `管理者として${user.name}さん、おかえりなさい`;
+        return `管理者として${user.name}さん、${brandedWelcome}`;
       case 'external_recruiter':
-        return `${user.name}さん、Honda Veteran Talent Bankへようこそ`;
+        return `${user.name}さん、${brandedWelcome}`;
       default:
         return `${user.name}さん、おかえりなさい`;
     }
@@ -110,8 +113,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       <div className="dashboard-header">
         <h1>{getWelcomeMessage()}</h1>
         <p className="dashboard-subtitle">
-          {user.role === 'veteran' && 'あなたのスキルを活かした新しい機会を見つけましょう'}
-          {user.role === 'external_recruiter' && '経験豊富なベテラン人材を見つけましょう'}
+          {user.role === 'veteran' && applyBrandingTone('あなたのスキルを活かした新しい機会を見つけましょう', 'empowering_collaborative')}
+          {user.role === 'external_recruiter' && getBrandedMessage('search', 'subtitle')}
           {user.role === 'admin' && 'システムの管理と監視を行いましょう'}
         </p>
       </div>
@@ -142,19 +145,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <div className="stat-number">
                 {renderStatValue(statistics?.completed_questionnaires)}
               </div>
-              <div className="stat-label">完了した問診</div>
+              <div className="stat-label">完了した{termMappingService.getLocalizedTerm('navigation_questionnaire')}</div>
             </div>
             <div className="stat-card">
               <div className="stat-number">
                 {renderStatValue(statistics?.received_recommendations)}
               </div>
-              <div className="stat-label">受信した推薦</div>
+              <div className="stat-label">受信した{termMappingService.mapLegacyTerm('推薦')}</div>
             </div>
             <div className="stat-card">
               <div className="stat-number">
                 {renderStatValue(statistics?.submitted_applications)}
               </div>
-              <div className="stat-label">応募した機会</div>
+              <div className="stat-label">{termMappingService.mapLegacyTerm('応募')}した機会</div>
             </div>
             <div className="stat-card">
               <div className="stat-number">
@@ -172,7 +175,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-number">-</div>
-              <div className="stat-label">利用可能なベテラン</div>
+              <div className="stat-label">利用可能な{termMappingService.getLocalizedTerm('navigation_talent')}</div>
             </div>
             <div className="stat-card">
               <div className="stat-number">-</div>
@@ -180,7 +183,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             </div>
             <div className="stat-card">
               <div className="stat-number">-</div>
-              <div className="stat-label">連絡したベテラン</div>
+              <div className="stat-label">連絡した{termMappingService.getLocalizedTerm('navigation_talent')}</div>
             </div>
           </div>
         </div>

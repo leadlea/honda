@@ -8,17 +8,22 @@ import json
 import logging
 from typing import Any, Dict
 
+from ..config.message_config import message_config
 from ..services.matching_engine import MatchingCriteria, get_matching_engine
 from ..services.recommendation_service import (
     RecommendationFeedback,
     get_recommendation_service,
 )
-from ..utils.auth_utils import extract_user_from_event
+from ..utils.auth_utils import extract_user_from_event, verify_jwt_token
 from ..utils.rbac import Permission, require_permission
+from ..utils.branding_logger import get_branding_logger
 
 # Configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# Initialize branding logger
+branding_logger = get_branding_logger('matching_handler')
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -96,7 +101,9 @@ def handle_get_recommendations(event: Dict[str, Any], context: Any) -> Dict[str,
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": json.dumps({"error": "Authentication required"}),
+                "body": json.dumps(
+                    {"error": message_config.get_error_message('authentication_failed')}
+                ),
             }
 
         # Check permissions
@@ -288,6 +295,7 @@ def handle_generate_recommendations(
             recommendations = loop.run_until_complete(
                 matching_engine.refresh_recommendations_for_veteran(user_id, criteria)
             )
+            branding_logger.log_recommendation_generated(user_id)
         finally:
             loop.close()
 
@@ -313,7 +321,7 @@ def handle_generate_recommendations(
             },
             "body": json.dumps(
                 {
-                    "message": "Recommendations generated successfully",
+                    "message": message_config.get_success_message('recommendation_generated'),
                     "recommendations": recommendations_data,
                     "count": len(recommendations_data),
                 }
@@ -329,7 +337,7 @@ def handle_generate_recommendations(
                 "Access-Control-Allow-Origin": "*",
             },
             "body": json.dumps(
-                {"error": "Failed to generate recommendations", "message": str(e)}
+                {"error": message_config.get_error_message('recommendation_failed'), "message": str(e)}
             ),
         }
 
@@ -684,7 +692,7 @@ def handle_batch_generate_recommendations(
             },
             "body": json.dumps(
                 {
-                    "message": "Batch recommendations generated successfully",
+                    "message": message_config.get_success_message('recommendation_generated'),
                     "results": results_summary,
                     "total_recommendations": len(all_recommendations),
                 }
