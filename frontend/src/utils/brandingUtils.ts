@@ -284,10 +284,10 @@ export function validateBrandingConsistency(message: string): {
   const suggestions: string[] = [];
   
   // Check for legacy terms
-  Object.keys(TERM_MAPPINGS).forEach(legacyTerm => {
+  Object.entries(TERM_MAPPINGS).forEach(([legacyTerm, newTerm]) => {
     if (message.includes(legacyTerm)) {
       issues.push(`Legacy term found: ${legacyTerm}`);
-      suggestions.push(`Replace "${legacyTerm}" with "${TERM_MAPPINGS[legacyTerm] as string}"`);
+      suggestions.push(`Replace "${legacyTerm}" with "${newTerm}"`);
     }
   });
   
@@ -312,7 +312,7 @@ export function validateBrandingConsistency(message: string): {
   };
 }
 
-export default {
+const brandingUtils = {
   BRANDING_CONFIG,
   TONE_GUIDELINES,
   TERM_MAPPINGS,
@@ -325,3 +325,5 @@ export default {
   generateEcosystemCTA,
   validateBrandingConsistency
 };
+
+export default brandingUtils;
