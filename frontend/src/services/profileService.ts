@@ -95,9 +95,84 @@ class ProfileService {
       }).response;
 
       const data = (await response.body.json()) as any;
-      return data.suggestions ?? [];
+      
+      // バックエンドのレスポンス形式を変換
+      if (data.titles && Array.isArray(data.titles)) {
+        return data.titles.map((item: any) => ({
+          title: item.title,
+          reasoning: item.description || item.reasoning || '',
+          confidence_score: item.market_appeal === 'high' ? 0.9 : item.market_appeal === 'medium' ? 0.7 : 0.5,
+          focus_areas: item.focus_areas || []
+        }));
+      }
+      
+      return [];
     } catch (error) {
       console.error('Generate business title error:', error);
+      throw error;
+    }
+  }
+
+  async selectBusinessTitle(userId: string, title: string): Promise<void> {
+    try {
+      const headers = await authHeaders();
+      await put({
+        apiName: 'veteranTalentAPI',
+        path: `/profiles/${userId}/business-title`,
+        options: {
+          headers,
+          body: { title }
+        },
+      }).response;
+    } catch (error) {
+      console.error('Select business title error:', error);
+      throw error;
+    }
+  }
+
+  async regenerateBusinessTitle(userId: string, additionalContext?: any): Promise<BusinessTitleSuggestion[]> {
+    try {
+      const headers = await authHeaders();
+      const response = await post({
+        apiName: 'veteranTalentAPI',
+        path: `/profiles/${userId}/business-title/regenerate`,
+        options: {
+          headers,
+          body: additionalContext ? { context: additionalContext } : {}
+        },
+      }).response;
+
+      const data = (await response.body.json()) as any;
+      
+      // バックエンドのレスポンス形式を変換
+      if (data.titles && Array.isArray(data.titles)) {
+        return data.titles.map((item: any) => ({
+          title: item.title,
+          reasoning: item.description || item.reasoning || '',
+          confidence_score: item.market_appeal === 'high' ? 0.9 : item.market_appeal === 'medium' ? 0.7 : 0.5,
+          focus_areas: item.focus_areas || []
+        }));
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Regenerate business title error:', error);
+      throw error;
+    }
+  }
+
+  async getBusinessTitleHistory(userId: string): Promise<any> {
+    try {
+      const headers = await authHeaders();
+      const response = await get({
+        apiName: 'veteranTalentAPI',
+        path: `/profiles/${userId}/business-title/history`,
+        options: { headers },
+      }).response;
+
+      return await response.body.json();
+    } catch (error) {
+      console.error('Get business title history error:', error);
       throw error;
     }
   }

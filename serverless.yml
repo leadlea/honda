@@ -2,6 +2,16 @@ service: honda-veteran-talent-matching
 
 frameworkVersion: "4"
 
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+    layer: true
+    slim: true
+    strip: false
+
 provider:
   name: aws
   runtime: python3.12
@@ -22,6 +32,8 @@ provider:
     BEDROCK_CACHE_TTL: ${env:BEDROCK_CACHE_TTL, '300'}
     DYNAMODB_MAX_RETRIES: ${env:DYNAMODB_MAX_RETRIES, '3'}
     CONNECTION_POOL_SIZE: ${env:CONNECTION_POOL_SIZE, '50'}
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID}
 
   iam:
     role:
@@ -138,14 +150,66 @@ functions:
             authorizerId:
               Ref: ApiGatewayAuthorizer
 
-  businessTitleHandler:
-    handler: src/handlers/business_title_handler.handler
+  # --- Business Title endpoints: ビジネスタイトル生成 ---
+  businessTitleGenerate:
+    handler: src/handlers/business_title_handler.generate_business_titles
     timeout: 29
     memorySize: 1024
     events:
       - http:
           path: profiles/{userId}/business-title
           method: POST
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  businessTitleSelect:
+    handler: src/handlers/business_title_handler.select_business_title
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: profiles/{userId}/business-title
+          method: PUT
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  businessTitleRegenerate:
+    handler: src/handlers/business_title_handler.regenerate_business_titles
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: profiles/{userId}/business-title/regenerate
+          method: POST
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  businessTitleHistory:
+    handler: src/handlers/business_title_handler.get_title_history
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: profiles/{userId}/business-title/history
+          method: GET
           cors:
             origin: "*"
             headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
@@ -247,6 +311,17 @@ functions:
     events:
       - http:
           path: applications/{userId}
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+      - http:
+          path: applications/{userId}
           method: POST
           cors:
             origin: "*"
@@ -316,6 +391,22 @@ functions:
             origin: "*"
             headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
             allowCredentials: false
+
+  statsHandler:
+    handler: src/handlers/stats_handler.get_user_statistics
+    timeout: 29
+    events:
+      - http:
+          path: stats/{userId}
+          method: GET
+          cors:
+            origin: "*"
+            headers: [Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent]
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
 
 resources:
   Resources:

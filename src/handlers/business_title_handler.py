@@ -3,17 +3,37 @@ Lambda handler for AI-generated business title operations.
 Handles business title generation, selection, and regeneration.
 """
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any, Dict
 
 from src.repositories.user_repository import UserRepository
 from src.repositories.veteran_profile_repository import VeteranProfileRepository
 from src.services.ai_utils import get_ai_service
-from src.utils.auth_utils import get_user_from_token
+from src.utils.auth_utils import extract_user_from_event
+from src.utils.error_handling import (
+    ErrorType,
+    create_error_response,
+    create_success_response,
+    handle_exception,
+    parse_json_body,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def convert_decimals(obj):
+    """Convert Decimal objects to float for JSON serialization."""
+    if isinstance(obj, list):
+        return [convert_decimals(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_decimals(value) for key, value in obj.items()}
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    return obj
 
 
 class BusinessTitleHandler:
@@ -24,11 +44,71 @@ class BusinessTitleHandler:
         self.profile_repo = VeteranProfileRepository()
         self.user_repo = UserRepository()
 
-    async def generate_business_titles(
+    def generate_business_titles(
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Generate AI-powered business titles for a veteran.
+        Generate AI-powered business titles for a veteran (synchronous wrapper).
+
+        Args:
+            event: Lambda event containing user information
+            context: Lambda context
+
+        Returns:
+            API Gateway response with generated business titles
+        """
+        return asyncio.run(self._generate_business_titles_async(event, context))
+
+    def select_business_title(
+        self, event: Dict[str, Any], context: Any
+    ) -> Dict[str, Any]:
+        """
+        Select and apply a business title to user profile (synchronous wrapper).
+
+        Args:
+            event: Lambda event containing selected title
+            context: Lambda context
+
+        Returns:
+            API Gateway response with confirmation
+        """
+        return asyncio.run(self._select_business_title_async(event, context))
+
+    def regenerate_business_titles(
+        self, event: Dict[str, Any], context: Any
+    ) -> Dict[str, Any]:
+        """
+        Regenerate business titles with updated context (synchronous wrapper).
+
+        Args:
+            event: Lambda event
+            context: Lambda context
+
+        Returns:
+            API Gateway response with regenerated titles
+        """
+        return asyncio.run(self._regenerate_business_titles_async(event, context))
+
+    def get_title_history(
+        self, event: Dict[str, Any], context: Any
+    ) -> Dict[str, Any]:
+        """
+        Get business title generation and selection history (synchronous wrapper).
+
+        Args:
+            event: Lambda event
+            context: Lambda context
+
+        Returns:
+            API Gateway response with title history
+        """
+        return asyncio.run(self._get_title_history_async(event, context))
+
+    async def _generate_business_titles_async(
+        self, event: Dict[str, Any], context: Any
+    ) -> Dict[str, Any]:
+        """
+        Generate AI-powered business titles for a veteran (async implementation).
 
         Args:
             event: Lambda event containing user information
@@ -38,46 +118,31 @@ class BusinessTitleHandler:
             API Gateway response with generated business titles
         """
         try:
-            # Extract and verify user from JWT token
-            token = (
-                event.get("headers", {}).get("Authorization", "").replace("Bearer ", "")
-            )
-            if not token:
-                return {
-                    "statusCode": 401,
-                    "body": json.dumps({"error": "Missing authorization token"}),
-                }
-
-            user_info = get_user_from_token(token)
+            # Extract and verify user from event (API Gateway authorizer)
+            user_info = extract_user_from_event(event)
             if not user_info:
-                return {
-                    "statusCode": 401,
-                    "body": json.dumps({"error": "Invalid authorization token"}),
-                }
+                return create_error_response(ErrorType.INVALID_AUTH)
 
             user_id = user_info["user_id"]
+            user_name = user_info.get("name", "User")
+            user_department = user_info.get("department", "")
 
             # Check if user has veteran role
-            user = await self.user_repo.get_by_id(user_id)
-            if not user or user.role != "veteran":
-                return {
-                    "statusCode": 403,
-                    "body": json.dumps(
-                        {"error": "Access denied. Veteran role required."}
-                    ),
-                }
+            user_role = user_info.get("role", "")
+            if user_role != "veteran":
+                logger.warning(f"User {user_id} with role '{user_role}' attempted to access veteran-only feature")
+                return create_error_response(
+                    ErrorType.ACCESS_DENIED,
+                    message="Access denied. Veteran role required."
+                )
 
             # Get user profile
-            profile = await self.profile_repo.get_by_user_id(user_id)
+            profile = self.profile_repo.get_profile(user_id)
             if not profile:
-                return {
-                    "statusCode": 404,
-                    "body": json.dumps(
-                        {
-                            "error": "Profile not found. Please complete your profile first."
-                        }
-                    ),
-                }
+                return create_error_response(
+                    ErrorType.PROFILE_NOT_FOUND,
+                    message="Profile not found. Please complete your profile first."
+                )
 
             # Extract career interests from preferences
             career_interests = []
@@ -88,8 +153,8 @@ class BusinessTitleHandler:
 
             # Generate business titles using AI
             titles_data = await self.ai_service.generate_business_titles(
-                name=user.name,
-                department=user.department,
+                name=user_name,
+                department=user_department,
                 skills=profile.skills or [],
                 experience=profile.experiences or [],
                 career_interests=career_interests,
@@ -97,38 +162,27 @@ class BusinessTitleHandler:
             )
 
             # Store generation history in profile
-            await self._store_title_generation_history(user_id, titles_data)
+            self._store_title_generation_history(user_id, titles_data)
 
             logger.info(f"Generated business titles for user {user_id}")
 
-            return {
-                "statusCode": 200,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps(
-                    {
-                        "titles": titles_data.get("titles", []),
-                        "recommended_title": titles_data.get("recommended_title"),
-                        "reasoning": titles_data.get("reasoning"),
-                        "generated_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                ),
-            }
+            return create_success_response(
+                {
+                    "titles": titles_data.get("titles", []),
+                    "recommended_title": titles_data.get("recommended_title"),
+                    "reasoning": titles_data.get("reasoning"),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
 
         except Exception as e:
-            logger.error(f"Error generating business titles: {str(e)}")
-            return {
-                "statusCode": 500,
-                "body": json.dumps({"error": "Internal server error"}),
-            }
+            return handle_exception(e, "generating business titles", user_id)
 
-    async def select_business_title(
+    async def _select_business_title_async(
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Select and apply a business title to user profile.
+        Select and apply a business title to user profile (async implementation).
 
         Args:
             event: Lambda event containing selected title
@@ -138,48 +192,29 @@ class BusinessTitleHandler:
             API Gateway response with confirmation
         """
         try:
-            # Extract and verify user from JWT token
-            token = (
-                event.get("headers", {}).get("Authorization", "").replace("Bearer ", "")
-            )
-            if not token:
-                return {
-                    "statusCode": 401,
-                    "body": json.dumps({"error": "Missing authorization token"}),
-                }
-
-            user_info = get_user_from_token(token)
+            # Extract and verify user from event (API Gateway authorizer)
+            user_info = extract_user_from_event(event)
             if not user_info:
-                return {
-                    "statusCode": 401,
-                    "body": json.dumps({"error": "Invalid authorization token"}),
-                }
+                return create_error_response(ErrorType.INVALID_AUTH)
 
             user_id = user_info["user_id"]
 
             # Parse request body
-            try:
-                body = json.loads(event.get("body", "{}"))
-            except json.JSONDecodeError:
-                return {
-                    "statusCode": 400,
-                    "body": json.dumps({"error": "Invalid JSON in request body"}),
-                }
+            body, error_response = parse_json_body(event)
+            if error_response:
+                return error_response
 
             selected_title = body.get("title")
             if not selected_title:
-                return {
-                    "statusCode": 400,
-                    "body": json.dumps({"error": "Missing title in request body"}),
-                }
+                return create_error_response(
+                    ErrorType.MISSING_FIELD,
+                    message="Missing title in request body"
+                )
 
             # Get current profile
-            profile = await self.profile_repo.get_by_user_id(user_id)
+            profile = self.profile_repo.get_profile(user_id)
             if not profile:
-                return {
-                    "statusCode": 404,
-                    "body": json.dumps({"error": "Profile not found"}),
-                }
+                return create_error_response(ErrorType.PROFILE_NOT_FOUND)
 
             # Update profile with selected title
             update_data = {
@@ -188,7 +223,7 @@ class BusinessTitleHandler:
             }
 
             # Store selection history
-            title_history = getattr(profile, "title_history", [])
+            title_history = profile.title_history.copy() if profile.title_history else []
             title_history.append(
                 {
                     "title": selected_title,
@@ -198,39 +233,28 @@ class BusinessTitleHandler:
             )
             update_data["title_history"] = title_history
 
-            await self.profile_repo.update_profile(user_id, update_data)
+            self.profile_repo.update_profile(user_id, update_data)
 
             logger.info(
                 f"Updated business title for user {user_id} to: {selected_title}"
             )
 
-            return {
-                "statusCode": 200,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
+            return create_success_response(
+                {
+                    "title": selected_title,
+                    "updated_at": update_data["last_updated"],
                 },
-                "body": json.dumps(
-                    {
-                        "message": "Business title updated successfully",
-                        "title": selected_title,
-                        "updated_at": update_data["last_updated"],
-                    }
-                ),
-            }
+                message="Business title updated successfully"
+            )
 
         except Exception as e:
-            logger.error(f"Error selecting business title: {str(e)}")
-            return {
-                "statusCode": 500,
-                "body": json.dumps({"error": "Internal server error"}),
-            }
+            return handle_exception(e, "selecting business title", user_id)
 
-    async def regenerate_business_titles(
+    async def _regenerate_business_titles_async(
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Regenerate business titles with updated context.
+        Regenerate business titles with updated context (async implementation).
 
         Args:
             event: Lambda event
@@ -240,17 +264,8 @@ class BusinessTitleHandler:
             API Gateway response with regenerated titles
         """
         try:
-            # Extract and verify user from JWT token
-            token = (
-                event.get("headers", {}).get("Authorization", "").replace("Bearer ", "")
-            )
-            if not token:
-                return {
-                    "statusCode": 401,
-                    "body": json.dumps({"error": "Missing authorization token"}),
-                }
-
-            user_info = get_user_from_token(token)
+            # Extract and verify user from event (API Gateway authorizer)
+            user_info = extract_user_from_event(event)
             if not user_info:
                 return {
                     "statusCode": 401,
@@ -258,15 +273,16 @@ class BusinessTitleHandler:
                 }
 
             user_id = user_info["user_id"]
+            user_name = user_info.get("name", "User")
+            user_department = user_info.get("department", "")
 
-            # Get user and profile
-            user = await self.user_repo.get_by_id(user_id)
-            profile = await self.profile_repo.get_by_user_id(user_id)
+            # Get profile
+            profile = self.profile_repo.get_profile(user_id)
 
-            if not user or not profile:
+            if not profile:
                 return {
                     "statusCode": 404,
-                    "body": json.dumps({"error": "User or profile not found"}),
+                    "body": json.dumps({"error": "Profile not found"}),
                 }
 
             # Parse optional request body for additional context
@@ -291,8 +307,8 @@ class BusinessTitleHandler:
 
             # Generate new business titles
             titles_data = await self.ai_service.generate_business_titles(
-                name=user.name,
-                department=user.department,
+                name=user_name,
+                department=user_department,
                 skills=profile.skills or [],
                 experience=profile.experiences or [],
                 career_interests=career_interests,
@@ -300,7 +316,7 @@ class BusinessTitleHandler:
             )
 
             # Store regeneration history
-            await self._store_title_generation_history(
+            self._store_title_generation_history(
                 user_id, titles_data, regenerated=True
             )
 
@@ -330,11 +346,11 @@ class BusinessTitleHandler:
                 "body": json.dumps({"error": "Internal server error"}),
             }
 
-    async def get_title_history(
+    async def _get_title_history_async(
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Get business title generation and selection history.
+        Get business title generation and selection history (async implementation).
 
         Args:
             event: Lambda event
@@ -344,17 +360,8 @@ class BusinessTitleHandler:
             API Gateway response with title history
         """
         try:
-            # Extract and verify user from JWT token
-            token = (
-                event.get("headers", {}).get("Authorization", "").replace("Bearer ", "")
-            )
-            if not token:
-                return {
-                    "statusCode": 401,
-                    "body": json.dumps({"error": "Missing authorization token"}),
-                }
-
-            user_info = get_user_from_token(token)
+            # Extract and verify user from event (API Gateway authorizer)
+            user_info = extract_user_from_event(event)
             if not user_info:
                 return {
                     "statusCode": 401,
@@ -364,7 +371,7 @@ class BusinessTitleHandler:
             user_id = user_info["user_id"]
 
             # Get profile
-            profile = await self.profile_repo.get_by_user_id(user_id)
+            profile = self.profile_repo.get_profile(user_id)
             if not profile:
                 return {
                     "statusCode": 404,
@@ -372,8 +379,8 @@ class BusinessTitleHandler:
                 }
 
             # Get title history
-            title_history = getattr(profile, "title_history", [])
-            generation_history = getattr(profile, "title_generation_history", [])
+            title_history = profile.title_history if profile.title_history else []
+            generation_history = profile.title_generation_history if profile.title_generation_history else []
 
             return {
                 "statusCode": 200,
@@ -399,7 +406,7 @@ class BusinessTitleHandler:
                 "body": json.dumps({"error": "Internal server error"}),
             }
 
-    async def _store_title_generation_history(
+    def _store_title_generation_history(
         self, user_id: str, titles_data: Dict[str, Any], regenerated: bool = False
     ) -> None:
         """
@@ -411,17 +418,18 @@ class BusinessTitleHandler:
             regenerated: Whether this was a regeneration
         """
         try:
-            profile = await self.profile_repo.get_by_user_id(user_id)
+            profile = self.profile_repo.get_profile(user_id)
             if not profile:
                 return
 
-            # Get existing history
-            generation_history = getattr(profile, "title_generation_history", [])
+            # Get existing history and convert any Decimals
+            existing_history = profile.title_generation_history if profile.title_generation_history else []
+            generation_history = convert_decimals(existing_history.copy() if isinstance(existing_history, list) else [])
 
-            # Add new generation record
+            # Add new generation record (convert Decimals in titles_data)
             generation_record = {
                 "generated_at": datetime.now(timezone.utc).isoformat(),
-                "titles": titles_data.get("titles", []),
+                "titles": convert_decimals(titles_data.get("titles", [])),
                 "recommended_title": titles_data.get("recommended_title"),
                 "reasoning": titles_data.get("reasoning"),
                 "regenerated": regenerated,
@@ -435,7 +443,7 @@ class BusinessTitleHandler:
                 generation_history = generation_history[-10:]
 
             # Update profile
-            await self.profile_repo.update_profile(
+            self.profile_repo.update_profile(
                 user_id, {"title_generation_history": generation_history}
             )
 
@@ -447,25 +455,25 @@ class BusinessTitleHandler:
 business_title_handler = BusinessTitleHandler()
 
 
-async def generate_business_titles(
+def generate_business_titles(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
     """Lambda handler for generating business titles."""
-    return await business_title_handler.generate_business_titles(event, context)
+    return business_title_handler.generate_business_titles(event, context)
 
 
-async def select_business_title(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def select_business_title(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Lambda handler for selecting a business title."""
-    return await business_title_handler.select_business_title(event, context)
+    return business_title_handler.select_business_title(event, context)
 
 
-async def regenerate_business_titles(
+def regenerate_business_titles(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
     """Lambda handler for regenerating business titles."""
-    return await business_title_handler.regenerate_business_titles(event, context)
+    return business_title_handler.regenerate_business_titles(event, context)
 
 
-async def get_title_history(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def get_title_history(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Lambda handler for getting title history."""
-    return await business_title_handler.get_title_history(event, context)
+    return business_title_handler.get_title_history(event, context)

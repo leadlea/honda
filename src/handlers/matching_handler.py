@@ -13,7 +13,7 @@ from ..services.recommendation_service import (
     RecommendationFeedback,
     get_recommendation_service,
 )
-from ..utils.auth_utils import verify_jwt_token
+from ..utils.auth_utils import extract_user_from_event
 from ..utils.rbac import Permission, require_permission
 
 # Configure logging
@@ -87,19 +87,8 @@ def handle_get_recommendations(event: Dict[str, Any], context: Any) -> Dict[str,
     Handle GET /recommendations/{user_id} - Get recommendations for a user.
     """
     try:
-        # Verify authentication
-        token = event.get("headers", {}).get("Authorization", "").replace("Bearer ", "")
-        if not token:
-            return {
-                "statusCode": 401,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({"error": "Authorization token required"}),
-            }
-
-        user_data = verify_jwt_token(token)
+        # Get user data from API Gateway authorizer context
+        user_data = extract_user_from_event(event)
         if not user_data:
             return {
                 "statusCode": 401,
@@ -107,7 +96,7 @@ def handle_get_recommendations(event: Dict[str, Any], context: Any) -> Dict[str,
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": json.dumps({"error": "Invalid or expired token"}),
+                "body": json.dumps({"error": "Authentication required"}),
             }
 
         # Check permissions
@@ -121,9 +110,9 @@ def handle_get_recommendations(event: Dict[str, Any], context: Any) -> Dict[str,
                 "body": json.dumps({"error": "Insufficient permissions"}),
             }
 
-        # Extract user ID from path
+        # Extract user ID from path (support both userId and user_id)
         path_params = event.get("pathParameters", {})
-        user_id = path_params.get("user_id")
+        user_id = path_params.get("userId") or path_params.get("user_id")
 
         if not user_id:
             return {

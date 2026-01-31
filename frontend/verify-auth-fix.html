@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>認証修正の検証 - Authentication Fix Verification</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        .checklist li {
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+        }
+        .checklist li.pending {
+            border-left-color: #ffc107;
+        }
+        .checklist li.failed {
+            border-left-color: #dc3545;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .code-block {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .instruction {
+            background: #e7f3ff;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .warning {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            padding: 15px;
+            border-left: 4px solid #28a745;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 認証修正の検証ガイド<br>Authentication Fix Verification Guide</h1>
+        
+        <div class="success">
+            <strong>✅ コード実装完了 / Code Implementation Complete</strong><br>
+            RecommendationService has been updated to use centralized authentication via authService.
+        </div>
+
+        <h2>📋 検証チェックリスト / Verification Checklist</h2>
+        
+        <h3>1. コードレビュー / Code Review</h3>
+        <ul class="checklist">
+            <li>
+                <strong>✅ authService のインポート</strong>
+                <span class="status pass">PASS</span><br>
+                <code>import { authService } from './authService';</code>
+            </li>
+            <li>
+                <strong>✅ 非同期トークン取得</strong>
+                <span class="status pass">PASS</span><br>
+                <code>const token = await authService.getAuthToken();</code>
+            </li>
+            <li>
+                <strong>✅ Bearer トークン形式</strong>
+                <span class="status pass">PASS</span><br>
+                <code>'Authorization': `Bearer ${token}`</code>
+            </li>
+            <li>
+                <strong>✅ エラーハンドリング</strong>
+                <span class="status pass">PASS</span><br>
+                Token missing error in Japanese: "認証トークンが見つかりません。再度ログインしてください。"
+            </li>
+            <li>
+                <strong>✅ 全メソッド更新</strong>
+                <span class="status pass">PASS</span><br>
+                All 6 methods use <code>await this.getAuthHeaders()</code>
+            </li>
+        </ul>
+
+        <h3>2. ブラウザテスト / Browser Testing</h3>
+        <div class="instruction">
+            <strong>📝 手動テスト手順 / Manual Testing Steps:</strong>
+        </div>
+
+        <ul class="checklist">
+            <li class="pending">
+                <strong>ログインフローテスト / Login Flow Test</strong>
+                <span class="status pending">MANUAL</span>
+                <ol style="margin-top: 10px;">
+                    <li>アプリケーションを起動: <code>npm start</code></li>
+                    <li>ベテランユーザーとしてログイン</li>
+                    <li>ダッシュボードに移動</li>
+                    <li>「おすすめ」ボタンをクリック</li>
+                    <li>401エラーなしでレコメンデーションが表示されることを確認</li>
+                </ol>
+            </li>
+            <li class="pending">
+                <strong>トークン検証テスト / Token Verification Test</strong>
+                <span class="status pending">MANUAL</span>
+                <ol style="margin-top: 10px;">
+                    <li>ブラウザのDevToolsを開く (F12)</li>
+                    <li>「Network」タブに移動</li>
+                    <li>「おすすめ」ボタンをクリック</li>
+                    <li>APIリクエストを確認: <code>GET /recommendations/{userId}</code></li>
+                    <li>Request Headersを確認:</li>
+                </ol>
+                <div class="code-block">
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+                </div>
+                <ol start="6" style="margin-top: 10px;">
+                    <li>レスポンスステータスが <strong>200 OK</strong> であることを確認</li>
+                </ol>
+            </li>
+            <li class="pending">
+                <strong>コンソールログ確認 / Console Log Check</strong>
+                <span class="status pending">MANUAL</span>
+                <ol style="margin-top: 10px;">
+                    <li>ブラウザのDevToolsで「Console」タブを開く</li>
+                    <li>レコメンデーションを取得</li>
+                    <li>以下のエラーがないことを確認:</li>
+                </ol>
+                <div class="code-block" style="color: #dc3545;">
+❌ 401 (Unauthorized)
+❌ Authorization token required
+❌ Failed to fetch recommendations: Unauthorized
+                </div>
+                <div class="code-block" style="color: #28a745; margin-top: 10px;">
+✅ GET /recommendations/user-123 200 (OK)
+                </div>
+            </li>
+        </ul>
+
+        <h3>3. エラーハンドリングテスト / Error Handling Test</h3>
+        <ul class="checklist">
+            <li class="pending">
+                <strong>未認証アクセステスト / Unauthenticated Access Test</strong>
+                <span class="status pending">MANUAL</span>
+                <ol style="margin-top: 10px;">
+                    <li>ブラウザのセッション/クッキーをクリア</li>
+                    <li>レコメンデーションにアクセスを試みる</li>
+                    <li>日本語のエラーメッセージが表示されることを確認</li>
+                    <li>ログインページにリダイレクトされることを確認</li>
+                </ol>
+            </li>
+        </ul>
+
+        <h2>🔍 期待される結果 / Expected Results</h2>
+        
+        <div class="success">
+            <h3>修正前 (Before Fix):</h3>
+            <div class="code-block" style="color: #dc3545;">
+GET /recommendations/user-123 401 (Unauthorized)
+Error: Authorization token required
+            </div>
+            
+            <h3>修正後 (After Fix):</h3>
+            <div class="code-block" style="color: #28a745;">
+GET /recommendations/user-123 200 (OK)
+Response: { recommendations: [...] }
+            </div>
+        </div>
+
+        <h2>📊 検証結果サマリー / Verification Summary</h2>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+            <thead>
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">要件 / Requirement</th>
+                    <th style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">ステータス / Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">1.1 - Token retrieval from authService</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">✅ VERIFIED</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">1.2 - Bearer token in Authorization header</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">✅ VERIFIED</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">1.3 - Error handling for missing token</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">✅ VERIFIED</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">1.4 - Successful API response</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">⏳ MANUAL TEST</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">2.1 - Centralized authentication</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">✅ VERIFIED</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">2.2 - No localStorage access</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">✅ VERIFIED</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">2.3 - Async/await pattern</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">✅ VERIFIED</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">2.4 - Consistent token management</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">✅ VERIFIED</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">3.1 - Error logging</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">✅ VERIFIED</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">3.2 - User-friendly error messages</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">✅ VERIFIED</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="warning" style="margin-top: 30px;">
+            <strong>⚠️ 注意 / Note:</strong><br>
+            このHTMLファイルは検証ガイドです。実際のブラウザテストを実行して、401エラーが解決されたことを確認してください。<br>
+            <em>This HTML file is a verification guide. Please perform actual browser testing to confirm the 401 error is resolved.</em>
+        </div>
+
+        <h2>🚀 次のステップ / Next Steps</h2>
+        <ol>
+            <li>フロントエンドアプリケーションを起動: <code>npm start</code></li>
+            <li>上記の手動テストを実行</li>
+            <li>ステージング環境にデプロイ</li>
+            <li>本番環境にデプロイ</li>
+            <li>ユーザーフィードバックとエラーログを監視</li>
+        </ol>
+
+        <div class="success" style="margin-top: 30px;">
+            <strong>✅ 実装完了 / Implementation Complete</strong><br>
+            All code changes have been implemented and verified against requirements. The 401 Unauthorized error should be resolved once manual browser testing confirms the fix.
+        </div>
+    </div>
+</body>
+</html>

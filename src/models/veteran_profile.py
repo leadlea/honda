@@ -26,20 +26,28 @@ class VeteranProfile:
         default_factory=dict
     )  # {"is_publicly_visible": bool, "external_contact": bool}
     questionnaire_responses: List[Dict] = field(default_factory=list)
+    title_history: List[Dict] = field(
+        default_factory=list
+    )  # [{"title": str, "selected_at": str, "previous_title": str}]
+    title_generation_history: List[Dict] = field(
+        default_factory=list
+    )  # [{"generated_at": str, "titles": List[Dict], "recommended_title": str, "reasoning": str, "regenerated": bool, "title_count": int}]
     is_publicly_visible: str = "false"  # "true" or "false" for GSI
     last_updated: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
     def to_dynamodb_item(self) -> Dict:
-        """Convert to DynamoDB item format"""
+        """Convert to DynamoDB item format - store as native types, not JSON strings"""
         return {
             "user_id": self.user_id,
             "business_title": self.business_title,
-            "skills": json.dumps(self.skills),
-            "experiences": json.dumps(self.experiences),
-            "preferences": json.dumps(self.preferences),
-            "privacy_settings": json.dumps(self.privacy_settings),
-            "questionnaire_responses": json.dumps(self.questionnaire_responses),
+            "skills": self.skills if self.skills is not None else [],
+            "experiences": self.experiences if self.experiences is not None else [],
+            "preferences": self.preferences if self.preferences is not None else {},
+            "privacy_settings": self.privacy_settings if self.privacy_settings is not None else {},
+            "questionnaire_responses": self.questionnaire_responses if self.questionnaire_responses is not None else [],
+            "title_history": self.title_history if self.title_history is not None else [],
+            "title_generation_history": self.title_generation_history if self.title_generation_history is not None else [],
             "is_publicly_visible": self.is_publicly_visible,
             "last_updated": self.last_updated,
             "created_at": self.created_at,
@@ -48,16 +56,38 @@ class VeteranProfile:
     @classmethod
     def from_dynamodb_item(cls, item: Dict) -> "VeteranProfile":
         """Create instance from DynamoDB item"""
+        # DynamoDB now returns native types (after convert_decimals_to_native)
+        # But we still need to handle legacy string-encoded data
+        def parse_field(value, default):
+            if value is None:
+                return default
+            # If it's already the correct type, return it
+            if isinstance(default, list) and isinstance(value, list):
+                return value
+            if isinstance(default, dict) and isinstance(value, dict):
+                return value
+            # If it's a string, try to parse it
+            if isinstance(value, str):
+                # Empty string should return default
+                if not value or value == "":
+                    return default
+                try:
+                    parsed = json.loads(value)
+                    return parsed if parsed is not None else default
+                except (json.JSONDecodeError, TypeError):
+                    return default
+            return value
+        
         return cls(
             user_id=item["user_id"],
             business_title=item.get("business_title", ""),
-            skills=json.loads(item.get("skills", "[]")),
-            experiences=json.loads(item.get("experiences", "[]")),
-            preferences=json.loads(item.get("preferences", "{}")),
-            privacy_settings=json.loads(item.get("privacy_settings", "{}")),
-            questionnaire_responses=json.loads(
-                item.get("questionnaire_responses", "[]")
-            ),
+            skills=parse_field(item.get("skills"), []),
+            experiences=parse_field(item.get("experiences"), []),
+            preferences=parse_field(item.get("preferences"), {}),
+            privacy_settings=parse_field(item.get("privacy_settings"), {}),
+            questionnaire_responses=parse_field(item.get("questionnaire_responses"), []),
+            title_history=parse_field(item.get("title_history"), []),
+            title_generation_history=parse_field(item.get("title_generation_history"), []),
             is_publicly_visible=item.get("is_publicly_visible", "false"),
             last_updated=item.get("last_updated", datetime.utcnow().isoformat()),
             created_at=item.get("created_at", datetime.utcnow().isoformat()),

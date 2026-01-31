@@ -44,9 +44,24 @@ class VeteranProfileRepository(BaseRepository):
             logger.error(f"Error getting veteran profile for user {user_id}: {e}")
             raise
 
-    def update_profile(self, profile: VeteranProfile) -> bool:
-        """Update an existing veteran profile"""
+    def update_profile(self, user_id: str, update_data: dict) -> bool:
+        """Update an existing veteran profile with provided data"""
         try:
+            # Get existing profile
+            profile = self.get_profile(user_id)
+            if not profile:
+                raise ValueError(f"Profile not found for user {user_id}")
+
+            # Ensure update_data is a dictionary
+            if not isinstance(update_data, dict):
+                logger.error(f"update_data is not a dict, it's a {type(update_data)}: {update_data}")
+                raise TypeError(f"update_data must be a dictionary, got {type(update_data)}")
+
+            # Update profile fields from update_data
+            for key, value in update_data.items():
+                if hasattr(profile, key):
+                    setattr(profile, key, value)
+
             # Validate profile before updating
             errors = profile.validate()
             if errors:
@@ -119,8 +134,14 @@ class VeteranProfileRepository(BaseRepository):
             # Update privacy settings
             profile.update_privacy_settings(privacy_settings)
 
+            # Build update data dictionary
+            update_data = {
+                "privacy_settings": profile.privacy_settings,
+                "is_publicly_visible": profile.is_publicly_visible,
+            }
+
             # Save updated profile
-            return self.update_profile(profile)
+            return self.update_profile(user_id, update_data)
         except Exception as e:
             logger.error(f"Error updating privacy settings for user {user_id}: {e}")
             raise
@@ -165,3 +186,21 @@ class VeteranProfileRepository(BaseRepository):
         except Exception as e:
             logger.error(f"Error checking if profile exists for user {user_id}: {e}")
             raise
+
+    def increment_profile_views(self, user_id: str) -> bool:
+        """
+        Increment the profile view count for a user.
+        Uses atomic counter increment to avoid race conditions.
+        """
+        try:
+            self.table.update_item(
+                Key={"user_id": user_id},
+                UpdateExpression="SET profile_views = if_not_exists(profile_views, :zero) + :inc",
+                ExpressionAttributeValues={":zero": 0, ":inc": 1},
+            )
+            logger.info(f"Incremented profile views for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error incrementing profile views for user {user_id}: {e}")
+            # Don't raise exception - profile view tracking is non-critical
+            return False

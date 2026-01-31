@@ -14,8 +14,7 @@ class AuthService {
     const s = await fetchAuthSession();
     const idToken = s.tokens?.idToken?.toString();
     if (!idToken) throw new Error('No ID token in session');
-    // Bearer が必要なら `Bearer ${idToken}` に変更
-    return { Authorization: idToken };
+    return { Authorization: `Bearer ${idToken}` };
   }
 
   async login(credentials: LoginCredentials): Promise<any> {

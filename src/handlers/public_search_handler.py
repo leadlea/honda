@@ -8,6 +8,7 @@ import logging
 from typing import Any, Dict, List
 
 from src.repositories.public_profile_repository import PublicProfileRepository
+from src.repositories.veteran_profile_repository import VeteranProfileRepository
 from src.services.ai_utils import get_ai_service
 from src.services.bedrock_client import BedrockClient
 
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 class PublicSearchHandler:
     def __init__(self):
         self.public_profile_repo = PublicProfileRepository()
+        self.veteran_profile_repo = VeteranProfileRepository()
         self.bedrock_client = BedrockClient()
         self.ai_service = get_ai_service()
 
@@ -118,6 +120,11 @@ class PublicSearchHandler:
                         }
                     ),
                 }
+
+            # Increment profile view count
+            # Note: profile_id in public profiles corresponds to user_id in veteran profiles
+            user_id = profile.get("user_id") or profile_id
+            self._increment_profile_views(user_id)
 
             # Format detailed profile
             formatted_profile = self._format_detailed_profile(profile)
@@ -364,6 +371,17 @@ Ranked Profile IDs:
             "last_updated": profile.get("last_updated", ""),
         }
 
+    def _increment_profile_views(self, user_id: str) -> None:
+        """
+        Increment profile view count for a user.
+        Non-blocking operation - errors are logged but don't affect the response.
+        """
+        try:
+            self.veteran_profile_repo.increment_profile_views(user_id)
+        except Exception as e:
+            logger.warning(f"Failed to increment profile views for user {user_id}: {str(e)}")
+            # Don't raise - profile view tracking is non-critical
+
     def _get_cors_headers(self) -> Dict:
         """Get CORS headers for external API access"""
         return {
@@ -375,19 +393,55 @@ Ranked Profile IDs:
 
 
 # Lambda function handlers
+def handler(event, context):
+    """Main Lambda handler for public search operations"""
+    try:
+        path = event.get("path", "")
+        http_method = event.get("httpMethod", "")
+        
+        search_handler = PublicSearchHandler()
+        
+        # Route based on path
+        if "/public/veterans/search" in path and http_method == "GET":
+            return search_handler.search_veterans(event, context)
+        elif "/public/veterans/" in path and http_method == "GET":
+            return search_handler.get_veteran_profile(event, context)
+        elif "/public/categories" in path and http_method == "GET":
+            return search_handler.get_search_categories(event, context)
+        else:
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({"error": "Not found"}),
+            }
+    except Exception as e:
+        logger.error(f"Error in public search handler: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({"error": "Internal server error"}),
+        }
+
+
 def search_veterans(event, context):
     """Lambda handler for veteran search"""
-    handler = PublicSearchHandler()
-    return handler.search_veterans(event, context)
+    handler_instance = PublicSearchHandler()
+    return handler_instance.search_veterans(event, context)
 
 
 def get_veteran_profile(event, context):
     """Lambda handler for getting veteran profile"""
-    handler = PublicSearchHandler()
-    return handler.get_veteran_profile(event, context)
+    handler_instance = PublicSearchHandler()
+    return handler_instance.get_veteran_profile(event, context)
 
 
 def get_search_categories(event, context):
     """Lambda handler for getting search categories"""
-    handler = PublicSearchHandler()
-    return handler.get_search_categories(event, context)
+    handler_instance = PublicSearchHandler()
+    return handler_instance.get_search_categories(event, context)

@@ -9,7 +9,6 @@ from functools import wraps
 from typing import Any, Dict, List, Optional
 
 import boto3
-import jwt
 import requests
 
 logger = logging.getLogger()
@@ -43,13 +42,18 @@ def get_jwks() -> Dict[str, Any]:
 def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
     """
     Verify JWT token signature and return decoded claims.
+    Note: This function requires python-jose[cryptography] which may not be available.
+    Prefer using extract_user_from_event() with API Gateway Cognito Authorizer instead.
     """
     try:
+        # Lazy import to avoid cryptography dependency at module load time
+        from jose import jwt as jose_jwt
+        
         # Get JWKS
         jwks = get_jwks()
 
         # Decode header to get key ID
-        unverified_header = jwt.get_unverified_header(token)
+        unverified_header = jose_jwt.get_unverified_header(token)
         kid = unverified_header.get("kid")
 
         if not kid:
@@ -60,16 +64,15 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
         key = None
         for jwk in jwks["keys"]:
             if jwk["kid"] == kid:
-                rsa_alg = jwt.get_algorithm_by_name("RS256")
-                key = rsa_alg.from_jwk(jwk)
+                key = jwk
                 break
 
         if not key:
             logger.error(f"Unable to find key with kid: {kid}")
             return None
 
-        # Verify and decode token
-        decoded_token = jwt.decode(
+        # Verify and decode token using python-jose
+        decoded_token = jose_jwt.decode(
             token,
             key,
             algorithms=["RS256"],
@@ -77,13 +80,19 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
             issuer=f"https://cognito-idp.{REGION}.amazonaws.com/{USER_POOL_ID}",
         )
 
-        return decoded_token
+        # Normalize the token data for easier use
+        return {
+            "user_id": decoded_token.get("username") or decoded_token.get("sub"),
+            "email": decoded_token.get("email"),
+            "name": decoded_token.get("name"),
+            "role": decoded_token.get("custom:role"),
+            "department": decoded_token.get("custom:department"),
+            "employee_id": decoded_token.get("custom:employee_id"),
+            "raw_claims": decoded_token,  # Keep original claims for reference
+        }
 
-    except jwt.ExpiredSignatureError:
-        logger.error("Token has expired")
-        return None
-    except jwt.InvalidTokenError as e:
-        logger.error(f"Invalid token: {str(e)}")
+    except ImportError:
+        logger.error("python-jose not available - use API Gateway Cognito Authorizer instead")
         return None
     except Exception as e:
         logger.error(f"Token verification error: {str(e)}")
@@ -117,40 +126,25 @@ def get_user_from_token(token: str) -> Optional[Dict[str, Any]]:
 
 def extract_user_from_event(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    Extract user information from Lambda event.
+    Extract user information from Lambda event (API Gateway authorizer context).
     """
-    # Try to get from request context (API Gateway authorizer)
+    # Get from request context (API Gateway Cognito authorizer)
     request_context = event.get("requestContext", {})
     authorizer = request_context.get("authorizer", {})
 
     if "claims" in authorizer:
         claims = authorizer["claims"]
+        # デフォルトでveteranロールを設定（custom:roleが未設定の場合）
+        role = claims.get("custom:role") or "veteran"
+        
         return {
-            "user_id": claims.get("username"),
+            "user_id": claims.get("username") or claims.get("sub"),
             "email": claims.get("email"),
             "name": claims.get("name"),
-            "role": claims.get("custom:role"),
-            "department": claims.get("custom:department"),
-            "employee_id": claims.get("custom:employee_id"),
+            "role": role,
+            "department": claims.get("custom:department") or "未設定",
+            "employee_id": claims.get("custom:employee_id") or claims.get("email"),
         }
-
-    # Fallback: extract from Authorization header
-    headers = event.get("headers", {})
-    auth_header = headers.get("Authorization") or headers.get("authorization")
-
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-        decoded = verify_jwt_token(token)
-
-        if decoded:
-            return {
-                "user_id": decoded.get("username"),
-                "email": decoded.get("email"),
-                "name": decoded.get("name"),
-                "role": decoded.get("custom:role"),
-                "department": decoded.get("custom:department"),
-                "employee_id": decoded.get("custom:employee_id"),
-            }
 
     return None
 

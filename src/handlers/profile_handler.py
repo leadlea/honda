@@ -49,19 +49,25 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 else ""
             )
 
-        logger.info(f"Processing {http_method} request for action: {action}")
+        logger.info(f"Processing {http_method} request for action: {action}, path: {path}")
 
         # Add user information to event for RBAC
         user = extract_user_from_event(event)
-        if user:
-            event["user"] = user
+        logger.info(f"Extracted user: {user}")
+        
+        if not user:
+            logger.error("No user information found in event")
+            logger.error(f"Request context: {event.get('requestContext', {})}")
+            return create_response(401, {"error": "Authentication required"})
+            
+        event["user"] = user
 
         # Route to appropriate handler
         if http_method == "GET":
             if action == "privacy":
                 return get_privacy_status(event)
             elif action and action != "profiles":
-                return get_profile(event)
+                return get_profile(event, context)
             else:
                 return list_profiles(event)
         elif http_method == "POST":
@@ -70,9 +76,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             elif action == "privacy":
                 return update_privacy_settings(event)
             else:
-                return create_profile(event)
+                return create_profile(event, context)
         elif http_method == "PUT":
-            return update_profile(event)
+            return update_profile(event, context)
         elif http_method == "DELETE":
             return delete_profile(event)
 
@@ -258,7 +264,26 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         # Add profile_user_id to event for RBAC decorator
         event["profile_user_id"] = profile_user_id
 
-        body = json.loads(event.get("body", "{}"))
+        # Parse body - handle both string and dict cases, including double-encoded JSON
+        raw_body = event.get("body", "{}")
+        if isinstance(raw_body, str):
+            body = json.loads(raw_body)
+            # Handle double-encoded JSON (string containing JSON string)
+            if isinstance(body, str):
+                logger.info(f"Detected double-encoded JSON, parsing again")
+                body = json.loads(body)
+            # Validate that parsed JSON is a dictionary
+            if not isinstance(body, dict):
+                logger.error(f"Parsed JSON is not a dictionary: {type(body)}")
+                return create_response(400, {"error": "Invalid JSON in request body"})
+        elif isinstance(raw_body, dict):
+            body = raw_body
+        else:
+            logger.error(f"Unexpected body type: {type(raw_body)}")
+            return create_response(400, {"error": "Invalid request body format"})
+        
+        logger.info(f"Update profile request body: {body}")
+        logger.info(f"Body type: {type(body)}, Body keys: {body.keys() if isinstance(body, dict) else 'NOT A DICT'}")
 
         # Initialize repository
         profile_repo = VeteranProfileRepository()
@@ -269,34 +294,38 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
             return create_response(404, {"error": "Profile not found"})
 
         # Validate update data - only allow specific fields
-        allowed_fields = ["business_title", "skills", "experiences", "preferences"]
-        update_data = {k: v for k, v in body.items() if k in allowed_fields}
+        allowed_fields = ["business_title", "skills", "experiences", "preferences", "privacy_settings"]
+        
+        # Parse any JSON string fields in the body
+        parsed_body = {}
+        for key, value in body.items():
+            if key in allowed_fields:
+                # If value is a JSON string, parse it
+                if isinstance(value, str) and key in ["skills", "experiences", "preferences", "privacy_settings"]:
+                    try:
+                        parsed_body[key] = json.loads(value)
+                    except (json.JSONDecodeError, TypeError):
+                        parsed_body[key] = value
+                else:
+                    parsed_body[key] = value
+        
+        update_data = parsed_body
+        logger.info(f"Parsed update_data: {update_data}")
 
         if not update_data:
             return create_response(400, {"error": "No valid fields to update"})
 
-        # Update profile fields
-        if "business_title" in update_data:
-            existing_profile.business_title = update_data["business_title"]
-        if "skills" in update_data:
-            existing_profile.skills = update_data["skills"]
-        if "experiences" in update_data:
-            existing_profile.experiences = update_data["experiences"]
-        if "preferences" in update_data:
-            existing_profile.preferences = update_data["preferences"]
-
-        # Validate updated profile
-        validation_errors = existing_profile.validate()
-        if validation_errors:
-            return create_response(
-                400,
-                {"error": "Profile validation failed", "details": validation_errors},
-            )
-
-        # Update profile in database
-        success = profile_repo.update_profile(existing_profile)
+        # Build update_data dictionary from profile fields
+        # Note: update_data already contains only allowed fields from earlier filtering
+        # We can pass it directly to the repository
+        
+        # Update profile in database with correct parameters
+        success = profile_repo.update_profile(profile_user_id, update_data)
 
         if success:
+            # Get updated profile to return in response
+            updated_profile = profile_repo.get_profile(profile_user_id)
+            
             # Log profile update
             request_info = extract_request_info(event)
             security_auditor.log_profile_access(
@@ -313,13 +342,13 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
                     "message": "Profile updated successfully",
                     "updated_fields": list(update_data.keys()),
                     "profile": {
-                        "user_id": existing_profile.user_id,
-                        "business_title": existing_profile.business_title,
-                        "skills": existing_profile.skills,
-                        "experiences": existing_profile.experiences,
-                        "preferences": existing_profile.preferences,
-                        "privacy_settings": existing_profile.privacy_settings,
-                        "last_updated": existing_profile.last_updated,
+                        "user_id": updated_profile.user_id,
+                        "business_title": updated_profile.business_title,
+                        "skills": updated_profile.skills,
+                        "experiences": updated_profile.experiences,
+                        "preferences": updated_profile.preferences,
+                        "privacy_settings": updated_profile.privacy_settings,
+                        "last_updated": updated_profile.last_updated,
                     },
                 },
             )

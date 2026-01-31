@@ -16,17 +16,13 @@ const ProfileManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'skills' | 'experience' | 'preferences' | 'business-title' | 'privacy'>('skills');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      loadProfile();
-    }
-  }, [user]);
-
   const loadProfile = async () => {
+    if (!user) return;
+    
     try {
       setLoading(true);
       setError(null);
-      const data = await profileService.getProfile(user!.user_id);
+      const data = await profileService.getProfile(user.user_id);
       setProfile(data);
     } catch (error) {
       setError('プロフィールの読み込みに失敗しました');
@@ -35,6 +31,11 @@ const ProfileManagement: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const saveProfile = async (updatedProfile: Partial<VeteranProfile>) => {
     try {
