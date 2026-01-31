@@ -28,16 +28,23 @@
   gap: 12px;
   cursor: pointer;
   transition: opacity 0.3s ease;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .app-brand:hover {
   opacity: 0.8;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .app-logo {
   height: 40px;
   width: auto;
-  filter: brightness(1.1) contrast(1.1);
+  filter: brightness(1.2) contrast(1.1) drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  padding: 2px;
 }
 
 .app-title {
@@ -183,6 +190,7 @@
 
   .app-logo {
     height: 32px;
+    padding: 1px;
   }
 
   .app-title {
@@ -209,6 +217,7 @@
 
   .app-logo {
     height: 28px;
+    padding: 1px;
   }
 
   .app-title {

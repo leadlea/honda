@@ -1,5 +1,8 @@
 .dashboard-container {
   padding: 20px 0;
+  background: var(--bg-primary, #1a1a1a);
+  color: var(--text-primary, #ffffff);
+  min-height: 100vh;
 }
 
 .dashboard-header {
@@ -10,13 +13,13 @@
 .dashboard-header h1 {
   font-size: 32px;
   font-weight: 700;
-  color: #333;
+  color: var(--text-primary, #ffffff);
   margin: 0 0 10px 0;
 }
 
 .dashboard-subtitle {
   font-size: 16px;
-  color: #666;
+  color: var(--text-secondary, #e2e8f0);
   margin: 0;
 }
 
@@ -27,7 +30,7 @@
 .quick-actions h2 {
   font-size: 24px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary, #ffffff);
   margin-bottom: 20px;
 }
 
@@ -38,19 +41,21 @@
 }
 
 .action-card {
-  background: white;
+  background: var(--bg-tertiary, #3a3a3a);
   padding: 24px;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  border: 1px solid var(--border-light, #404040);
 }
 
 .action-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  border-color: var(--border-medium, #555555);
 }
 
 .action-card::before {
@@ -60,43 +65,43 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4A90E2 0%, #6BB6FF 100%);
 }
 
 .action-card.blue::before {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4A90E2 0%, #6BB6FF 100%);
 }
 
 .action-card.green::before {
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  background: linear-gradient(135deg, #38A169 0%, #68D391 100%);
 }
 
 .action-card.purple::before {
-  background: linear-gradient(135deg, #9c27b0 0%, #8e24aa 100%);
+  background: linear-gradient(135deg, #9F7AEA 0%, #B794F6 100%);
 }
 
 .action-card.orange::before {
-  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  background: linear-gradient(135deg, #FF8C42 0%, #FFB366 100%);
 }
 
 .action-card.red::before {
-  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  background: linear-gradient(135deg, #E53E3E 0%, #FC8181 100%);
 }
 
 .action-card.teal::before {
-  background: linear-gradient(135deg, #009688 0%, #00796b 100%);
+  background: linear-gradient(135deg, #38B2AC 0%, #4FD1C7 100%);
 }
 
 .action-card h3 {
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary, #ffffff);
   margin: 0 0 8px 0;
 }
 
 .action-card p {
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary, #e2e8f0);
   margin: 0 0 16px 0;
   line-height: 1.5;
 }
@@ -106,12 +111,12 @@
   bottom: 20px;
   right: 24px;
   font-size: 18px;
-  color: #999;
+  color: var(--text-muted, #a0aec0);
   transition: all 0.3s ease;
 }
 
 .action-card:hover .action-arrow {
-  color: #667eea;
+  color: var(--primary-blue, #4A90E2);
   transform: translateX(4px);
 }
 
@@ -122,7 +127,7 @@
 .dashboard-stats h2 {
   font-size: 24px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary, #ffffff);
   margin-bottom: 20px;
 }
 
@@ -133,30 +138,38 @@
 }
 
 .stat-card {
-  background: white;
+  background: var(--bg-tertiary, #3a3a3a);
   padding: 24px;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   text-align: center;
+  border: 1px solid var(--border-light, #404040);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  border-color: var(--border-medium, #555555);
 }
 
 .stat-number {
   font-size: 36px;
   font-weight: 700;
-  color: #667eea;
+  color: var(--primary-blue, #4A90E2);
   margin-bottom: 8px;
 }
 
 .stat-label {
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary, #e2e8f0);
   font-weight: 500;
 }
 
 .dashboard-loading {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-secondary, #e2e8f0);
   font-size: 16px;
 }
 
