@@ -2,6 +2,9 @@
   max-width: 1000px;
   margin: 0 auto;
   padding: 20px;
+  background: var(--bg-primary, #1a1a1a);
+  color: var(--text-primary, #ffffff);
+  min-height: 100vh;
 }
 
 .profile-header {
@@ -10,12 +13,12 @@
 }
 
 .profile-header h1 {
-  color: #2c3e50;
+  color: var(--text-primary, #ffffff);
   margin-bottom: 10px;
 }
 
 .profile-header p {
-  color: #7f8c8d;
+  color: var(--text-secondary, #e2e8f0);
   font-size: 16px;
 }
 
@@ -62,7 +65,7 @@
 
 .profile-tabs {
   display: flex;
-  border-bottom: 2px solid #e1e8ed;
+  border-bottom: 2px solid var(--border-light, #404040);
   margin-bottom: 30px;
   overflow-x: auto;
 }
@@ -73,7 +76,7 @@
   padding: 12px 20px;
   font-size: 14px;
   font-weight: 500;
-  color: #7f8c8d;
+  color: var(--text-muted, #a0aec0);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.2s ease;
@@ -81,12 +84,12 @@
 }
 
 .tab-button:hover {
-  color: #3498db;
+  color: var(--primary-blue, #4A90E2);
 }
 
 .tab-button.active {
-  color: #3498db;
-  border-bottom-color: #3498db;
+  color: var(--primary-blue, #4A90E2);
+  border-bottom-color: var(--primary-blue, #4A90E2);
 }
 
 .profile-content {
@@ -110,7 +113,7 @@
 }
 
 .tab-header h3 {
-  color: #2c3e50;
+  color: var(--text-primary, #ffffff);
   margin: 0;
 }
 
@@ -123,11 +126,11 @@
 
 .skill-card,
 .experience-card {
-  background: white;
-  border: 1px solid #e1e8ed;
+  background: var(--bg-tertiary, #3a3a3a);
+  border: 1px solid var(--border-light, #404040);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   position: relative;
 }
 
@@ -151,7 +154,7 @@
 .form-group label {
   font-size: 12px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-primary, #ffffff);
   margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -161,18 +164,20 @@
 .form-group select,
 .form-group textarea {
   padding: 10px 12px;
-  border: 2px solid #e1e8ed;
+  border: 2px solid var(--border-light, #404040);
   border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s ease;
+  background: var(--bg-secondary, #2d2d2d);
+  color: var(--text-primary, #ffffff);
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: var(--primary-blue, #4A90E2);
 }
 
 .form-group textarea {
@@ -181,11 +186,11 @@
 }
 
 .preferences-form {
-  background: white;
-  border: 1px solid #e1e8ed;
+  background: var(--bg-tertiary, #3a3a3a);
+  border: 1px solid var(--border-light, #404040);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .preferences-form .form-group {
@@ -212,12 +217,12 @@
 }
 
 .btn-primary {
-  background: #3498db;
+  background: var(--primary-blue, #4A90E2);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #2980b9;
+  background: var(--primary-blue-dark, #2C5282);
 }
 
 .btn-secondary {

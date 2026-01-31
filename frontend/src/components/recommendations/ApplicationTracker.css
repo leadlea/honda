@@ -2,6 +2,9 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  background: var(--bg-primary, #1a1a1a);
+  color: var(--text-primary, #ffffff);
+  min-height: 100vh;
 }
 
 .applications-header {
@@ -9,14 +12,14 @@
 }
 
 .applications-header h2 {
-  color: #2c3e50;
+  color: var(--text-primary, #ffffff);
   margin-bottom: 8px;
   font-size: 2rem;
   font-weight: 600;
 }
 
 .applications-header p {
-  color: #7f8c8d;
+  color: var(--text-secondary, #e2e8f0);
   font-size: 1.1rem;
   margin-bottom: 20px;
 }
@@ -28,9 +31,9 @@
   flex-wrap: wrap;
   gap: 15px;
   padding: 15px;
-  background: #f8f9fa;
+  background: var(--bg-tertiary, #3a3a3a);
   border-radius: 8px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--border-light, #404040);
 }
 
 .filter-controls {
@@ -41,15 +44,16 @@
 
 .filter-controls label {
   font-weight: 500;
-  color: #495057;
+  color: var(--text-primary, #ffffff);
   font-size: 0.9rem;
 }
 
 .filter-controls select {
   padding: 6px 12px;
-  border: 1px solid #ced4da;
+  border: 1px solid var(--border-light, #404040);
   border-radius: 4px;
-  background: white;
+  background: var(--bg-secondary, #2d2d2d);
+  color: var(--text-primary, #ffffff);
   font-size: 0.9rem;
   min-width: 150px;
 }
@@ -156,17 +160,18 @@
 }
 
 .application-card {
-  background: white;
+  background: var(--bg-tertiary, #3a3a3a);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-light, #404040);
   overflow: hidden;
   transition: all 0.3s ease;
 }
 
 .application-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border-color: var(--border-medium, #555555);
 }
 
 .application-header {
@@ -174,25 +179,25 @@
   justify-content: space-between;
   align-items: flex-start;
   padding: 20px 20px 15px;
-  border-bottom: 1px solid #f1f3f4;
+  border-bottom: 1px solid var(--border-light, #404040);
 }
 
 .opportunity-info h3 {
-  color: #2c3e50;
+  color: var(--text-primary, #ffffff);
   margin-bottom: 8px;
   font-size: 1.25rem;
   font-weight: 600;
 }
 
 .company-name {
-  color: #495057;
+  color: var(--text-secondary, #e2e8f0);
   font-size: 1.1rem;
   font-weight: 500;
   margin-bottom: 5px;
 }
 
 .location {
-  color: #6c757d;
+  color: var(--text-muted, #a0aec0);
   font-size: 0.9rem;
 }
 
