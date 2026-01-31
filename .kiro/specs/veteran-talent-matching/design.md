@@ -2,7 +2,7 @@
 
 ## 概要
 
-ベテラン人材マッチングシステムは、マイクロサービスアーキテクチャを採用し、AI駆動の問診システム、プロフィール管理、マッチング推薦エンジン、外部公開プラットフォームを統合したWebアプリケーションです。システムはスケーラビリティ、セキュリティ、ユーザビリティを重視して設計されています。
+製造業プラチナアドバイザリー・プラットフォーム（Platinum Advisory）は、マイクロサービスアーキテクチャを採用し、AIによるスキル棚卸し（アドバイザリー問診）システム、スキル／経験プロファイル管理、シーズ・ニーズマッチング推薦エンジン、同意に基づく参加企業向け公開プラットフォームを統合したWebアプリケーションです。「人材派遣ではない。人材不足解消でもない。人を活かす、新しい製造業の生態系。」という考え方のもと、スケーラビリティ、セキュリティ、ユーザビリティを重視して設計されています。
 
 ## アーキテクチャ
 
@@ -86,7 +86,7 @@ graph TB
 
 **主要機能**:
 - AWS Cognito User Pool統合
-- 外部ユーザー認証
+- 参加企業／登録人材の認証
 - 役割ベースアクセス制御 (RBAC)
 - セキュリティ監査ログ
 
@@ -104,17 +104,17 @@ PUT /auth/permissions
 
 ### 2. プロフィール管理サービス (Lambda + DynamoDB)
 
-**責任**: ベテランプロフィールの作成、更新、管理
+**責任**: 登録人材（製造業ワーカー）プロファイルの作成、更新、管理
 
 **主要機能**:
 - プロフィール CRUD 操作
 - プライバシー設定管理
-- スキル・経験データ構造化
-- ビジネスタイトル生成 (Bedrock Claude使用)
+- スキル資産の構造化（技能・経験・資格）
+- スキルポートフォリオ見出し生成 (Bedrock Claude使用)
 
 **Lambda関数**:
 - `profile-handler`: プロフィール管理
-- `business-title-generator`: AI駆動タイトル生成
+- `business-title-generator`: AI駆動見出し生成
 
 **DynamoDBテーブル**: `VeteranProfiles`
 
@@ -128,12 +128,12 @@ PUT /profiles/{userId}/privacy
 
 ### 3. AI問診サービス (Lambda + Bedrock)
 
-**責任**: 動的問診生成、回答処理、プロフィール更新
+**責任**: AIスキル棚卸し（アドバイザリー問診）生成、回答処理、プロフィール更新
 
 **主要機能**:
 - 個人向け問診生成 (Bedrock Claude使用)
 - 回答検証・処理
-- プロフィール自動更新
+- スキル／経験プロファイルの自動補完
 - 問診履歴管理
 
 **Lambda関数**:
@@ -152,17 +152,17 @@ PUT /questionnaire/{userId}/regenerate
 
 ### 4. マッチング・推薦サービス (Lambda + Bedrock)
 
-**責任**: 機会推薦、マッチング分析、応募管理
+**責任**: 参画機会レコメンド、適合度分析、参画申請管理
 
 **主要機能**:
 - AI駆動推薦アルゴリズム (Bedrock Claude使用)
-- 社内外機会統合
-- マッチング精度分析
-- 応募状況追跡
+- 参画機会（出向／兼務／プロジェクト）統合
+- 適合度・推薦理由の可視化
+- 参画申請／受入打診状況追跡
 
 **Lambda関数**:
 - `matching-engine`: AI推薦エンジン
-- `application-handler`: 応募管理
+- `application-handler`: 申請管理
 
 **DynamoDBテーブル**: `Opportunities`, `Recommendations`, `Applications`
 
@@ -176,13 +176,13 @@ PUT /applications/{applicationId}/status
 
 ### 5. 外部プラットフォーム統合 (Lambda + S3)
 
-**責任**: HONDAベテランバンクの外部公開、検索機能
+**責任**: 同意に基づく参加企業向け公開、検索機能
 
 **主要機能**:
 - 公開プロフィール管理
-- 外部検索インターフェース
+- 参加企業向け検索インターフェース
 - 候補者マッチング (Bedrock Claude使用)
-- 連絡先仲介
+- 初期接触の仲介（共助のための安全な導線）
 
 **Lambda関数**:
 - `public-search`: 外部検索API
@@ -265,7 +265,7 @@ class User:
     updated_at: str
 ```
 
-#### VeteranProfiles テーブル
+#### VeteranProfiles テーブル - 登録人材プロファイル（スキル資産）
 
 ```python
 # DynamoDB Schema
@@ -300,7 +300,7 @@ class VeteranProfile:
     last_updated: str
 ```
 
-#### Opportunities テーブル
+#### Opportunities テーブル - 参画機会（受入ニーズ）
 
 ```python
 # DynamoDB Schema
@@ -342,7 +342,7 @@ class Opportunity:
     expiry_date: str
 ```
 
-#### Recommendations テーブル
+#### Recommendations テーブル - 適合度レコメンド（推薦理由の説明可能性）
 
 ```python
 # DynamoDB Schema
@@ -489,3 +489,6 @@ graph LR
 - **公平性**: アルゴリズムバイアス検出・修正
 - **透明性**: 推薦理由の説明可能性
 - **プライバシー**: AI学習データの匿名化
+- **共助コミュニティを前提とした公平性**: 企業規模や業界による偏見を排除
+- **企業名・個人情報の取り扱い**: 同意・匿名化・共有範囲の適切な管理
+- **倫理的運営**: 仲介手数料で人を売買しない透明な運営モデル

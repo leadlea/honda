@@ -7,7 +7,12 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.handlers.questionnaire_handler import QuestionnaireHandler
+from src.handlers.questionnaire_handler import (
+    generate_questionnaire,
+    submit_questionnaire,
+    get_questionnaire_history,
+    regenerate_questionnaire
+)
 from src.models.questionnaire import Questionnaire
 from src.models.user import User
 from src.models.veteran_profile import VeteranProfile
