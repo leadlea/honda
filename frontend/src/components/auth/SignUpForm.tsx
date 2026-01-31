@@ -74,7 +74,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToLogin }) => {
     <div className="auth-form-container">
       <div className="auth-form">
         <h2>新規登録</h2>
-        <p className="auth-subtitle">Honda Veteran Talent Bankアカウントを作成</p>
+        <p className="auth-subtitle">製造業プラチナアドバイザリーアカウントを作成</p>
         
         {error && (
           <div className="error-message">
@@ -121,7 +121,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToLogin }) => {
               onChange={handleChange}
               required
               disabled={loading}
-              placeholder="your.email@honda.com"
+              placeholder="your.email@company.com"
             />
           </div>
 

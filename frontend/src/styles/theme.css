@@ -4,32 +4,32 @@ Manufacturing Platinum Advisory Theme
 */
 
 :root {
-  /* Primary Colors - 製造業らしい信頼感のある色合い */
-  --primary-blue: #2C5282;           /* 深いブルー - 信頼性と専門性 */
-  --primary-blue-light: #3182CE;     /* ライトブルー - アクセント */
-  --primary-blue-dark: #1A365D;      /* ダークブルー - 強調 */
+  /* Primary Colors - 製造業らしい信頼感のある色合い（ダークテーマ） */
+  --primary-blue: #4A90E2;           /* ブライトブルー - 信頼性と専門性 */
+  --primary-blue-light: #6BB6FF;     /* ライトブルー - アクセント */
+  --primary-blue-dark: #2C5282;      /* ダークブルー - 強調 */
   
-  /* Secondary Colors - 製造業の力強さを表現 */
-  --secondary-gray: #4A5568;         /* チャコールグレー - 安定感 */
-  --secondary-gray-light: #718096;   /* ライトグレー - サブテキスト */
-  --secondary-gray-dark: #2D3748;    /* ダークグレー - ヘッダー */
+  /* Secondary Colors - 製造業の力強さを表現（ダーク） */
+  --secondary-gray: #E2E8F0;         /* ライトグレー - ダークモードでのテキスト */
+  --secondary-gray-light: #CBD5E0;   /* ミディアムグレー - サブテキスト */
+  --secondary-gray-dark: #1A1A1A;    /* ダークグレー - ヘッダー背景 */
   
-  /* Accent Colors - 製造業の革新性を表現 */
-  --accent-orange: #ED8936;          /* オレンジ - エネルギーと革新 */
-  --accent-orange-light: #F6AD55;    /* ライトオレンジ - ホバー */
-  --accent-orange-dark: #C05621;     /* ダークオレンジ - アクティブ */
+  /* Accent Colors - 製造業の革新性を表現（ダーク） */
+  --accent-orange: #FF8C42;          /* オレンジ - エネルギーと革新 */
+  --accent-orange-light: #FFB366;    /* ライトオレンジ - ホバー */
+  --accent-orange-dark: #E6732A;     /* ダークオレンジ - アクティブ */
   
-  /* Background Colors - 清潔感と信頼性 */
-  --bg-primary: #FFFFFF;             /* 純白 - メインコンテンツ */
-  --bg-secondary: #F7FAFC;           /* オフホワイト - セクション背景 */
-  --bg-tertiary: #EDF2F7;            /* ライトグレー - カード背景 */
-  --bg-dark: #1A202C;                /* ダークモード用 */
+  /* Background Colors - ダークテーマ */
+  --bg-primary: #1A1A1A;             /* ダークグレー - メインコンテンツ */
+  --bg-secondary: #2D2D2D;           /* ミディアムダーク - セクション背景 */
+  --bg-tertiary: #3A3A3A;            /* ライトダーク - カード背景 */
+  --bg-dark: #0F0F0F;                /* 最暗色 */
   
-  /* Text Colors - 可読性重視 */
-  --text-primary: #1A202C;           /* メインテキスト */
-  --text-secondary: #4A5568;         /* セカンダリテキスト */
-  --text-muted: #718096;             /* 補助テキスト */
-  --text-inverse: #FFFFFF;           /* 反転テキスト */
+  /* Text Colors - ダークテーマ用 */
+  --text-primary: #FFFFFF;           /* メインテキスト */
+  --text-secondary: #E2E8F0;         /* セカンダリテキスト */
+  --text-muted: #A0AEC0;             /* 補助テキスト */
+  --text-inverse: #1A1A1A;           /* 反転テキスト */
   
   /* Status Colors - 製造業の品質管理を表現 */
   --success-green: #38A169;          /* 成功・完了 */
@@ -41,15 +41,15 @@ Manufacturing Platinum Advisory Theme
   --info-blue: #3182CE;              /* 情報・ヒント */
   --info-blue-light: #63B3ED;        /* 情報ライト */
   
-  /* Border Colors - 構造化された印象 */
-  --border-light: #E2E8F0;           /* ライトボーダー */
-  --border-medium: #CBD5E0;          /* ミディアムボーダー */
-  --border-dark: #A0AEC0;            /* ダークボーダー */
+  /* Border Colors - ダークテーマ用 */
+  --border-light: #404040;           /* ライトボーダー */
+  --border-medium: #555555;          /* ミディアムボーダー */
+  --border-dark: #666666;            /* ダークボーダー */
   
-  /* Shadow Colors - 立体感と品質感 */
-  --shadow-light: rgba(0, 0, 0, 0.1);
-  --shadow-medium: rgba(0, 0, 0, 0.15);
-  --shadow-dark: rgba(0, 0, 0, 0.2);
+  /* Shadow Colors - ダークテーマ用 */
+  --shadow-light: rgba(0, 0, 0, 0.3);
+  --shadow-medium: rgba(0, 0, 0, 0.4);
+  --shadow-dark: rgba(0, 0, 0, 0.5);
   
   /* Manufacturing Specific Colors - 製造業特有の色彩 */
   --steel-blue: #4682B4;             /* スチールブルー - 金属加工 */
@@ -62,17 +62,17 @@ Manufacturing Platinum Advisory Theme
   --gradient-secondary: linear-gradient(135deg, var(--secondary-gray) 0%, var(--secondary-gray-light) 100%);
   --gradient-accent: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-light) 100%);
   
-  /* Component Specific Colors */
-  --header-bg: var(--primary-blue);
-  --header-text: var(--text-inverse);
+  /* Component Specific Colors - ダークテーマ */
+  --header-bg: var(--secondary-gray-dark);
+  --header-text: var(--text-primary);
   --sidebar-bg: var(--bg-secondary);
   --sidebar-text: var(--text-primary);
-  --card-bg: var(--bg-primary);
+  --card-bg: var(--bg-tertiary);
   --card-border: var(--border-light);
   --button-primary-bg: var(--primary-blue);
   --button-primary-text: var(--text-inverse);
-  --button-secondary-bg: var(--secondary-gray);
-  --button-secondary-text: var(--text-inverse);
+  --button-secondary-bg: var(--bg-tertiary);
+  --button-secondary-text: var(--text-primary);
   --button-accent-bg: var(--accent-orange);
   --button-accent-text: var(--text-inverse);
   

@@ -1,6 +1,7 @@
 .app-layout {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-primary, #1a1a1a);
+  color: var(--text-primary, #ffffff);
 }
 
 .main-content {
@@ -8,6 +9,7 @@
   max-width: 1200px;
   margin: 0 auto;
   min-height: calc(100vh - 70px);
+  background: var(--bg-primary, #1a1a1a);
 }
 
 /* Responsive design */

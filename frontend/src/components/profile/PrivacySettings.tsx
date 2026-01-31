@@ -92,7 +92,7 @@ const PrivacySettings: React.FC<PrivacySettingsProps> = ({ profile, onUpdate }) 
               <div className="setting-info">
                 <h5>プロフィールを外部に公開</h5>
                 <p>
-                  HONDAベテランバンクで外部リクルーターがあなたのプロフィールを検索・閲覧できるようになります。
+                  製造業プラチナアドバイザリーで外部リクルーターがあなたのプロフィールを検索・閲覧できるようになります。
                   この設定をオフにすると、社内のみでプロフィールが利用されます。
                 </p>
               </div>
@@ -181,7 +181,7 @@ const PrivacySettings: React.FC<PrivacySettingsProps> = ({ profile, onUpdate }) 
                   <h5>プロフィール可視性</h5>
                   <p>
                     {currentSettings.is_publicly_visible 
-                      ? '外部公開（HONDAベテランバンクで検索可能）' 
+                      ? '外部公開（製造業プラチナアドバイザリーで検索可能）' 
                       : '社内のみ（外部からは見えません）'
                     }
                   </p>

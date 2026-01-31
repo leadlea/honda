@@ -1,4 +1,4 @@
-// Environment configuration for Honda Veteran Talent Matching Frontend
+// Environment configuration for Manufacturing Platinum Advisory Frontend
 // This file manages environment variables and API endpoints
 
 export interface EnvironmentConfig {
