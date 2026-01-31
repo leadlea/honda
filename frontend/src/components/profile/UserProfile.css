@@ -106,6 +106,8 @@
   font-size: 16px;
   transition: border-color 0.3s ease;
   box-sizing: border-box;
+  background: white;
+  color: #000000;
 }
 
 .profile-edit-form .form-group input:focus,

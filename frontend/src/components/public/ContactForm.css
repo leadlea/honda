@@ -99,6 +99,7 @@
   font-family: inherit;
   transition: border-color 0.3s ease;
   background: white;
+  color: #000000;
 }
 
 .form-group input:focus,

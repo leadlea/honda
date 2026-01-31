@@ -144,7 +144,7 @@
   resize: vertical;
   transition: border-color 0.2s ease;
   background: var(--bg-secondary, #2d2d2d);
-  color: var(--text-primary, #ffffff);
+  color: #000000;
 }
 
 .question-textarea:focus {
@@ -413,7 +413,7 @@
 
 .status-badge.generated {
   background: #e1ecf4;
-  color: #3498db;
+  color: var(--text-primary, #ffffff);
 }
 
 .history-date {

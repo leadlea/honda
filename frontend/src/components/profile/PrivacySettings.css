@@ -127,7 +127,7 @@
 }
 
 input:checked + .toggle-slider {
-  background-color: #3498db;
+  background-color: var(--primary-blue, #4A90E2);
 }
 
 input:checked + .toggle-slider:before {
