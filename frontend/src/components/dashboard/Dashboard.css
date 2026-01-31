@@ -156,13 +156,13 @@
 .stat-number {
   font-size: 36px;
   font-weight: 700;
-  color: var(--primary-blue, #4A90E2);
+  color: var(--text-primary, #ffffff);
   margin-bottom: 8px;
 }
 
 .stat-label {
   font-size: 14px;
-  color: var(--text-secondary, #e2e8f0);
+  color: var(--text-primary, #ffffff);
   font-weight: 500;
 }
 

@@ -76,7 +76,7 @@
   padding: 12px 20px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-muted, #a0aec0);
+  color: var(--text-secondary, #e2e8f0);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.2s ease;
@@ -84,11 +84,11 @@
 }
 
 .tab-button:hover {
-  color: var(--primary-blue, #4A90E2);
+  color: var(--text-primary, #ffffff);
 }
 
 .tab-button.active {
-  color: var(--primary-blue, #4A90E2);
+  color: var(--text-primary, #ffffff);
   border-bottom-color: var(--primary-blue, #4A90E2);
 }
 
@@ -231,7 +231,8 @@
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #7f8c8d;
+  background: var(--bg-secondary, #2d2d2d);
+  border-color: var(--border-medium, #555555);
 }
 
 .btn-danger {
@@ -255,16 +256,16 @@
   display: flex;
   justify-content: center;
   padding: 20px 0;
-  border-top: 1px solid #e1e8ed;
+  border-top: 1px solid var(--border-light, #404040);
 }
 
 .empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: #7f8c8d;
-  background: #f8f9fa;
+  color: var(--text-secondary, #e2e8f0);
+  background: var(--bg-secondary, #2d2d2d);
   border-radius: 8px;
-  border: 2px dashed #e1e8ed;
+  border: 2px dashed var(--border-light, #404040);
 }
 
 .loading-state,
@@ -276,8 +277,8 @@
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #e1e8ed;
-  border-top: 4px solid #3498db;
+  border: 4px solid var(--border-light, #404040);
+  border-top: 4px solid var(--primary-blue, #4A90E2);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 20px;
@@ -289,12 +290,12 @@
 }
 
 .error-state h2 {
-  color: #2c3e50;
+  color: var(--text-primary, #ffffff);
   margin-bottom: 16px;
 }
 
 .error-state p {
-  color: #7f8c8d;
+  color: var(--text-secondary, #e2e8f0);
   margin-bottom: 20px;
 }
 
