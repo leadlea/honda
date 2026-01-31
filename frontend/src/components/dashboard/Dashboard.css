@@ -162,7 +162,7 @@
 
 .stat-label {
   font-size: 14px;
-  color: var(--text-primary, #ffffff);
+  color: #fff;
   font-weight: 500;
 }
 
