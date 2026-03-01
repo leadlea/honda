@@ -2,7 +2,7 @@
 
 ## 概要
 
-製造業プラチナアドバイザリー・プラットフォームの文言・ブランディング更新は、既存の「Honda Veteran Talent Bank」から「製造業プラチナアドバイザリー」への統一されたブランド体験を提供するための包括的な更新です。この設計では、フロントエンドとバックエンドの両方で文言を統一し、「人を活かす、新しい製造業の生態系」というコンセプトを反映したブランディングを実現します。
+製造業プラチナアドバイザリー・プラットフォーム（旧称）の文言更新は、既存の旧MVP用語から「双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）」への統一されたブランド体験を提供するための包括的な更新です。この設計では、フロントエンドとバックエンドの両方で文言を統一し、「AI内製化を前進させるための人材発掘と適材配置」というコンセプトを反映した用語統一を実現します。
 
 ## アーキテクチャ
 
@@ -119,21 +119,25 @@ class AIContentConfig:
 {
   "termMappings": {
     "legacy_terms": {
-      "Honda Veteran Talent Bank": "製造業プラチナアドバイザリー",
-      "ベテラン": "登録人材",
-      "問診": "スキル棚卸し",
-      "ベテランプロフィール": "スキルポートフォリオ",
-      "推薦機会": "参画機会レコメンド",
-      "応募": "参画申請",
-      "興味表明": "参画意向",
-      "ベテラン検索": "登録人材検索"
+      "旧MVP用語（旧称）": "AI人材発掘・配置マッチングMVP（AI CoE支援）",
+      "登録人材": "社内AI人材候補",
+      "問診": "AIスキル棚卸し（セルフ診断）",
+      "ベテランプロフィール": "AIスキルポートフォリオ",
+      "スキルポートフォリオ": "AIスキルポートフォリオ",
+      "推薦機会": "AIポジション／プロジェクト レコメンド",
+      "参画機会レコメンド": "AIポジション／プロジェクト レコメンド",
+      "応募": "自薦応募",
+      "参画申請": "自薦応募",
+      "興味表明": "応募意向",
+      "参画意向": "応募意向",
+      "登録人材検索": "社内AI人材候補検索"
     },
     "ui_labels": {
-      "dashboard_title": "製造業プラチナアドバイザリー ダッシュボード",
-      "profile_section": "スキルポートフォリオ管理",
-      "questionnaire_section": "スキル棚卸し",
-      "recommendations_section": "参画機会レコメンド",
-      "applications_section": "参画申請状況"
+      "dashboard_title": "AI人材発掘・配置マッチングMVP（AI CoE支援） ダッシュボード",
+      "profile_section": "AIスキルポートフォリオ管理",
+      "questionnaire_section": "AIスキル棚卸し（セルフ診断）",
+      "recommendations_section": "AIポジション／プロジェクト レコメンド",
+      "applications_section": "自薦応募状況"
     }
   }
 }
@@ -151,7 +155,7 @@ class AIContentConfig:
       "background": "#F7FAFC"
     },
     "messaging": {
-      "tagline": "人を活かす、新しい製造業の生態系",
+      "tagline": "AI内製化を前進させるための人材発掘と適材配置",
       "tone": "professional_supportive",
       "voice": "empowering_collaborative"
     }
@@ -165,14 +169,14 @@ class AIContentConfig:
 {
   "messages": {
     "success": {
-      "profile_updated": "スキルポートフォリオが正常に更新されました",
-      "application_submitted": "参画申請が正常に送信されました",
-      "questionnaire_completed": "スキル棚卸しが完了しました"
+      "profile_updated": "AIスキルポートフォリオが正常に更新されました",
+      "application_submitted": "自薦応募が正常に送信されました",
+      "questionnaire_completed": "AIスキル棚卸しが完了しました"
     },
     "errors": {
-      "profile_validation_failed": "スキルポートフォリオの検証に失敗しました",
-      "application_failed": "参画申請の処理中にエラーが発生しました",
-      "questionnaire_incomplete": "スキル棚卸しが不完全です"
+      "profile_validation_failed": "AIスキルポートフォリオの検証に失敗しました",
+      "application_failed": "自薦応募の処理中にエラーが発生しました",
+      "questionnaire_incomplete": "AIスキル棚卸しが不完全です"
     }
   }
 }
@@ -209,7 +213,7 @@ class AIContentConfig:
 **検証対象: 要件 4.3**
 
 ### プロパティ 7: AI生成コンテンツ用語統一
-*任意の* AI生成コンテンツ（問診、レコメンド、ビジネスタイトル）において、新しい用語とブランドコンセプトが反映される
+*任意の* AI生成コンテンツ（AIスキル棚卸し、レコメンド、AIスキルポートフォリオ見出し）において、新しい用語とコンセプトが反映される
 **検証対象: 要件 5.1, 5.2, 5.3**
 
 ### プロパティ 8: システム不変性保証
@@ -337,4 +341,4 @@ describe('End-to-End Branding Consistency', () => {
 });
 ```
 
-この設計により、既存機能を維持しながら、統一されたブランド体験を提供する包括的なブランディング更新が実現されます。
+この設計により、既存機能を維持しながら、統一された用語体験を提供する包括的な文言更新が実現されます。

@@ -2,7 +2,7 @@
 
 ## 概要
 
-ダッシュボード統計表示機能は、既存のバックエンドAPIとフロントエンドコンポーネントを拡張して、ベテラン社員の活動統計をリアルタイムで表示します。DynamoDBから問診、推薦、応募、プロフィール閲覧データを取得し、ダッシュボードUIに表示します。
+ダッシュボード統計表示機能は、既存のバックエンドAPIとフロントエンドコンポーネントを拡張して、社内AI人材候補（社員）の活動統計をリアルタイムで表示します。DynamoDBからAIスキル棚卸し、推薦、自薦応募、プロフィール閲覧データを取得し、ダッシュボードUIに表示します。
 
 ## アーキテクチャ
 
@@ -55,9 +55,9 @@ graph TB
 **責任**: ユーザーの統計データを集計して返却
 
 **主要機能**:
-- 完了した問診数の取得
-- 推薦機会数の取得
-- 応募数の取得
+- 完了したAIスキル棚卸し数の取得
+- AIポジション／プロジェクト レコメンド数の取得
+- 自薦応募数の取得
 - プロフィール閲覧数の取得
 - 並行データ取得による高速化
 
@@ -128,7 +128,7 @@ def get_user_statistics(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     }
 
 def count_completed_questionnaires(user_id: str) -> int:
-    """完了した問診数をカウント"""
+    """完了したAIスキル棚卸し数をカウント"""
     table = ddb.Table(f"{PREFIX}-questionnaires")
     response = table.query(
         IndexName="UserIdIndex",
@@ -147,7 +147,7 @@ def count_recommendations(user_id: str) -> int:
     return len(response.get("Items", []))
 
 def count_applications(user_id: str) -> int:
-    """応募数をカウント"""
+    """自薦応募数をカウント"""
     table = ddb.Table(f"{PREFIX}-applications")
     response = table.query(
         IndexName="UserIdIndex",
@@ -163,7 +163,7 @@ def get_profile_views(user_id: str) -> int:
     return item.get("profile_views", 0)
 
 def get_business_title(user_id: str) -> str:
-    """ビジネスタイトルを取得"""
+    """AIスキルポートフォリオ見出しを取得"""
     table = ddb.Table(f"{PREFIX}-veteran-profiles")
     response = table.get_item(Key={"user_id": user_id})
     item = response.get("Item", {})
@@ -304,7 +304,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <p className="business-title">{dashboardData.business_title}</p>
         )}
         <p className="dashboard-subtitle">
-          あなたのスキルを活かした新しい機会を見つけましょう
+          あなたのスキルを活かしたAIポジションを見つけましょう
         </p>
       </div>
       
@@ -318,19 +318,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <div className="stat-number">
                 {renderStatValue(dashboardData?.statistics.completed_questionnaires)}
               </div>
-              <div className="stat-label">完了した問診</div>
+              <div className="stat-label">完了したAIスキル棚卸し</div>
             </div>
             <div className="stat-card">
               <div className="stat-number">
                 {renderStatValue(dashboardData?.statistics.received_recommendations)}
               </div>
-              <div className="stat-label">受信した推薦</div>
+              <div className="stat-label">受信したレコメンド</div>
             </div>
             <div className="stat-card">
               <div className="stat-number">
                 {renderStatValue(dashboardData?.statistics.submitted_applications)}
               </div>
-              <div className="stat-label">応募した機会</div>
+              <div className="stat-label">自薦応募した機会</div>
             </div>
             <div className="stat-card">
               <div className="stat-number">
@@ -350,7 +350,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
 ### DynamoDB クエリパターン
 
-#### 1. 完了した問診数の取得
+#### 1. 完了したAIスキル棚卸し数の取得
 
 ```python
 # UserIdIndex を使用
@@ -371,7 +371,7 @@ table.query(
 )
 ```
 
-#### 3. 応募数の取得
+#### 3. 自薦応募数の取得
 
 ```python
 # UserIdIndex を使用
@@ -448,7 +448,7 @@ with ThreadPoolExecutor(max_workers=4) as executor:
 
 - **TTL**: 5分
 - **キャッシュキー**: `stats:{user_id}`
-- **無効化**: プロフィール更新、問診完了、応募時
+- **無効化**: プロフィール更新、AIスキル棚卸し完了、自薦応募時
 
 ### DynamoDB最適化
 
@@ -480,7 +480,7 @@ with ThreadPoolExecutor(max_workers=4) as executor:
 
 ### ビジネスタイトル表示
 
-ビジネスタイトルは、ウェルカムメッセージとサブタイトルの間に表示されます：
+AIスキルポートフォリオ見出しは、ウェルカムメッセージとサブタイトルの間に表示されます：
 
 ```css
 .business-title {
@@ -495,7 +495,7 @@ with ThreadPoolExecutor(max_workers=4) as executor:
 レイアウト構造：
 ```
 [ウェルカムメッセージ]
-[ビジネスタイトル] ← 新規追加
+[AIスキルポートフォリオ見出し] ← 新規追加
 [サブタイトル]
 ```
 

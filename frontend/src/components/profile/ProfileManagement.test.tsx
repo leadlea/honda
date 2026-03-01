@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ProfileManagement from './ProfileManagement';
+
 // Mock the useAuth hook
 jest.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -28,41 +29,70 @@ jest.mock('../../contexts/AuthContext', () => ({
   }),
 }));
 
-// Mock the profile service
+const mockProfile = {
+  user_id: 'test-user-id',
+  skills: [],
+  experiences: [],
+  preferences: { preferred_roles: [], work_style: 'flexible', locations: [], availability: 'full_time' },
+};
+
+const mockGetProfile = jest.fn();
+const mockUpdateProfile = jest.fn();
+
 jest.mock('../../services/profileService', () => ({
   profileService: {
-    getProfile: jest.fn().mockResolvedValue(null),
-    updateProfile: jest.fn(),
-    updatePrivacySettings: jest.fn(),
-    generateBusinessTitle: jest.fn(),
+    getProfile: (...args: any[]) => mockGetProfile(...args),
+    updateProfile: (...args: any[]) => mockUpdateProfile(...args),
   },
 }));
 
 describe('ProfileManagement Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  test('renders profile management header', () => {
-    render(<ProfileManagement />);
-
-    expect(screen.getByText('プロフィール管理')).toBeInTheDocument();
-    expect(screen.getByText('あなたの詳細プロフィールを編集・管理できます')).toBeInTheDocument();
-  });
-
-  test('renders profile tabs', () => {
-    render(<ProfileManagement />);
-
-    expect(screen.getByText('スキル')).toBeInTheDocument();
-    expect(screen.getByText('経験')).toBeInTheDocument();
-    expect(screen.getByText('希望・設定')).toBeInTheDocument();
-    expect(screen.getByText('ビジネスタイトル')).toBeInTheDocument();
-    expect(screen.getByText('プライバシー設定')).toBeInTheDocument();
+    mockGetProfile.mockResolvedValue(mockProfile);
+    mockUpdateProfile.mockResolvedValue(mockProfile);
   });
 
   test('renders loading state initially', () => {
     render(<ProfileManagement />);
+    expect(screen.getByText(/AIスキルポートフォリオを読み込み中/)).toBeInTheDocument();
+  });
 
-    expect(screen.getByText('プロフィールを読み込み中...')).toBeInTheDocument();
+  test('renders profile management header after loading', async () => {
+    let resolveProfile: (value: any) => void;
+    const profilePromise = new Promise((resolve) => {
+      resolveProfile = resolve;
+    });
+    mockGetProfile.mockReturnValue(profilePromise);
+
+    render(<ProfileManagement />);
+    expect(screen.getByText(/AIスキルポートフォリオを読み込み中/)).toBeInTheDocument();
+
+    await act(async () => {
+      resolveProfile!(mockProfile);
+    });
+
+    expect(screen.getByText('AIスキルポートフォリオ管理')).toBeInTheDocument();
+    expect(screen.getByText(/あなたのAIスキルポートフォリオを編集・管理できます/)).toBeInTheDocument();
+  });
+
+  test('renders profile tabs after loading', async () => {
+    let resolveProfile: (value: any) => void;
+    const profilePromise = new Promise((resolve) => {
+      resolveProfile = resolve;
+    });
+    mockGetProfile.mockReturnValue(profilePromise);
+
+    render(<ProfileManagement />);
+
+    await act(async () => {
+      resolveProfile!(mockProfile);
+    });
+
+    expect(screen.getByText('AIスキル')).toBeInTheDocument();
+    expect(screen.getByText('経験・実績')).toBeInTheDocument();
+    expect(screen.getByText('希望・設定')).toBeInTheDocument();
+    expect(screen.getByText('ビジネスタイトル')).toBeInTheDocument();
+    expect(screen.getByText('プライバシー設定')).toBeInTheDocument();
   });
 });

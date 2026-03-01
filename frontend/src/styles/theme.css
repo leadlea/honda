@@ -1,20 +1,20 @@
 /* 
-Manufacturing Platinum Advisory Theme
-製造業プラチナアドバイザリー カラーテーマ設定
+AI人材発掘・配置マッチングMVP（AI CoE支援） テーマ
+双日テックイノベーション カラーテーマ設定
 */
 
 :root {
-  /* Primary Colors - 製造業らしい信頼感のある色合い（ダークテーマ） */
+  /* Primary Colors - 双日TI向け信頼感のある色合い（ダークテーマ） */
   --primary-blue: #4A90E2;           /* ブライトブルー - 信頼性と専門性 */
   --primary-blue-light: #6BB6FF;     /* ライトブルー - アクセント */
   --primary-blue-dark: #2C5282;      /* ダークブルー - 強調 */
   
-  /* Secondary Colors - 製造業の力強さを表現（ダーク） */
+  /* Secondary Colors - AI内製化支援の安定感を表現（ダーク） */
   --secondary-gray: #E2E8F0;         /* ライトグレー - ダークモードでのテキスト */
   --secondary-gray-light: #CBD5E0;   /* ミディアムグレー - サブテキスト */
   --secondary-gray-dark: #1A1A1A;    /* ダークグレー - ヘッダー背景 */
   
-  /* Accent Colors - 製造業の革新性を表現（ダーク） */
+  /* Accent Colors - AI人材発掘の革新性を表現（ダーク） */
   --accent-orange: #FF8C42;          /* オレンジ - エネルギーと革新 */
   --accent-orange-light: #FFB366;    /* ライトオレンジ - ホバー */
   --accent-orange-dark: #E6732A;     /* ダークオレンジ - アクティブ */
@@ -31,7 +31,7 @@ Manufacturing Platinum Advisory Theme
   --text-muted: #A0AEC0;             /* 補助テキスト */
   --text-inverse: #1A1A1A;           /* 反転テキスト */
   
-  /* Status Colors - 製造業の品質管理を表現 */
+  /* Status Colors - AIスキル棚卸し・自薦応募の品質管理を表現 */
   --success-green: #38A169;          /* 成功・完了 */
   --success-green-light: #68D391;    /* 成功ライト */
   --warning-yellow: #D69E2E;         /* 警告・注意 */
@@ -51,11 +51,11 @@ Manufacturing Platinum Advisory Theme
   --shadow-medium: rgba(0, 0, 0, 0.4);
   --shadow-dark: rgba(0, 0, 0, 0.5);
   
-  /* Manufacturing Specific Colors - 製造業特有の色彩 */
-  --steel-blue: #4682B4;             /* スチールブルー - 金属加工 */
-  --industrial-gray: #708090;        /* インダストリアルグレー - 機械 */
-  --safety-orange: #FF6347;          /* セーフティオレンジ - 安全管理 */
-  --precision-green: #228B22;        /* プレシジョングリーン - 品質 */
+  /* AI人材発掘・配置マッチング特有の色彩 */
+  --steel-blue: #4682B4;             /* スチールブルー - AIスキルポートフォリオ */
+  --industrial-gray: #708090;        /* インダストリアルグレー - 社内AI人材候補 */
+  --safety-orange: #FF6347;          /* セーフティオレンジ - 応募意向 */
+  --precision-green: #228B22;        /* プレシジョングリーン - 自薦応募完了 */
   
   /* Gradient Definitions - 高級感のあるグラデーション */
   --gradient-primary: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
@@ -147,7 +147,7 @@ Manufacturing Platinum Advisory Theme
   }
 }
 
-/* Manufacturing Theme Utilities */
+/* 双日TI テーマユーティリティ */
 .theme-manufacturing {
   --primary-color: var(--primary-blue);
   --secondary-color: var(--secondary-gray);
@@ -244,7 +244,7 @@ Manufacturing Platinum Advisory Theme
   background-color: rgba(49, 130, 206, 0.1);
 }
 
-/* Manufacturing Specific Styles */
+/* AI人材発掘・配置マッチング 特有スタイル */
 .manufacturing-badge {
   background: var(--gradient-accent);
   color: var(--text-inverse);

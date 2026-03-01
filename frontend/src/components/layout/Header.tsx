@@ -69,7 +69,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
       <div className="header-content">
         <div className="header-left">
           <div className="app-brand" onClick={() => onNavigate('dashboard')}>
-            <img src="/logo.png" alt="製造業プラチナアドバイザリー" className="app-logo" />
+            <img src="/logo.png" alt="AI人材発掘・配置マッチングMVP（AI CoE支援）" className="app-logo" />
             <h1 className="app-title">
               {termMappingService.getLocalizedTerm('app_title')}
             </h1>

@@ -43,6 +43,7 @@ describe('Dashboard Component', () => {
       user: mockUser,
       loading: false,
       error: null,
+      isAuthenticated: true,
     });
 
     // Default mock for statisticsService
@@ -55,6 +56,7 @@ describe('Dashboard Component', () => {
         user: null,
         loading: true,
         error: null,
+        isAuthenticated: false,
       });
 
       render(<Dashboard onNavigate={mockOnNavigate} />);
@@ -146,10 +148,10 @@ describe('Dashboard Component', () => {
       render(<Dashboard onNavigate={mockOnNavigate} />);
 
       await waitFor(() => {
-        expect(screen.getByText('完了した問診')).toBeInTheDocument();
-        expect(screen.getByText('受信した推薦')).toBeInTheDocument();
-        expect(screen.getByText('応募した機会')).toBeInTheDocument();
-        expect(screen.getByText('プロフィール閲覧数')).toBeInTheDocument();
+        expect(screen.getByText('完了したAIスキル棚卸し（セルフ診断）')).toBeInTheDocument();
+        expect(screen.getByText('受信したレコメンド')).toBeInTheDocument();
+        expect(screen.getByText('自薦応募した機会')).toBeInTheDocument();
+        expect(screen.getByText('AIスキルポートフォリオ閲覧数')).toBeInTheDocument();
       });
     });
   });
@@ -181,7 +183,7 @@ describe('Dashboard Component', () => {
 
       // Component should still render
       await waitFor(() => {
-        expect(screen.getByText('あなたの統計')).toBeInTheDocument();
+        expect(screen.getByText('あなたのAI活動統計')).toBeInTheDocument();
       });
     });
 
@@ -194,7 +196,7 @@ describe('Dashboard Component', () => {
 
       // Component should still render without crashing
       await waitFor(() => {
-        expect(screen.getByText('あなたの統計')).toBeInTheDocument();
+        expect(screen.getByText('あなたのAI活動統計')).toBeInTheDocument();
       });
     });
   });
@@ -213,6 +215,7 @@ describe('Dashboard Component', () => {
         user: { ...mockUser, role: 'external_recruiter' },
         loading: false,
         error: null,
+        isAuthenticated: true,
       });
 
       render(<Dashboard onNavigate={mockOnNavigate} />);
@@ -228,6 +231,7 @@ describe('Dashboard Component', () => {
         user: { ...mockUser, role: 'admin' },
         loading: false,
         error: null,
+        isAuthenticated: true,
       });
 
       render(<Dashboard onNavigate={mockOnNavigate} />);
@@ -253,6 +257,7 @@ describe('Dashboard Component', () => {
         user: null,
         loading: false,
         error: null,
+        isAuthenticated: false,
       });
 
       render(<Dashboard onNavigate={mockOnNavigate} />);
@@ -273,6 +278,7 @@ describe('Dashboard Component', () => {
         user: newUser,
         loading: false,
         error: null,
+        isAuthenticated: true,
       });
 
       rerender(<Dashboard onNavigate={mockOnNavigate} />);

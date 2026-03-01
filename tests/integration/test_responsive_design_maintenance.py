@@ -1,6 +1,6 @@
 """
-Responsive Design Maintenance Tests for Manufacturing Platinum Advisory
-製造業プラチナアドバイザリー レスポンシブデザイン維持テスト
+Responsive Design Maintenance Tests for AI人材発掘・配置マッチングMVP（AI CoE支援）
+AI人材発掘・配置マッチングMVP（AI CoE支援） レスポンシブデザイン維持テスト
 
 This test suite verifies that responsive design is maintained after branding updates.
 ブランディング更新後もレスポンシブデザインが維持されることを確認します。

@@ -2,7 +2,7 @@
 
 ## 概要
 
-製造業プラチナアドバイザリー・プラットフォーム（Platinum Advisory）は、マイクロサービスアーキテクチャを採用し、AIによるスキル棚卸し（アドバイザリー問診）システム、スキル／経験プロファイル管理、シーズ・ニーズマッチング推薦エンジン、同意に基づく参加企業向け公開プラットフォームを統合したWebアプリケーションです。「人材派遣ではない。人材不足解消でもない。人を活かす、新しい製造業の生態系。」という考え方のもと、スケーラビリティ、セキュリティ、ユーザビリティを重視して設計されています。
+双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）は、マイクロサービスアーキテクチャを採用し、AIスキル棚卸し（セルフ診断）システム、スキル／経験プロファイル管理、マッチング推薦エンジン、同意に基づく社内ポジション公開・検索プラットフォームを統合したWebアプリケーションです。「AI内製化を前進させるための人材発掘と適材配置」という考え方のもと、スケーラビリティ、セキュリティ、ユーザビリティを重視して設計されています。
 
 ## アーキテクチャ
 
@@ -23,7 +23,7 @@ graph TB
     subgraph "Lambda Functions"
         AUTH_LAMBDA[認証Lambda]
         PROFILE_LAMBDA[プロフィールLambda]
-        AI_LAMBDA[AI問診Lambda]
+        AI_LAMBDA[AIスキル棚卸しLambda]
         MATCH_LAMBDA[マッチングLambda]
         NOTIF_LAMBDA[通知Lambda]
     end
@@ -76,7 +76,6 @@ graph TB
 - **インフラ**: AWS Serverless (Lambda, API Gateway, S3, CloudFront)
 - **デプロイ**: Serverless Framework 4 + GitHub Actions
 - **API**: RESTful API
-- **リポジトリ**: https://github.com/leadlea/honda.git
 
 ## コンポーネントと インターフェース
 
@@ -86,7 +85,7 @@ graph TB
 
 **主要機能**:
 - AWS Cognito User Pool統合
-- 参加企業／登録人材の認証
+- AIポジションオーナー／社内AI人材候補の認証
 - 役割ベースアクセス制御 (RBAC)
 - セキュリティ監査ログ
 
@@ -104,13 +103,13 @@ PUT /auth/permissions
 
 ### 2. プロフィール管理サービス (Lambda + DynamoDB)
 
-**責任**: 登録人材（製造業ワーカー）プロファイルの作成、更新、管理
+**責任**: 社内AI人材候補（社員）プロファイルの作成、更新、管理
 
 **主要機能**:
 - プロフィール CRUD 操作
 - プライバシー設定管理
 - スキル資産の構造化（技能・経験・資格）
-- スキルポートフォリオ見出し生成 (Bedrock Claude使用)
+- AIスキルポートフォリオ見出し生成 (Bedrock Claude使用)
 
 **Lambda関数**:
 - `profile-handler`: プロフィール管理
@@ -126,18 +125,18 @@ POST /profiles/{userId}/business-title
 PUT /profiles/{userId}/privacy
 ```
 
-### 3. AI問診サービス (Lambda + Bedrock)
+### 3. AIスキル棚卸しサービス (Lambda + Bedrock)
 
-**責任**: AIスキル棚卸し（アドバイザリー問診）生成、回答処理、プロフィール更新
+**責任**: AIスキル棚卸し（セルフ診断）生成、回答処理、プロフィール更新
 
 **主要機能**:
-- 個人向け問診生成 (Bedrock Claude使用)
+- 個人向けAIスキル棚卸し生成 (Bedrock Claude使用)
 - 回答検証・処理
 - スキル／経験プロファイルの自動補完
-- 問診履歴管理
+- AIスキル棚卸し履歴管理
 
 **Lambda関数**:
-- `questionnaire-generator`: AI問診生成
+- `questionnaire-generator`: AIスキル棚卸し生成
 - `questionnaire-processor`: 回答処理とプロフィール更新
 
 **DynamoDBテーブル**: `Questionnaires`, `QuestionnaireResponses`
@@ -152,17 +151,17 @@ PUT /questionnaire/{userId}/regenerate
 
 ### 4. マッチング・推薦サービス (Lambda + Bedrock)
 
-**責任**: 参画機会レコメンド、適合度分析、参画申請管理
+**責任**: AIポジション／プロジェクト レコメンド、適合度分析、自薦応募管理
 
 **主要機能**:
 - AI駆動推薦アルゴリズム (Bedrock Claude使用)
-- 参画機会（出向／兼務／プロジェクト）統合
+- AIポジション（社内公募）／AIプロジェクト統合
 - 適合度・推薦理由の可視化
-- 参画申請／受入打診状況追跡
+- 自薦応募／受入打診状況追跡
 
 **Lambda関数**:
 - `matching-engine`: AI推薦エンジン
-- `application-handler`: 申請管理
+- `application-handler`: 自薦応募管理
 
 **DynamoDBテーブル**: `Opportunities`, `Recommendations`, `Applications`
 
@@ -174,18 +173,18 @@ GET /opportunities/search
 PUT /applications/{applicationId}/status
 ```
 
-### 5. 外部プラットフォーム統合 (Lambda + S3)
+### 5. 社内ポジション公開・検索統合 (Lambda + S3)
 
-**責任**: 同意に基づく参加企業向け公開、検索機能
+**責任**: 同意に基づく社内ポジション公開・検索（部門横断）機能
 
 **主要機能**:
 - 公開プロフィール管理
-- 参加企業向け検索インターフェース
+- AIポジションオーナー向け検索インターフェース
 - 候補者マッチング (Bedrock Claude使用)
-- 初期接触の仲介（共助のための安全な導線）
+- 初期接触の仲介（適材配置のための安全な導線）
 
 **Lambda関数**:
-- `public-search`: 外部検索API
+- `public-search`: 社内検索API
 - `contact-handler`: 連絡先仲介
 
 **DynamoDBテーブル**: `PublicProfiles`, `ContactRequests`
@@ -222,7 +221,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
       - name: Deploy Frontend to S3
-        run: aws s3 sync ./frontend/build s3://honda-veteran-bank-frontend
+        run: aws s3 sync ./frontend/build s3://frontend-bucket
 ```
 
 ## データモデル
@@ -265,7 +264,7 @@ class User:
     updated_at: str
 ```
 
-#### VeteranProfiles テーブル - 登録人材プロファイル（スキル資産）
+#### VeteranProfiles テーブル - 社内AI人材候補プロファイル（スキル資産）
 
 ```python
 # DynamoDB Schema
@@ -300,7 +299,7 @@ class VeteranProfile:
     last_updated: str
 ```
 
-#### Opportunities テーブル - 参画機会（受入ニーズ）
+#### Opportunities テーブル - AIポジション（社内公募）／AIプロジェクト
 
 ```python
 # DynamoDB Schema
@@ -404,7 +403,7 @@ MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 
 3. **ビジネスロジックエラー** (422)
    - プロフィール不完全
-   - 重複応募
+   - 重複自薦応募
    - 利用不可能な機会
 
 4. **システムエラー** (500, 503)
@@ -489,6 +488,6 @@ graph LR
 - **公平性**: アルゴリズムバイアス検出・修正
 - **透明性**: 推薦理由の説明可能性
 - **プライバシー**: AI学習データの匿名化
-- **共助コミュニティを前提とした公平性**: 企業規模や業界による偏見を排除
-- **企業名・個人情報の取り扱い**: 同意・匿名化・共有範囲の適切な管理
-- **倫理的運営**: 仲介手数料で人を売買しない透明な運営モデル
+- **社内適材配置を前提とした公平性**: 部門や役職による偏見を排除
+- **個人情報の取り扱い**: 同意・匿名化・共有範囲の適切な管理
+- **倫理的運営**: 透明な運営モデル

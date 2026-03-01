@@ -1,6 +1,9 @@
 """
-Public Search Handler for Manufacturing Platinum Advisory
-Provides external access to registered talent profiles with filtering and AI ranking
+双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）
+社内AI人材候補検索ハンドラー
+
+AIポジションオーナー（各部門／AI CoE）向けに社内AI人材候補プロフィールへの
+外部アクセスを提供します。フィルタリングとAIランキングをサポートします。
 """
 
 import json
@@ -18,7 +21,7 @@ from src.utils.branding_logger import get_branding_logger
 
 logger = logging.getLogger(__name__)
 
-# Initialize branding logger
+# ブランディングロガーを初期化（双日TI向け社内AI人材候補検索）
 branding_logger = get_branding_logger('public_search_handler')
 
 
@@ -31,8 +34,9 @@ class PublicSearchHandler:
 
     def search_veterans(self, event: Dict, context: Any) -> Dict:
         """
-        External API for searching registered talent profiles
-        Supports filtering by skills, experience, and availability
+        社内AI人材候補プロフィールの検索外部API。
+        スキル・経験・空き状況によるフィルタリングをサポートします。
+        AIポジションオーナー（各部門／AI CoE）向け社内AI人材候補検索機能。
         """
         try:
             # Parse query parameters
@@ -52,7 +56,7 @@ class PublicSearchHandler:
                         {
                             "talents": [],
                             "total_count": 0,
-                            "message": "検索条件に一致する登録人材が見つかりませんでした",
+                            "message": "検索条件に一致する社内AI人材候補が見つかりませんでした",
                         }
                     ),
                 }
@@ -108,7 +112,8 @@ class PublicSearchHandler:
 
     def get_veteran_profile(self, event: Dict, context: Any) -> Dict:
         """
-        Get detailed public profile of a specific registered talent
+        特定の社内AI人材候補の公開プロフィールを取得します。
+        AIポジションオーナーが候補者の詳細を確認するために使用します。
         """
         try:
             profile_id = event["pathParameters"]["profileId"]
@@ -123,7 +128,7 @@ class PublicSearchHandler:
                     "body": json.dumps(
                         {
                             "error": "プロフィールが見つかりません",
-                            "message": "要求された登録人材のプロフィールは利用できません",
+                            "message": "要求された社内AI人材候補のプロフィールは利用できません",
                         }
                     ),
                 }
@@ -150,14 +155,15 @@ class PublicSearchHandler:
                 "body": json.dumps(
                     {
                         "error": message_config.get_error_message('internal_error'),
-                        "message": "登録人材プロフィールの取得に失敗しました",
+                        "message": "社内AI人材候補プロフィールの取得に失敗しました",
                     }
                 ),
             }
 
     def get_search_categories(self, event: Dict, context: Any) -> Dict:
         """
-        Get available categories for filtering (skills, departments, etc.)
+        フィルタリング用の利用可能なカテゴリを取得します（スキル・部門等）。
+        社内AI人材候補検索の絞り込みに使用します。
         """
         try:
             categories = self.public_profile_repo.get_available_categories()
@@ -182,7 +188,7 @@ class PublicSearchHandler:
             }
 
     def _extract_search_filters(self, query_params: Dict) -> Dict:
-        """Extract and validate search filters from query parameters"""
+        """社内AI人材候補検索のクエリパラメータからフィルターを抽出・バリデーションします"""
         filters = {}
 
         # Skills filter
@@ -224,7 +230,7 @@ class PublicSearchHandler:
     def _rank_profiles_with_ai(
         self, profiles: List[Dict], search_query: str
     ) -> List[Dict]:
-        """Use AI to rank profiles based on search query relevance"""
+        """検索クエリの関連性に基づいてAIで社内AI人材候補プロフィールをランク付けします"""
         try:
             # Prepare profiles for AI ranking
             profile_summaries = []
@@ -274,22 +280,23 @@ class PublicSearchHandler:
             return profiles
 
     def _create_ranking_prompt(self, profiles: List[Dict], search_query: str) -> str:
-        """Create prompt for AI-based profile ranking"""
+        """社内AI人材候補プロフィールのAIランキング用プロンプトを作成します"""
         profiles_text = ""
         for i, profile in enumerate(profiles, 1):
-            skills_text = ", ".join(profile["skills"][:5])  # Top 5 skills
+            skills_text = ", ".join(profile["skills"][:5])  # 上位5スキル
             profiles_text += f"{i}. ID: {profile['profile_id']}\n"
             profiles_text += f"   Title: {profile['business_title']}\n"
             profiles_text += f"   Skills: {skills_text}\n"
             profiles_text += f"   Experience: {profile['experience_summary']}\n\n"
 
         return f"""
-あなたは製造業プラチナアドバイザリーの登録人材プロフィールを検索クエリに基づいてランク付けするアシスタントです。
+あなたは双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）の
+社内AI人材候補プロフィールを検索クエリに基づいてランク付けするアシスタントです。
 プロフィールを分析し、検索要件への関連性でランク付けしてください。
 
 検索クエリ: "{search_query}"
 
-登録人材プロフィール:
+社内AI人材候補プロフィール:
 {profiles_text}
 
 指示:
@@ -304,7 +311,7 @@ class PublicSearchHandler:
 """
 
     def _parse_ranking_response(self, response: str) -> List[str]:
-        """Parse AI ranking response to extract profile IDs"""
+        """AIランキングレスポンスを解析してプロフィールIDを抽出します"""
         try:
             # Extract profile IDs from response
             lines = response.strip().split("\n")
@@ -326,7 +333,7 @@ class PublicSearchHandler:
             return []
 
     def _get_experience_summary(self, profile: Dict) -> str:
-        """Generate a brief experience summary"""
+        """社内AI人材候補の経験概要を生成します"""
         experiences = profile.get("experiences", [])
         if not experiences:
             return "経験なし"
@@ -339,13 +346,13 @@ class PublicSearchHandler:
     def _paginate_results(
         self, profiles: List[Dict], page: int, limit: int
     ) -> List[Dict]:
-        """Apply pagination to results"""
+        """社内AI人材候補検索結果にページネーションを適用します"""
         start_idx = (page - 1) * limit
         end_idx = start_idx + limit
         return profiles[start_idx:end_idx]
 
     def _format_public_profile(self, profile: Dict) -> Dict:
-        """Format profile for public search results"""
+        """社内AI人材候補検索結果用にプロフィールをフォーマットします"""
         return {
             "profile_id": profile["profile_id"],
             "business_title": profile.get("business_title", ""),
@@ -362,7 +369,7 @@ class PublicSearchHandler:
         }
 
     def _format_detailed_profile(self, profile: Dict) -> Dict:
-        """Format detailed profile for individual profile view"""
+        """社内AI人材候補の個別プロフィール表示用に詳細プロフィールをフォーマットします"""
         return {
             "profile_id": profile["profile_id"],
             "business_title": profile.get("business_title", ""),
@@ -380,8 +387,8 @@ class PublicSearchHandler:
 
     def _increment_profile_views(self, user_id: str) -> None:
         """
-        Increment profile view count for a user.
-        Non-blocking operation - errors are logged but don't affect the response.
+        社内AI人材候補プロフィールの閲覧数をインクリメントします。
+        非ブロッキング操作 - エラーはログに記録されますがレスポンスには影響しません。
         """
         try:
             self.veteran_profile_repo.increment_profile_views(user_id)
@@ -390,7 +397,7 @@ class PublicSearchHandler:
             # Don't raise - profile view tracking is non-critical
 
     def _get_cors_headers(self) -> Dict:
-        """Get CORS headers for external API access"""
+        """外部API（社内AI人材候補検索）アクセス用CORSヘッダーを取得します"""
         return {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
@@ -401,7 +408,7 @@ class PublicSearchHandler:
 
 # Lambda function handlers
 def handler(event, context):
-    """Main Lambda handler for public search operations"""
+    """社内AI人材候補検索操作のメインLambdaハンドラー"""
     try:
         path = event.get("path", "")
         http_method = event.get("httpMethod", "")
@@ -437,18 +444,18 @@ def handler(event, context):
 
 
 def search_veterans(event, context):
-    """Lambda handler for registered talent search"""
+    """社内AI人材候補検索のLambdaハンドラー"""
     handler_instance = PublicSearchHandler()
     return handler_instance.search_veterans(event, context)
 
 
 def get_veteran_profile(event, context):
-    """Lambda handler for getting registered talent profile"""
+    """社内AI人材候補プロフィール取得のLambdaハンドラー"""
     handler_instance = PublicSearchHandler()
     return handler_instance.get_veteran_profile(event, context)
 
 
 def get_search_categories(event, context):
-    """Lambda handler for getting search categories"""
+    """社内AI人材候補検索カテゴリ取得のLambdaハンドラー"""
     handler_instance = PublicSearchHandler()
     return handler_instance.get_search_categories(event, context)

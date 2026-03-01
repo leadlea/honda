@@ -213,7 +213,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ profile, onClose, onSuccess }
 
         <div className="contact-disclaimer">
           <p>
-            <strong>注意:</strong> この連絡はベテランの方に直接送信されます。
+            <strong>注意:</strong> この連絡は社内AI人材候補の方に直接送信されます。
             適切で専門的な内容でお送りください。
           </p>
         </div>

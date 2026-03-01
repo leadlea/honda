@@ -1,6 +1,9 @@
 """
-Lambda handler for AI-generated business title operations.
-Handles business title generation, selection, and regeneration.
+双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）
+ビジネスタイトルハンドラー - AIスキルポートフォリオ向けビジネスタイトル生成
+
+社内AI人材候補のAIスキルポートフォリオに基づいたビジネスタイトルの
+AI生成・選択・再生成を担当します。
 """
 
 import asyncio
@@ -26,7 +29,7 @@ from src.config.ai_content_config import ai_content_config
 
 logger = logging.getLogger(__name__)
 
-# Initialize branding logger
+# ブランディングロガーを初期化（双日TI向けAIスキルポートフォリオ・ビジネスタイトル生成）
 branding_logger = get_branding_logger('business_title_handler')
 
 
@@ -42,7 +45,7 @@ def convert_decimals(obj):
 
 
 class BusinessTitleHandler:
-    """Handler for business title generation operations."""
+    """社内AI人材候補のAIスキルポートフォリオ向けビジネスタイトル生成操作を担当するハンドラー"""
 
     def __init__(self):
         self.ai_service = get_ai_service()
@@ -53,14 +56,14 @@ class BusinessTitleHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Generate AI-powered business titles for a veteran (synchronous wrapper).
+        社内AI人材候補向けAIスキルポートフォリオに基づいたビジネスタイトルを生成します（同期ラッパー）。
 
         Args:
-            event: Lambda event containing user information
-            context: Lambda context
+            event: ユーザー情報を含むLambdaイベント
+            context: Lambdaコンテキスト
 
         Returns:
-            API Gateway response with generated business titles
+            生成されたビジネスタイトルを含むAPIゲートウェイレスポンス
         """
         return asyncio.run(self._generate_business_titles_async(event, context))
 
@@ -68,14 +71,14 @@ class BusinessTitleHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Select and apply a business title to user profile (synchronous wrapper).
+        AIスキルポートフォリオのビジネスタイトルを選択してプロフィールに適用します（同期ラッパー）。
 
         Args:
-            event: Lambda event containing selected title
-            context: Lambda context
+            event: 選択されたタイトルを含むLambdaイベント
+            context: Lambdaコンテキスト
 
         Returns:
-            API Gateway response with confirmation
+            確認を含むAPIゲートウェイレスポンス
         """
         return asyncio.run(self._select_business_title_async(event, context))
 
@@ -83,14 +86,14 @@ class BusinessTitleHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Regenerate business titles with updated context (synchronous wrapper).
+        更新されたコンテキストでAIスキルポートフォリオのビジネスタイトルを再生成します（同期ラッパー）。
 
         Args:
-            event: Lambda event
-            context: Lambda context
+            event: Lambdaイベント
+            context: Lambdaコンテキスト
 
         Returns:
-            API Gateway response with regenerated titles
+            再生成されたタイトルを含むAPIゲートウェイレスポンス
         """
         return asyncio.run(self._regenerate_business_titles_async(event, context))
 
@@ -98,14 +101,14 @@ class BusinessTitleHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Get business title generation and selection history (synchronous wrapper).
+        AIスキルポートフォリオのビジネスタイトル生成・選択履歴を取得します（同期ラッパー）。
 
         Args:
-            event: Lambda event
-            context: Lambda context
+            event: Lambdaイベント
+            context: Lambdaコンテキスト
 
         Returns:
-            API Gateway response with title history
+            タイトル履歴を含むAPIゲートウェイレスポンス
         """
         return asyncio.run(self._get_title_history_async(event, context))
 
@@ -113,14 +116,14 @@ class BusinessTitleHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Generate AI-powered business titles for a veteran (async implementation).
+        社内AI人材候補向けAIスキルポートフォリオに基づいたビジネスタイトルを生成します（非同期実装）。
 
         Args:
-            event: Lambda event containing user information
-            context: Lambda context
+            event: ユーザー情報を含むLambdaイベント
+            context: Lambdaコンテキスト
 
         Returns:
-            API Gateway response with generated business titles
+            生成されたビジネスタイトルを含むAPIゲートウェイレスポンス
         """
         try:
             # Extract and verify user from event (API Gateway authorizer)
@@ -165,7 +168,7 @@ class BusinessTitleHandler:
                 skills=profile.skills or [],
                 experience=profile.experiences or [],
                 career_interests=career_interests,
-                current_role=profile.business_title or "登録人材",
+                current_role=profile.business_title or "社内AI人材候補",
                 branding_context=branding_context,
                 platform_name=ai_content_config.get_brand_context('platform_name')
             )
@@ -192,14 +195,14 @@ class BusinessTitleHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Select and apply a business title to user profile (async implementation).
+        AIスキルポートフォリオのビジネスタイトルを選択してプロフィールに適用します（非同期実装）。
 
         Args:
-            event: Lambda event containing selected title
-            context: Lambda context
+            event: 選択されたタイトルを含むLambdaイベント
+            context: Lambdaコンテキスト
 
         Returns:
-            API Gateway response with confirmation
+            確認を含むAPIゲートウェイレスポンス
         """
         try:
             # Extract and verify user from event (API Gateway authorizer)
@@ -264,14 +267,14 @@ class BusinessTitleHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Regenerate business titles with updated context (async implementation).
+        更新されたコンテキストでAIスキルポートフォリオのビジネスタイトルを再生成します（非同期実装）。
 
         Args:
-            event: Lambda event
-            context: Lambda context
+            event: Lambdaイベント
+            context: Lambdaコンテキスト
 
         Returns:
-            API Gateway response with regenerated titles
+            再生成されたタイトルを含むAPIゲートウェイレスポンス
         """
         try:
             # Extract and verify user from event (API Gateway authorizer)
@@ -324,7 +327,7 @@ class BusinessTitleHandler:
                 skills=profile.skills or [],
                 experience=profile.experiences or [],
                 career_interests=career_interests,
-                current_role=profile.business_title or "登録人材",
+                current_role=profile.business_title or "社内AI人材候補",
                 branding_context=branding_context,
                 platform_name=ai_content_config.get_brand_context('platform_name')
             )
@@ -365,14 +368,14 @@ class BusinessTitleHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Get business title generation and selection history (async implementation).
+        AIスキルポートフォリオのビジネスタイトル生成・選択履歴を取得します（非同期実装）。
 
         Args:
-            event: Lambda event
-            context: Lambda context
+            event: Lambdaイベント
+            context: Lambdaコンテキスト
 
         Returns:
-            API Gateway response with title history
+            タイトル履歴を含むAPIゲートウェイレスポンス
         """
         try:
             # Extract and verify user from event (API Gateway authorizer)
@@ -425,12 +428,12 @@ class BusinessTitleHandler:
         self, user_id: str, titles_data: Dict[str, Any], regenerated: bool = False
     ) -> None:
         """
-        Store title generation history in user profile.
+        AIスキルポートフォリオのタイトル生成履歴をユーザープロフィールに保存します。
 
         Args:
-            user_id: User ID
-            titles_data: Generated titles data
-            regenerated: Whether this was a regeneration
+            user_id: ユーザーID
+            titles_data: 生成されたタイトルデータ
+            regenerated: 再生成かどうか
         """
         try:
             profile = self.profile_repo.get_profile(user_id)
@@ -473,22 +476,22 @@ business_title_handler = BusinessTitleHandler()
 def generate_business_titles(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
-    """Lambda handler for generating business titles."""
+    """AIスキルポートフォリオ向けビジネスタイトル生成のLambdaハンドラー"""
     return business_title_handler.generate_business_titles(event, context)
 
 
 def select_business_title(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Lambda handler for selecting a business title."""
+    """AIスキルポートフォリオのビジネスタイトル選択のLambdaハンドラー"""
     return business_title_handler.select_business_title(event, context)
 
 
 def regenerate_business_titles(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
-    """Lambda handler for regenerating business titles."""
+    """AIスキルポートフォリオのビジネスタイトル再生成のLambdaハンドラー"""
     return business_title_handler.regenerate_business_titles(event, context)
 
 
 def get_title_history(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Lambda handler for getting title history."""
+    """AIスキルポートフォリオのタイトル履歴取得のLambdaハンドラー"""
     return business_title_handler.get_title_history(event, context)

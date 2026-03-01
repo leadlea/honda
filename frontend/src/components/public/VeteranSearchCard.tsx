@@ -119,7 +119,7 @@ const VeteranSearchCard: React.FC<VeteranSearchCardProps> = ({ profile, onSelect
 
       <div className="card-footer">
         <button className="view-profile-btn">
-          詳細{termMappingService.getLocalizedTerm('skill_portfolio')}を見る
+          {termMappingService.getLocalizedTerm('skill_portfolio')}を見る
         </button>
         <div className="last-updated">
           更新: {new Date(profile.last_updated).toLocaleDateString('ja-JP')}

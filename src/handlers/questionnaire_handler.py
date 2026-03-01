@@ -1,8 +1,11 @@
 """
-AI Questionnaire Lambda (sync version, no crypto deps)
-- Uses API Gateway Cognito authorizer claims for the user.
-- Talks to DynamoDB directly via boto3 (no repository imports).
-- Generates questionnaire via Bedrock and falls back to a static template.
+双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）
+AIスキル棚卸し（セルフ診断）Lambdaハンドラー（同期版、暗号化依存なし）
+
+社内AI人材候補のAIスキル棚卸し（セルフ診断）を担当します。
+- API Gateway Cognito オーソライザーのクレームからユーザーを取得します
+- boto3 経由で DynamoDB に直接アクセスします（リポジトリインポートなし）
+- Bedrock でAIスキル棚卸し問診を生成し、失敗時は静的テンプレートにフォールバックします
 """
 
 from __future__ import annotations
@@ -25,7 +28,7 @@ from src.config.ai_content_config import ai_content_config
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# Initialize branding logger
+# ブランディングロガーを初期化（双日TI向けAIスキル棚卸し（セルフ診断））
 branding_logger = get_branding_logger('questionnaire_handler')
 
 # ---------- Env & clients ----------
@@ -249,22 +252,22 @@ def _to_plain(obj: Any) -> Any:
 
 # ---------- Bedrock ----------
 def _fallback_questionnaire(name: str) -> Dict[str, Any]:
-    # Use AI content config for fallback prompt
+    # AIスキル棚卸し（セルフ診断）のフォールバックプロンプトを使用
     fallback_intro = ai_content_config.get_questionnaire_prompt('fallback_prompt')
     
     return {
-        "title": f"{name}さん向けスキル棚卸し",
+        "title": f"{name}さん向けAIスキル棚卸し（セルフ診断）",
         "description": fallback_intro,
         "questions": [
-            {"id": "skills_primary", "text": "現在の主な専門スキル・技術は何ですか？", "type": "text", "category": "skills", "required": True},
-            {"id": "manufacturing_exp", "text": "製造業での経験分野を教えてください（複数選択可）", "type": "multiple_choice", "options": ["生産技術", "品質管理", "設備保全", "工程改善", "安全管理", "その他"], "category": "experience", "required": True},
-            {"id": "exp_years", "text": "製造業での経験年数を教えてください（1〜5で評価）", "type": "rating", "category": "experience", "required": True},
-            {"id": "improvement_activities", "text": "これまでに取り組んだ改善活動や成果を教えてください", "type": "text", "category": "achievements", "required": False},
-            {"id": "leadership_exp", "text": "チームリーダーやマネジメントの経験はありますか？", "type": "boolean", "category": "experience", "required": False},
-            {"id": "participation_interest", "text": "今後参画したい分野・役割を教えてください", "type": "text", "category": "preferences", "required": True},
+            {"id": "skills_primary", "text": "現在の主なAI関連スキル・技術は何ですか？", "type": "text", "category": "skills", "required": True},
+            {"id": "manufacturing_exp", "text": "AI・データ活用の経験分野を教えてください（複数選択可）", "type": "multiple_choice", "options": ["機械学習", "データ分析", "自然言語処理", "画像認識", "業務自動化（RPA）", "その他"], "category": "experience", "required": True},
+            {"id": "exp_years", "text": "AI・データ活用の経験年数を教えてください（1〜5で評価）", "type": "rating", "category": "experience", "required": True},
+            {"id": "improvement_activities", "text": "これまでに取り組んだAI活用・改善活動や成果を教えてください", "type": "text", "category": "achievements", "required": False},
+            {"id": "leadership_exp", "text": "AIプロジェクトのリーダーやマネジメントの経験はありますか？", "type": "boolean", "category": "experience", "required": False},
+            {"id": "participation_interest", "text": "今後参加したいAIポジション／プロジェクトの分野・役割を教えてください", "type": "text", "category": "preferences", "required": True},
             {"id": "work_style", "text": "希望する勤務形態を教えてください", "type": "multiple_choice", "options": ["常駐", "リモート", "ハイブリッド", "プロジェクト単位", "その他"], "category": "preferences", "required": False},
-            {"id": "skill_development", "text": "今後伸ばしたいスキルや学びたい技術はありますか？", "type": "text", "category": "goals", "required": False},
-            {"id": "contribution_goal", "text": "製造業の発展にどのような貢献をしたいですか？", "type": "text", "category": "goals", "required": False},
+            {"id": "skill_development", "text": "今後伸ばしたいAIスキルや学びたい技術はありますか？", "type": "text", "category": "goals", "required": False},
+            {"id": "contribution_goal", "text": "双日TIのAI内製化推進にどのような貢献をしたいですか？", "type": "text", "category": "goals", "required": False},
         ],
         "responses": [],
     }
@@ -320,7 +323,7 @@ def _generate_with_bedrock(name: str, department: str, years_experience: int,
             raise ValueError("Invalid questions")
         
         # Apply branding to the title
-        title = parsed.get("title") or f"{name}さん向けスキル棚卸し"
+        title = parsed.get("title") or f"{name}さん向けAIスキル棚卸し（セルフ診断）"
         branded_title = ai_content_config.apply_branding_context(title)
         
         return {"title": branded_title, "questions": parsed["questions"], "responses": []}
@@ -399,7 +402,7 @@ def submit_questionnaire(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Log questionnaire completion
         branding_logger.log_questionnaire_completed(uid)
 
-        return _resp(200, {"message": "スキル棚卸しが正常に完了しました", "questionnaire_id": qid})
+        return _resp(200, {"message": "AIスキル棚卸し（セルフ診断）が正常に完了しました", "questionnaire_id": qid})
     except Exception as e:
         logger.exception("submit_questionnaire error: %s", e)
         return _resp(500, {"error": "Internal server error"})

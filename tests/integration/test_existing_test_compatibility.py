@@ -1,6 +1,6 @@
 """
-Existing Test Compatibility Verification for Manufacturing Platinum Advisory
-製造業プラチナアドバイザリー 既存テスト互換性検証
+Existing Test Compatibility Verification for AI人材発掘・配置マッチングMVP（AI CoE支援）
+AI人材発掘・配置マッチングMVP（AI CoE支援） 既存テスト互換性検証
 
 This test suite verifies that existing tests still pass after branding updates.
 ブランディング更新後も既存テストが通ることを確認します。

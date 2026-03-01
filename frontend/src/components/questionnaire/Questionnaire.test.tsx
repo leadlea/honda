@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Questionnaire from './Questionnaire';
 
@@ -29,33 +29,28 @@ jest.mock('../../contexts/AuthContext', () => ({
   }),
 }));
 
-// Mock the profile service
+// Use plain functions that won't be affected by resetMocks
 jest.mock('../../services/profileService', () => ({
   profileService: {
-    getQuestionnaire: jest.fn().mockResolvedValue(null),
-    getQuestionnaireHistory: jest.fn().mockResolvedValue([]),
-    submitQuestionnaire: jest.fn(),
-    regenerateQuestionnaire: jest.fn(),
+    getQuestionnaire: () => Promise.resolve(null),
+    getQuestionnaireHistory: () => Promise.resolve([]),
+    submitQuestionnaire: () => Promise.resolve({}),
+    regenerateQuestionnaire: () => Promise.resolve({}),
   },
 }));
 
 describe('Questionnaire Component', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   test('renders questionnaire component', () => {
     render(<Questionnaire />);
-    
-    // Should render the component without crashing
     expect(document.body).toBeInTheDocument();
   });
 
   test('renders empty state when no questionnaire', async () => {
     render(<Questionnaire />);
     
-    // Wait for loading to complete and check for empty state
-    await screen.findByText('問診が見つかりません');
-    expect(screen.getByText('新しい問診を生成しますか？')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('AIスキル棚卸し（セルフ診断）が見つかりません')).toBeInTheDocument();
+    });
+    expect(screen.getByText('新しいAIスキル棚卸し（セルフ診断）を生成しますか？')).toBeInTheDocument();
   });
 });

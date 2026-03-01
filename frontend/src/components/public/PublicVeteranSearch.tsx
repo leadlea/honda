@@ -45,7 +45,7 @@ const PublicVeteranSearch: React.FC = () => {
       const result = await PublicSearchService.searchVeterans(filters, currentPage, 12);
       setSearchResult(result);
     } catch (error) {
-      setError('検索中にエラーが発生しました。もう一度お試しください。');
+      setError('社内AI人材候補の検索中にエラーが発生しました。もう一度お試しください。');
       console.error('Search error:', error);
     } finally {
       setLoading(false);
@@ -115,7 +115,7 @@ const PublicVeteranSearch: React.FC = () => {
     <div className="public-veteran-search">
       <div className="search-header">
         <h1>{termMappingService.getLocalizedTerm('app_title')}</h1>
-        <p>経験豊富な専門家を見つけて、あなたのプロジェクトを成功に導きましょう</p>
+        <p>社内のAI人材候補を検索して、最適なAIポジションへの配置を実現しましょう</p>
         
         <div className="search-controls">
           <button

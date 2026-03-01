@@ -69,7 +69,7 @@ const UserProfile: React.FC = () => {
   return (
     <div className="user-profile-container">
       <div className="profile-header">
-        <h2>ユーザープロフィール</h2>
+        <h2>ユーザープロフィール（AI人材候補情報）</h2>
         <div className={getRoleBadgeClass(user.role)}>
           {getRoleDisplayName(user.role)}
         </div>

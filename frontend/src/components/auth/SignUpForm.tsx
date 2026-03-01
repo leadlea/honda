@@ -74,7 +74,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToLogin }) => {
     <div className="auth-form-container">
       <div className="auth-form">
         <h2>新規登録</h2>
-        <p className="auth-subtitle">製造業プラチナアドバイザリーアカウントを作成</p>
+        <p className="auth-subtitle">AI人材発掘・配置マッチングMVP（AI CoE支援）アカウントを作成</p>
         
         {error && (
           <div className="error-message">

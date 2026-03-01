@@ -1,5 +1,5 @@
 """
-Message configuration service for the Manufacturing Platinum Advisory platform.
+Message configuration service for the AI人材発掘・配置マッチングMVP（AI CoE支援）platform.
 Provides centralized message management with new terminology.
 """
 
@@ -55,25 +55,25 @@ class MessageConfig:
         """Initialize default message configuration."""
         # Success messages
         self.success_messages = {
-            'profile_updated': 'スキルポートフォリオが正常に更新されました',
-            'application_submitted': '参画申請が正常に送信されました',
-            'application_withdrawn': '参画申請が正常に取り下げられました',
-            'questionnaire_completed': 'スキル棚卸しが完了しました',
-            'registration_completed': '人材登録が完了しました',
-            'recommendation_generated': '参画機会レコメンドが生成されました',
-            'search_completed': '登録人材検索が完了しました',
+            'profile_updated': 'AIスキルポートフォリオが正常に更新されました',
+            'application_submitted': '自薦応募が正常に送信されました',
+            'application_withdrawn': '自薦応募が正常に取り下げられました',
+            'questionnaire_completed': 'AIスキル棚卸しが完了しました',
+            'registration_completed': '社内AI人材候補の登録が完了しました',
+            'recommendation_generated': 'AIポジション／プロジェクト レコメンドが生成されました',
+            'search_completed': '社内AI人材候補検索が完了しました',
             'authentication_success': '認証が成功しました',
             'data_saved': 'データが正常に保存されました'
         }
         
         # Error messages
         self.error_messages = {
-            'profile_validation_failed': 'スキルポートフォリオの検証に失敗しました',
-            'application_failed': '参画申請の処理中にエラーが発生しました',
-            'questionnaire_incomplete': 'スキル棚卸しが不完全です',
-            'registration_failed': '人材登録に失敗しました',
-            'recommendation_failed': '参画機会レコメンドの生成に失敗しました',
-            'search_failed': '登録人材検索に失敗しました',
+            'profile_validation_failed': 'AIスキルポートフォリオの検証に失敗しました',
+            'application_failed': '自薦応募の処理中にエラーが発生しました',
+            'questionnaire_incomplete': 'AIスキル棚卸しが不完全です',
+            'registration_failed': '社内AI人材候補の登録に失敗しました',
+            'recommendation_failed': 'AIポジション／プロジェクト レコメンドの生成に失敗しました',
+            'search_failed': '社内AI人材候補検索に失敗しました',
             'authentication_failed': '認証に失敗しました',
             'authorization_failed': '権限が不足しています',
             'validation_error': 'データの検証に失敗しました',
@@ -83,23 +83,29 @@ class MessageConfig:
         
         # Info messages
         self.info_messages = {
-            'welcome_message': '製造業プラチナアドバイザリーへようこそ',
-            'profile_help': 'スキルポートフォリオを充実させて、最適な参画機会を見つけましょう',
-            'questionnaire_help': 'スキル棚卸しを通じて、あなたの専門性を可視化します',
-            'recommendation_help': 'AIが分析した参画機会レコメンドをご確認ください',
-            'application_help': '参画申請の状況をこちらで確認できます'
+            'welcome_message': 'AI人材発掘・配置マッチングMVP（AI CoE支援）へようこそ',
+            'profile_help': 'AIスキルポートフォリオを充実させて、最適なAIポジション／プロジェクト レコメンドを見つけましょう',
+            'questionnaire_help': 'AIスキル棚卸し（セルフ診断）を通じて、あなたのAIスキルを可視化します',
+            'recommendation_help': 'AIが分析したAIポジション／プロジェクト レコメンドをご確認ください',
+            'application_help': '自薦応募の状況をこちらで確認できます'
         }
         
-        # Term mappings
+        # Term mappings (legacy → new)
         self.term_mappings = {
-            'Honda Veteran Talent Bank': '製造業プラチナアドバイザリー',
-            'ベテラン': '登録人材',
-            '問診': 'スキル棚卸し',
-            'ベテランプロフィール': 'スキルポートフォリオ',
-            '推薦機会': '参画機会レコメンド',
-            '応募': '参画申請',
-            '興味表明': '参画意向',
-            'ベテラン検索': '登録人材検索'
+            '製造業プラチナアドバイザリー': 'AI人材発掘・配置マッチングMVP（AI CoE支援）',
+            '登録人材': '社内AI人材候補',
+            'スキル棚卸し': 'AIスキル棚卸し（セルフ診断）',
+            'スキルポートフォリオ': 'AIスキルポートフォリオ',
+            '参画機会レコメンド': 'AIポジション／プロジェクト レコメンド',
+            '参画申請': '自薦応募',
+            '参画意向': '応募意向',
+            '登録人材検索': '社内AI人材候補検索',
+            '問診': 'AIスキル棚卸し（セルフ診断）',
+            'ベテランプロフィール': 'AIスキルポートフォリオ',
+            '推薦機会': 'AIポジション／プロジェクト レコメンド',
+            '応募': '自薦応募',
+            '興味表明': '応募意向',
+            'ベテラン検索': '社内AI人材候補検索'
         }
         
         self._initialize_log_templates()
@@ -107,21 +113,21 @@ class MessageConfig:
     def _initialize_log_templates(self) -> None:
         """Initialize log message templates."""
         self.log_templates = {
-            'user_login': '登録人材がログインしました: {user_id}',
-            'user_logout': '登録人材がログアウトしました: {user_id}',
-            'profile_updated': 'スキルポートフォリオが更新されました: {user_id}',
-            'application_submitted': '参画申請が送信されました: {user_id} -> {opportunity_id}',
-            'application_withdrawn': '参画申請が取り下げられました: {user_id} -> {opportunity_id}',
-            'questionnaire_completed': 'スキル棚卸しが完了しました: {user_id}',
-            'recommendation_generated': '参画機会レコメンドが生成されました: {user_id}',
-            'search_performed': '登録人材検索が実行されました: {query}',
+            'user_login': '社内AI人材候補がログインしました: {user_id}',
+            'user_logout': '社内AI人材候補がログアウトしました: {user_id}',
+            'profile_updated': 'AIスキルポートフォリオが更新されました: {user_id}',
+            'application_submitted': '自薦応募が送信されました: {user_id} -> {opportunity_id}',
+            'application_withdrawn': '自薦応募が取り下げられました: {user_id} -> {opportunity_id}',
+            'questionnaire_completed': 'AIスキル棚卸しが完了しました: {user_id}',
+            'recommendation_generated': 'AIポジション／プロジェクト レコメンドが生成されました: {user_id}',
+            'search_performed': '社内AI人材候補検索が実行されました: {query}',
             'error_occurred': 'エラーが発生しました: {error_type} - {message}',
             'api_request': 'API リクエスト: {method} {endpoint} - {user_id}',
             'api_response': 'API レスポンス: {status_code} - {endpoint}',
             'database_operation': 'データベース操作: {operation} - {table}',
             'ai_generation': 'AI生成処理: {type} - {user_id}',
-            'system_startup': '製造業プラチナアドバイザリーシステムが開始されました',
-            'system_shutdown': '製造業プラチナアドバイザリーシステムが停止されました'
+            'system_startup': 'AI人材発掘・配置マッチングMVP（AI CoE支援）システムが開始されました',
+            'system_shutdown': 'AI人材発掘・配置マッチングMVP（AI CoE支援）システムが停止されました'
         }
     
     def get_message(self, key: str, message_type: str = 'success', **kwargs) -> str:

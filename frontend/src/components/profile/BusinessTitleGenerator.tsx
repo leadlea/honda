@@ -95,7 +95,7 @@ const BusinessTitleGenerator: React.FC<BusinessTitleGeneratorProps> = ({ profile
       <div className="tab-content">
         <h3>ビジネスタイトル生成</h3>
         <p className="description">
-          あなたのスキルと経験に基づいて、AIがユニークなビジネスタイトルを生成します。
+          あなたのAIスキルと経験に基づいて、AIがユニークなビジネスタイトルを生成します。
         </p>
 
         <div className="current-title-section">
@@ -127,7 +127,7 @@ const BusinessTitleGenerator: React.FC<BusinessTitleGeneratorProps> = ({ profile
         {loading && (
           <div className="loading-section">
             <div className="loading-spinner"></div>
-            <p>AIがあなたのプロフィールを分析してビジネスタイトルを生成しています...</p>
+            <p>AIがあなたのAIスキルポートフォリオを分析してビジネスタイトルを生成しています...</p>
           </div>
         )}
 
@@ -174,13 +174,13 @@ const BusinessTitleGenerator: React.FC<BusinessTitleGeneratorProps> = ({ profile
             <div className="empty-icon">🎯</div>
             <h4>タイトル候補を生成しましょう</h4>
             <p>
-              「AIで生成」ボタンをクリックして、あなたのスキルと経験に基づいた
+              「AIで生成」ボタンをクリックして、あなたのAIスキルと経験に基づいた
               ユニークなビジネスタイトルを生成してください。
             </p>
             <div className="tips">
               <h5>より良いタイトル生成のために：</h5>
               <ul>
-                <li>スキルセクションに詳細なスキル情報を入力</li>
+                <li>AIスキルセクションに詳細なスキル情報を入力</li>
                 <li>経験セクションに具体的な実績を記載</li>
                 <li>希望・設定で将来の方向性を明確化</li>
               </ul>
@@ -188,7 +188,7 @@ const BusinessTitleGenerator: React.FC<BusinessTitleGeneratorProps> = ({ profile
             
             {(!profile?.skills || profile.skills.length === 0) && (
               <div className="profile-warning">
-                <span>⚠️ スキル情報が不足しています。より良いタイトル生成のため、まずスキルを追加してください。</span>
+                <span>⚠️ AIスキル情報が不足しています。より良いタイトル生成のため、まずAIスキルを追加してください。</span>
               </div>
             )}
           </div>

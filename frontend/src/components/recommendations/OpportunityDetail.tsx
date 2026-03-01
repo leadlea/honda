@@ -31,7 +31,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
 
   const formatSalaryRange = () => {
     const { min, max, currency } = opportunity.salary_range;
-    if (min === 0 && max === 0) return '給与情報なし';
+    if (min === 0 && max === 0) return '報酬情報なし';
     
     const formatter = new Intl.NumberFormat('ja-JP', {
       style: 'currency',
@@ -92,7 +92,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
               <div className="meta-info">
                 <span className="location">📍 {opportunity.location}</span>
                 <span className={`source-badge source-${opportunity.source}`}>
-                  {opportunity.source === 'internal' ? '社内ポジション' : '社外ポジション'}
+                  {opportunity.source === 'internal' ? '社内AIポジション' : '社外AIポジション'}
                 </span>
                 <span className="type-badge">{opportunity.type.replace('_', ' ')}</span>
               </div>
@@ -122,7 +122,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
             </div>
 
             <div className="match-analysis-section">
-              <h4>🤖 AIマッチ分析</h4>
+              <h4>🤖 AIマッチ分析（レコメンド理由）</h4>
               <div className="match-reasons-detailed">
                 {match_reasons
                   .sort((a, b) => b.weight - a.weight)
@@ -166,7 +166,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
                     className="apply-button"
                     onClick={() => setShowApplicationForm(true)}
                   >
-                    このポジションに{termMappingService.mapLegacyTerm('応募')}
+                    このAIポジションに{termMappingService.mapLegacyTerm('応募')}
                   </button>
                   <button 
                     className="interest-button"
@@ -182,7 +182,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
                   <textarea
                     value={applicationNotes}
                     onChange={(e) => setApplicationNotes(e.target.value)}
-                    placeholder="このポジションへの関心について追加のメモやコメントを記入してください..."
+                    placeholder="このAIポジションへの関心について追加のメモやコメントを記入してください..."
                     rows={4}
                     className="application-notes"
                   />

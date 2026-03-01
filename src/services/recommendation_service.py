@@ -372,10 +372,6 @@ class RecommendationService:
         """Format ecosystem contribution details."""
         return "製造業の持続的発展と人材育成への貢献"
 
-        except Exception as e:
-            logger.error(f"Error applying personalization: {e}")
-            return recommendations
-
     async def _get_user_feedback_patterns(self, user_id: str) -> Dict[str, Any]:
         """Analyze user's feedback patterns to understand preferences."""
         try:

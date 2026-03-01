@@ -135,13 +135,13 @@ const RecommendationsList: React.FC = () => {
     <div className="recommendations-container">
       <div className="recommendations-header">
         <h2>{termMappingService.getLocalizedTerm('navigation_recommendations')}</h2>
-        <p>あなたのプロフィールと希望に基づくAI駆動の{termMappingService.mapLegacyTerm('推薦')}</p>
+        <p>あなたのAIスキルポートフォリオと希望に基づくAI駆動の{termMappingService.mapLegacyTerm('推薦')}</p>
         
         <div className="recommendations-controls">
           <div className="filter-controls">
             <label>ソースでフィルター:</label>
             <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-              <option value="all">すべての機会</option>
+              <option value="all">すべてのAIポジション</option>
               <option value="internal">社内のみ</option>
               <option value="external">社外のみ</option>
             </select>
@@ -161,8 +161,8 @@ const RecommendationsList: React.FC = () => {
         <div className="no-recommendations">
           <h3>{termMappingService.getLocalizedTerm('navigation_recommendations')}がありません</h3>
           <p>
-            あなたのプロフィールに合った機会を探しています。
-            後でもう一度確認するか、プロフィールを更新してより良い{termMappingService.mapLegacyTerm('推薦')}を受け取ってください。
+            あなたのAIスキルポートフォリオに合ったAIポジションを探しています。
+            後でもう一度確認するか、AIスキルポートフォリオを更新してより良い{termMappingService.mapLegacyTerm('推薦')}を受け取ってください。
           </p>
           <button onClick={loadRecommendations} className="refresh-button">
             {termMappingService.getLocalizedTerm('navigation_recommendations')}を更新

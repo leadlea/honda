@@ -1,7 +1,10 @@
 """
-Authentication handler for Cognito User Pool integration.
-Handles user registration, login, logout, and JWT token handling.
-Integrates with RBAC system and security auditing.
+双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）
+認証ハンドラー - Cognito User Pool 連携
+
+社内AI人材候補（社員）およびAIポジションオーナーの
+ユーザー登録・ログイン・ログアウト・JWTトークン処理を担当します。
+RBACシステムおよびセキュリティ監査と連携します。
 
 ※ PyJWT への依存を排除しました。トークン検証は API Gateway の
    Cognito オーソライザーで行われる前提で、Lambda では
@@ -33,7 +36,7 @@ from src.utils.branding_logger import get_branding_logger
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Initialize branding logger
+# ブランディングロガーを初期化（双日TI向けAI人材発掘・配置マッチングMVP）
 branding_logger = get_branding_logger('auth_handler')
 
 cognito_client = boto3.client("cognito-idp")
@@ -126,8 +129,9 @@ def _now_iso() -> str:
 @security_middleware
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
-    Main Lambda handler for authentication operations.
-    Routes requests based on HTTP method and path.
+    認証操作のメインLambdaハンドラー。
+    HTTPメソッドとパスに基づいてリクエストをルーティングします。
+    双日TI：AI人材発掘・配置マッチングMVP（AI CoE支援）向け認証処理。
     """
     try:
         http_method = event.get("httpMethod")
@@ -180,7 +184,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 # ──────────────────────────────────────────────────────────────
 def register_user(event: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Register a new user in Cognito User Pool and create user record in DynamoDB.
+    社内AI人材候補（社員）を Cognito User Pool に登録し、DynamoDB にユーザーレコードを作成します。
     （管理者作成フロー / AdminCreate を想定。UI サインアップ利用時は未使用のことも）
     """
     try:
@@ -252,7 +256,7 @@ def register_user(event: Dict[str, Any]) -> Dict[str, Any]:
     except ClientError as e:
         code = e.response["Error"]["Code"]
         if code == "UsernameExistsException":
-            return create_response(409, {"error": "ユーザーが既に存在します"})
+            return create_response(409, {"error": "社内AI人材候補として既に登録されています"})
         if code == "InvalidPasswordException":
             return create_response(400, {"error": "パスワードが要件を満たしていません"})
         logger.exception("Cognito error on register_user")
@@ -264,7 +268,8 @@ def register_user(event: Dict[str, Any]) -> Dict[str, Any]:
 
 def login_user(event: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Authenticate with Cognito (ADMIN_NO_SRP_AUTH) and return tokens + light user info.
+    Cognito（ADMIN_NO_SRP_AUTH）で認証し、トークンと社内AI人材候補情報を返します。
+    双日TI：AI人材発掘・配置マッチングMVP（AI CoE支援）へのログイン処理。
     """
     request_info = extract_request_info(event)
     try:
@@ -345,7 +350,7 @@ def login_user(event: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def logout_user(event: Dict[str, Any]) -> Dict[str, Any]:
-    """Global sign-out by Access Token."""
+    """アクセストークンによるグローバルサインアウト（AI人材発掘・配置マッチングMVPからのログアウト）。"""
     request_info = extract_request_info(event)
     try:
         access_token = extract_token_from_header(event)
@@ -368,7 +373,7 @@ def logout_user(event: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def refresh_token(event: Dict[str, Any]) -> Dict[str, Any]:
-    """Refresh tokens using Refresh Token."""
+    """リフレッシュトークンを使用してアクセストークンを更新します。"""
     try:
         body = json.loads(event.get("body", "{}"))
         refresh_token = body.get("refresh_token")
@@ -402,8 +407,8 @@ def refresh_token(event: Dict[str, Any]) -> Dict[str, Any]:
 
 def get_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Return current user profile.
-    If not found, create it on the fly (first access upsert).
+    社内AI人材候補の現在のユーザープロフィールを返します。
+    未登録の場合は初回アクセス時に自動作成（upsert）します。
     """
     try:
         claims = get_claims_from_event(event)
@@ -447,7 +452,7 @@ def get_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def update_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
-    """Update whitelisted profile fields."""
+    """許可されたプロフィールフィールドを更新します（社内AI人材候補の基本情報更新）。"""
     try:
         user_id = get_user_id_from_event(event)
         if not user_id:
@@ -486,7 +491,8 @@ def update_user_profile(event: Dict[str, Any]) -> Dict[str, Any]:
 
 def verify_token(event: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Verify token by calling Cognito GetUser with AccessToken.
+    Cognito GetUser を呼び出してアクセストークンを検証します。
+    AI人材発掘・配置マッチングMVP（AI CoE支援）へのアクセス権限を確認します。
     """
     try:
         token = extract_token_from_header(event)

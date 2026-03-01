@@ -62,7 +62,7 @@ const Questionnaire: React.FC = () => {
       }
     } catch (e) {
       console.error('Load questionnaire error:', e);
-      setError('問診の読み込みに失敗しました');
+      setError('AIスキル棚卸し（セルフ診断）の読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
@@ -109,10 +109,10 @@ const Questionnaire: React.FC = () => {
       );
 
       await loadQuestionnaire();
-      alert('問診の回答が正常に送信されました！');
+      alert('AIスキル棚卸し（セルフ診断）の回答が正常に送信されました！');
     } catch (e) {
       console.error('Submit questionnaire error:', e);
-      setError('問診の送信に失敗しました');
+      setError('AIスキル棚卸し（セルフ診断）の送信に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -140,7 +140,7 @@ const Questionnaire: React.FC = () => {
       }
     } catch (e) {
       console.error('Regenerate questionnaire error:', e);
-      setError('問診の再生成に失敗しました');
+      setError('AIスキル棚卸し（セルフ診断）の再生成に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -250,7 +250,7 @@ const Questionnaire: React.FC = () => {
       <div className="questionnaire-container">
         <div className="loading-state">
           <div className="loading-spinner"></div>
-          <p>AI問診を読み込み中...</p>
+          <p>AIスキル棚卸し（セルフ診断）を読み込み中...</p>
         </div>
       </div>
     );
@@ -272,9 +272,9 @@ const Questionnaire: React.FC = () => {
     return (
       <div className="questionnaire-container">
         <div className="empty-state">
-          <h2>問診が見つかりません</h2>
-        <p>新しい問診を生成しますか？</p>
-          <button onClick={handleRegenerate} className="btn btn-primary">問診を生成</button>
+          <h2>AIスキル棚卸し（セルフ診断）が見つかりません</h2>
+        <p>新しいAIスキル棚卸し（セルフ診断）を生成しますか？</p>
+          <button onClick={handleRegenerate} className="btn btn-primary">AIスキル棚卸しを生成</button>
         </div>
       </div>
     );
@@ -283,8 +283,8 @@ const Questionnaire: React.FC = () => {
   return (
     <div className="questionnaire-container">
       <div className="questionnaire-header">
-        <h1>AI生成問診</h1>
-        <p>あなたのスキルと興味を評価するための個人向け問診です</p>
+        <h1>AIスキル棚卸し（セルフ診断）</h1>
+        <p>あなたのAIスキルと経験を棚卸しするためのセルフ診断です</p>
 
         <div className="progress-container">
           <div className="progress-bar">
@@ -319,11 +319,11 @@ const Questionnaire: React.FC = () => {
           className="btn btn-outline"
           disabled={submitting}
         >
-          {showHistory ? '問診を隠す' : '過去の問診を見る'}
+          {showHistory ? '履歴を隠す' : '過去の診断履歴を見る'}
         </button>
 
         <button onClick={handleRegenerate} className="btn btn-secondary" disabled={submitting}>
-          問診を再生成
+          AIスキル棚卸しを再生成
         </button>
 
         <button onClick={handleSubmit} className="btn btn-primary" disabled={!canSubmit() || submitting}>
@@ -333,19 +333,19 @@ const Questionnaire: React.FC = () => {
 
       {questionnaire.status === 'completed' && (
         <div className="completion-notice">
-          <h3>問診完了</h3>
-          <p>回答ありがとうございました。プロフィールが更新されました。</p>
+          <h3>AIスキル棚卸し完了</h3>
+          <p>回答ありがとうございました。AIスキルポートフォリオが更新されました。</p>
         </div>
       )}
 
       {showHistory && (questionnaireHistory?.length ?? 0) > 0 && (
         <div className="questionnaire-history">
-          <h3>過去の問診履歴</h3>
+          <h3>過去のAIスキル棚卸し履歴</h3>
           <div className="history-list">
             {questionnaireHistory.map((h, idx) => (
               <div key={h.questionnaire_id ?? idx} className="history-item">
                 <div className="history-header">
-                  <h4>問診 #{idx + 1}</h4>
+                  <h4>AIスキル棚卸し #{idx + 1}</h4>
                   <div className="history-meta">
                     <span className={`status-badge ${h.status}`}>
                       {h.status === 'completed' ? '完了' : h.status === 'in_progress' ? '進行中' : '生成済み'}

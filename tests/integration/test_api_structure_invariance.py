@@ -1,6 +1,6 @@
 """
-API Structure Invariance Tests for Manufacturing Platinum Advisory
-製造業プラチナアドバイザリー API構造不変性テスト
+API Structure Invariance Tests for AI人材発掘・配置マッチングMVP（AI CoE支援）
+AI人材発掘・配置マッチングMVP（AI CoE支援） API構造不変性テスト
 
 This test suite ensures that the branding update does not break existing API contracts.
 ブランディング更新が既存のAPIコントラクトを破壊しないことを確認します。

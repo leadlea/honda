@@ -70,7 +70,7 @@ class TestPublicSearchHandler:
         # Verify
         assert result["statusCode"] == 200
         body = json.loads(result["body"])
-        assert "veterans" in body
+        assert "talents" in body
         assert body["total_count"] == 1
         assert body["page"] == 1
         assert body["limit"] == 20
@@ -99,9 +99,9 @@ class TestPublicSearchHandler:
         # Verify
         assert result["statusCode"] == 200
         body = json.loads(result["body"])
-        assert body["veterans"] == []
+        assert body["talents"] == []
         assert body["total_count"] == 0
-        assert "No veterans found" in body["message"]
+        assert "検索条件に一致する登録人材が見つかりませんでした" in body["message"]
 
     @patch("src.handlers.public_search_handler.BedrockClient")
     @patch("src.handlers.public_search_handler.PublicProfileRepository")
@@ -125,7 +125,7 @@ class TestPublicSearchHandler:
         # Verify
         assert result["statusCode"] == 200
         body = json.loads(result["body"])
-        assert len(body["veterans"]) == 1
+        assert len(body["talents"]) == 1
 
         # Verify AI ranking was called
         mock_bedrock.generate_text.assert_called_once()
@@ -147,8 +147,8 @@ class TestPublicSearchHandler:
         # Verify
         assert result["statusCode"] == 200
         body = json.loads(result["body"])
-        assert "veteran" in body
-        assert body["veteran"]["profile_id"] == "profile_123"
+        assert "talent" in body
+        assert body["talent"]["profile_id"] == "profile_123"
 
         mock_repo.get_public_profile.assert_called_once_with("profile_123")
 
@@ -169,7 +169,7 @@ class TestPublicSearchHandler:
         # Verify
         assert result["statusCode"] == 404
         body = json.loads(result["body"])
-        assert "Profile not found" in body["error"]
+        assert "プロフィールが見つかりません" in body["error"]
 
     @patch("src.handlers.public_search_handler.PublicProfileRepository")
     def test_get_search_categories_success(self, mock_repo_class):
@@ -287,7 +287,7 @@ class TestPublicSearchHandler:
 
         summary = self.handler._get_experience_summary(profile)
 
-        assert "10 years" in summary
+        assert "10" in summary
         assert "Engineering" in summary
         assert "Sales" in summary
 
@@ -297,7 +297,7 @@ class TestPublicSearchHandler:
 
         summary = self.handler._get_experience_summary(profile)
 
-        assert summary == "No experience listed"
+        assert summary == "経験なし"
 
     def test_create_ranking_prompt(self):
         """Test AI ranking prompt creation"""
@@ -363,7 +363,7 @@ class TestPublicSearchHandler:
         # Verify
         assert result["statusCode"] == 500
         body = json.loads(result["body"])
-        assert "Internal server error" in body["error"]
+        assert "内部エラーが発生しました" in body["error"]
 
     @patch("src.handlers.public_search_handler.PublicProfileRepository")
     def test_get_veteran_profile_error_handling(self, mock_repo_class):
@@ -382,7 +382,7 @@ class TestPublicSearchHandler:
         # Verify
         assert result["statusCode"] == 500
         body = json.loads(result["body"])
-        assert "Internal server error" in body["error"]
+        assert "内部エラーが発生しました" in body["error"]
 
 
 # Test Lambda function handlers

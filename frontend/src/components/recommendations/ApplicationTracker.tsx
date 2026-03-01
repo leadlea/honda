@@ -28,14 +28,14 @@ const ApplicationTracker: React.FC = () => {
       const data = await RecommendationService.getApplications(user.user_id);
       setApplications(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : `${termMappingService.getLocalizedTerm('navigation_applications')}の読み込みに失敗しました`);
+      setError(err instanceof Error ? err.message : '自薦応募の読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
   };
 
   const handleWithdrawApplication = async (applicationId: string) => {
-    if (!window.confirm(`この${termMappingService.mapLegacyTerm('応募')}を取り下げてもよろしいですか？`)) {
+    if (!window.confirm('この自薦応募を取り下げてもよろしいですか？')) {
       return;
     }
 
@@ -49,7 +49,7 @@ const ApplicationTracker: React.FC = () => {
         )
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : `${termMappingService.mapLegacyTerm('応募')}の取り下げに失敗しました`);
+      setError(err instanceof Error ? err.message : '自薦応募の取り下げに失敗しました');
     }
   };
 
@@ -93,7 +93,7 @@ const ApplicationTracker: React.FC = () => {
 
   const formatStatus = (status: Application['status']) => {
     const statusMap: Record<Application['status'], string> = {
-      'submitted': '送信済み',
+      'submitted': '自薦応募済み',
       'under_review': '審査中',
       'interview_scheduled': '面接予定',
       'accepted': '承認',
@@ -122,7 +122,7 @@ const ApplicationTracker: React.FC = () => {
     return (
       <div className="applications-loading">
         <div className="loading-spinner"></div>
-        <p>あなたの{termMappingService.getLocalizedTerm('navigation_applications')}を読み込み中...</p>
+        <p>あなたの自薦応募を読み込み中...</p>
       </div>
     );
   }
@@ -130,7 +130,7 @@ const ApplicationTracker: React.FC = () => {
   if (error) {
     return (
       <div className="applications-error">
-        <h3>{termMappingService.getLocalizedTerm('navigation_applications')}の読み込みエラー</h3>
+        <h3>自薦応募の読み込みエラー</h3>
         <p>{error}</p>
         <button onClick={loadApplications} className="retry-button">
           再試行
@@ -142,16 +142,16 @@ const ApplicationTracker: React.FC = () => {
   return (
     <div className="applications-container">
       <div className="applications-header">
-        <h2>私の{termMappingService.getLocalizedTerm('navigation_applications')}</h2>
-        <p>{termMappingService.mapLegacyTerm('応募')}状況を追跡します</p>
+        <h2>私の自薦応募</h2>
+        <p>自薦応募状況を追跡します</p>
         
         <div className="applications-controls">
           <div className="filter-controls">
             <label>ステータスでフィルター:</label>
             <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-              <option value="all">すべての{termMappingService.mapLegacyTerm('応募')}</option>
-              <option value="active">進行中の{termMappingService.mapLegacyTerm('応募')}</option>
-              <option value="completed">完了した{termMappingService.mapLegacyTerm('応募')}</option>
+              <option value="all">すべての自薦応募</option>
+              <option value="active">進行中の自薦応募</option>
+              <option value="completed">完了した自薦応募</option>
             </select>
           </div>
           
@@ -163,11 +163,11 @@ const ApplicationTracker: React.FC = () => {
 
       {sortedApplications.length === 0 ? (
         <div className="no-applications">
-          <h3>{termMappingService.getLocalizedTerm('navigation_applications')}が見つかりません</h3>
+          <h3>自薦応募が見つかりません</h3>
           <p>
             {filter === 'all' 
-              ? `まだ機会に${termMappingService.mapLegacyTerm('応募')}していません。${termMappingService.getLocalizedTerm('navigation_recommendations')}をチェックして適切なポジションを見つけましょう！`
-              : `${filter === 'active' ? '進行中' : '完了した'}の${termMappingService.mapLegacyTerm('応募')}が見つかりません。`
+              ? `まだ機会に自薦応募していません。${termMappingService.getLocalizedTerm('navigation_recommendations')}をチェックして適切なポジションを見つけましょう！`
+              : `${filter === 'active' ? '進行中' : '完了した'}の自薦応募が見つかりません。`
             }
           </p>
         </div>
@@ -201,7 +201,7 @@ const ApplicationTracker: React.FC = () => {
 
                 <div className="timeline">
                   <div className="timeline-item">
-                    <strong>{termMappingService.mapLegacyTerm('応募')}日:</strong> {new Date(application.applied_at).toLocaleDateString('ja-JP')}
+                    <strong>自薦応募日:</strong> {new Date(application.applied_at).toLocaleDateString('ja-JP')}
                   </div>
                   <div className="timeline-item">
                     <strong>最終更新:</strong> {new Date(application.updated_at).toLocaleDateString('ja-JP')}
@@ -226,12 +226,12 @@ const ApplicationTracker: React.FC = () => {
                     className="withdraw-button"
                     onClick={() => handleWithdrawApplication(application.application_id)}
                   >
-                    {termMappingService.mapLegacyTerm('応募')}を取り下げ
+                    自薦応募を取り下げ
                   </button>
                 ) : null}
                 
                 <div className="application-id">
-                  <small>{termMappingService.mapLegacyTerm('応募')}ID: {application.application_id}</small>
+                  <small>自薦応募ID: {application.application_id}</small>
                 </div>
               </div>
             </div>
@@ -243,13 +243,13 @@ const ApplicationTracker: React.FC = () => {
         <div className="summary-stats">
           <div className="stat-item">
             <span className="stat-number">{applications.length}</span>
-            <span className="stat-label">総{termMappingService.mapLegacyTerm('応募')}数</span>
+            <span className="stat-label">総自薦応募数</span>
           </div>
           <div className="stat-item">
             <span className="stat-number">
               {applications.filter(app => !['accepted', 'rejected', 'withdrawn'].includes(app.status)).length}
             </span>
-            <span className="stat-label">進行中の{termMappingService.mapLegacyTerm('応募')}</span>
+            <span className="stat-label">進行中の自薦応募</span>
           </div>
           <div className="stat-item">
             <span className="stat-number">

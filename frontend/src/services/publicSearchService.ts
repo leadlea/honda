@@ -49,13 +49,13 @@ export class PublicSearchService {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to search veterans: ${response.statusText}`);
+        throw new Error(`社内AI人材候補の検索に失敗しました: ${response.statusText}`);
       }
 
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error searching veterans:', error);
+      console.error('Error searching AI talent candidates:', error);
       throw error;
     }
   }
@@ -68,13 +68,13 @@ export class PublicSearchService {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch veteran profile: ${response.statusText}`);
+        throw new Error(`社内AI人材候補のプロフィール取得に失敗しました: ${response.statusText}`);
       }
 
       const data = await response.json();
       return data.profile;
     } catch (error) {
-      console.error('Error fetching veteran profile:', error);
+      console.error('Error fetching AI talent candidate profile:', error);
       throw error;
     }
   }
@@ -97,7 +97,7 @@ export class PublicSearchService {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to send contact request: ${response.statusText}`);
+        throw new Error(`連絡リクエストの送信に失敗しました: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -116,7 +116,7 @@ export class PublicSearchService {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch skill categories: ${response.statusText}`);
+        throw new Error(`スキルカテゴリの取得に失敗しました: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -135,7 +135,7 @@ export class PublicSearchService {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch contact history: ${response.statusText}`);
+        throw new Error(`連絡履歴の取得に失敗しました: ${response.statusText}`);
       }
 
       const data = await response.json();

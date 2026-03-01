@@ -46,7 +46,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
 
   const formatSalaryRange = () => {
     const { min, max, currency } = opportunity.salary_range;
-    if (min === 0 && max === 0) return '給与情報なし';
+    if (min === 0 && max === 0) return '報酬情報なし';
     
     const formatter = new Intl.NumberFormat('ja-JP', {
       style: 'currency',
@@ -111,7 +111,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
         </div>
 
         <div className="match-reasons">
-          <h4>あなたにマッチする理由:</h4>
+          <h4>あなたにマッチするレコメンド理由:</h4>
           <ul>
             {topMatchReasons.map((reason, index) => (
               <li key={index} className="match-reason">

@@ -70,7 +70,7 @@ const PrivacySettings: React.FC<PrivacySettingsProps> = ({ profile, onUpdate }) 
       <div className="tab-content">
         <h3>プライバシー設定</h3>
         <p className="description">
-          あなたのプロフィールの可視性とデータ共有をコントロールできます。
+          あなたのAIスキルポートフォリオの可視性とデータ共有をコントロールできます。
         </p>
 
         {error && (
@@ -90,10 +90,10 @@ const PrivacySettings: React.FC<PrivacySettingsProps> = ({ profile, onUpdate }) 
             <h4>外部公開設定</h4>
             <div className="setting-card">
               <div className="setting-info">
-                <h5>プロフィールを外部に公開</h5>
+                <h5>AIスキルポートフォリオを外部に公開</h5>
                 <p>
-                  製造業プラチナアドバイザリーで外部リクルーターがあなたのプロフィールを検索・閲覧できるようになります。
-                  この設定をオフにすると、社内のみでプロフィールが利用されます。
+                  AI人材発掘・配置マッチングMVP（AI CoE支援）で外部リクルーターがあなたのAIスキルポートフォリオを検索・閲覧できるようになります。
+                  この設定をオフにすると、社内のみでAIスキルポートフォリオが利用されます。
                 </p>
               </div>
               <div className="setting-control">
@@ -114,7 +114,7 @@ const PrivacySettings: React.FC<PrivacySettingsProps> = ({ profile, onUpdate }) 
                   <div className="setting-info">
                     <h5>外部からの連絡を許可</h5>
                     <p>
-                      外部リクルーターがプラットフォームを通じてあなたに連絡できるようになります。
+                      外部リクルーターがAI人材発掘・配置マッチングMVP（AI CoE支援）を通じてあなたに連絡できるようになります。
                     </p>
                   </div>
                   <div className="setting-control">
@@ -133,7 +133,7 @@ const PrivacySettings: React.FC<PrivacySettingsProps> = ({ profile, onUpdate }) 
                   <div className="setting-info">
                     <h5>連絡先情報を表示</h5>
                     <p>
-                      外部公開プロフィールにメールアドレスなどの連絡先情報を含めます。
+                      外部公開AIスキルポートフォリオにメールアドレスなどの連絡先情報を含めます。
                     </p>
                   </div>
                   <div className="setting-control">
@@ -152,7 +152,7 @@ const PrivacySettings: React.FC<PrivacySettingsProps> = ({ profile, onUpdate }) 
                   <div className="setting-info">
                     <h5>詳細な経験情報を表示</h5>
                     <p>
-                      外部公開プロフィールに具体的な実績や成果の詳細を含めます。
+                      外部公開AIスキルポートフォリオに具体的な実績や成果の詳細を含めます。
                     </p>
                   </div>
                   <div className="setting-control">
@@ -178,10 +178,10 @@ const PrivacySettings: React.FC<PrivacySettingsProps> = ({ profile, onUpdate }) 
                   {currentSettings.is_publicly_visible ? '🌐' : '🏢'}
                 </div>
                 <div className="status-info">
-                  <h5>プロフィール可視性</h5>
+                  <h5>AIスキルポートフォリオ可視性</h5>
                   <p>
                     {currentSettings.is_publicly_visible 
-                      ? '外部公開（製造業プラチナアドバイザリーで検索可能）' 
+                      ? '外部公開（AI人材発掘・配置マッチングMVP（AI CoE支援）で検索可能）' 
                       : '社内のみ（外部からは見えません）'
                     }
                   </p>
@@ -243,8 +243,8 @@ const PrivacySettings: React.FC<PrivacySettingsProps> = ({ profile, onUpdate }) 
                 <h5>プライバシー設定について</h5>
                 <ul>
                   <li>設定変更は即座に反映され、外部プラットフォームからの可視性が変更されます</li>
-                  <li>外部公開を無効にした場合、既存の外部連絡や応募には影響しません</li>
-                  <li>社内での推薦・マッチング機能は、外部公開設定に関係なく利用できます</li>
+                  <li>外部公開を無効にした場合、既存の外部連絡や自薦応募には影響しません</li>
+                  <li>社内でのレコメンド・マッチング機能は、外部公開設定に関係なく利用できます</li>
                   <li>データの完全削除をご希望の場合は、システム管理者にお問い合わせください</li>
                 </ul>
               </div>

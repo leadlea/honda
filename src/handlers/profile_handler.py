@@ -1,6 +1,9 @@
 """
-Profile handler with RBAC integration and full CRUD operations.
-Implements profile management with data validation and privacy controls.
+双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）
+プロフィールハンドラー - RBAC連携・完全CRUD操作
+
+社内AI人材候補のAIスキルポートフォリオ管理を担当します。
+データバリデーション・プライバシー制御を含むプロフィール管理を実装します。
 """
 
 import json
@@ -31,8 +34,9 @@ logger = logging.getLogger()
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
-    Main Lambda handler for profile operations.
-    Routes requests based on HTTP method and path.
+    AIスキルポートフォリオ操作のメインLambdaハンドラー。
+    HTTPメソッドとパスに基づいてリクエストをルーティングします。
+    双日TI：社内AI人材候補のプロフィール管理処理。
     """
     try:
         http_method = event.get("httpMethod")
@@ -92,7 +96,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 def create_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     """
-    Create a new veteran profile.
+    社内AI人材候補の新しいAIスキルポートフォリオを作成します。
     """
     try:
         user = event.get("user", {})
@@ -111,7 +115,6 @@ def create_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
             return create_response(
                 409, {"error": f"{message_config.map_legacy_term('ベテランプロフィール')}が既に存在します"}
             )
-
         # Create new profile with provided data
         profile = VeteranProfile(
             user_id=user_id,
@@ -177,7 +180,7 @@ def create_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
 @require_permission(Permission.VIEW_OWN_PROFILE, resource_owner_field="profile_user_id")
 def get_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     """
-    Get user profile with RBAC protection.
+    RBAC保護付きで社内AI人材候補のAIスキルポートフォリオを取得します。
     """
     try:
         user = event.get("user", {})
@@ -252,7 +255,7 @@ def get_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
 @require_permission(Permission.EDIT_OWN_PROFILE, resource_owner_field="profile_user_id")
 def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     """
-    Update user profile with RBAC protection and data validation.
+    RBAC保護とデータバリデーション付きで社内AI人材候補のAIスキルポートフォリオを更新します。
     """
     try:
         user = event.get("user", {})
@@ -314,7 +317,7 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
         logger.info(f"Parsed update_data: {update_data}")
 
         if not update_data:
-            return create_response(400, {"error": "更新する有効なフィールドがありません"})
+            return create_response(400, {"error": "更新する有効なフィールドがありません（AIスキルポートフォリオ）"})
 
         # Build update_data dictionary from profile fields
         # Note: update_data already contains only allowed fields from earlier filtering
@@ -368,7 +371,7 @@ def update_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
 @require_role("admin")
 def delete_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     """
-    Delete user profile (admin only).
+    社内AI人材候補のAIスキルポートフォリオを削除します（管理者専用）。
     """
     try:
         user = event.get("user", {})
@@ -412,7 +415,8 @@ def delete_profile(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
 
 def list_profiles(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     """
-    List profiles with role-based filtering and search capabilities.
+    ロールベースのフィルタリングと検索機能付きで社内AI人材候補一覧を取得します。
+    管理者は全AIスキルポートフォリオを、外部採用担当者は公開プロフィールのみ閲覧できます。
     """
     try:
         user = event.get("user", {})
@@ -538,7 +542,7 @@ def generate_business_title(
     event: Dict[str, Any], context: Any = None
 ) -> Dict[str, Any]:
     """
-    Generate AI business title for user profile.
+    社内AI人材候補のAIスキルポートフォリオ向けビジネスタイトルをAI生成します。
     """
     try:
         user = event.get("user", {})
@@ -574,7 +578,8 @@ def generate_business_title(
 @require_permission(Permission.VIEW_OWN_PROFILE, resource_owner_field="profile_user_id")
 def get_privacy_status(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     """
-    Get current privacy status and external visibility information.
+    社内AI人材候補の現在のプライバシー状態と外部公開情報を取得します。
+    AIスキルポートフォリオの公開設定を確認します。
     """
     try:
         user = event.get("user", {})
@@ -607,7 +612,8 @@ def update_privacy_settings(
     event: Dict[str, Any], context: Any = None
 ) -> Dict[str, Any]:
     """
-    Update profile privacy settings with real-time synchronization.
+    AIスキルポートフォリオのプライバシー設定をリアルタイム同期付きで更新します。
+    社内AI人材候補の公開範囲を制御します。
     """
     try:
         user = event.get("user", {})
@@ -686,7 +692,7 @@ def update_privacy_settings(
 
 def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Create standardized HTTP response.
+    標準化されたHTTPレスポンスを作成します（AI人材発掘・配置マッチングMVP共通レスポンス形式）。
     """
     return {
         "statusCode": status_code,

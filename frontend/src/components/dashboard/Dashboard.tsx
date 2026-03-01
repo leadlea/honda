@@ -61,7 +61,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     },
     {
       title: getBrandedMessage('profile', 'title'),
-      description: applyBrandingTone('あなたの詳細プロフィールを編集・管理'),
+      description: applyBrandingTone('あなたのAIスキルポートフォリオを編集・管理'),
       action: () => onNavigate('profile'),
       roles: ['veteran'] as const,
       color: 'green',
@@ -113,7 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       <div className="dashboard-header">
         <h1>{getWelcomeMessage()}</h1>
         <p className="dashboard-subtitle">
-          {user.role === 'veteran' && applyBrandingTone('あなたのスキルを活かした新しい機会を見つけましょう', 'empowering_collaborative')}
+          {user.role === 'veteran' && applyBrandingTone('あなたのAIスキルを活かした最適なAIポジションを見つけましょう', 'empowering_collaborative')}
           {user.role === 'external_recruiter' && getBrandedMessage('search', 'subtitle')}
           {user.role === 'admin' && 'システムの管理と監視を行いましょう'}
         </p>
@@ -139,7 +139,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       <RoleBasedComponent allowedRoles={['veteran']}>
         <div className="dashboard-stats">
-          <h2>あなたの統計</h2>
+          <h2>あなたのAI活動統計</h2>
           <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-number">
@@ -163,7 +163,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <div className="stat-number">
                 {renderStatValue(statistics?.profile_views)}
               </div>
-              <div className="stat-label">プロフィール閲覧数</div>
+              <div className="stat-label">AIスキルポートフォリオ閲覧数</div>
             </div>
           </div>
         </div>
@@ -171,7 +171,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       <RoleBasedComponent allowedRoles={['external_recruiter']}>
         <div className="dashboard-stats">
-          <h2>検索統計</h2>
+          <h2>社内AI人材候補検索統計</h2>
           <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-number">-</div>

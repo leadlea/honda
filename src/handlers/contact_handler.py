@@ -1,6 +1,9 @@
 """
-Contact Handler for External Recruiter Communications
-Manages contact requests and communication between external recruiters and veterans
+双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）
+問い合わせハンドラー - AIポジションオーナーとのコミュニケーション管理
+
+AIポジションオーナー（各部門／AI CoE）と社内AI人材候補間の
+問い合わせリクエストおよびコミュニケーションを管理します。
 """
 
 import json
@@ -29,7 +32,8 @@ class ContactHandler:
 
     def submit_contact_request(self, event: Dict, context: Any) -> Dict:
         """
-        Handle contact request submission from external recruiters
+        AIポジションオーナーからの問い合わせリクエスト送信を処理します。
+        社内AI人材候補への接触申請を管理します。
         """
         try:
             # Parse request body
@@ -79,8 +83,8 @@ class ContactHandler:
                     "headers": self._get_cors_headers(),
                     "body": json.dumps(
                         {
-                            "error": "Contact not allowed",
-                            "message": "This veteran has disabled external contact requests",
+                            "error": "問い合わせ不可",
+                            "message": "この社内AI人材候補は外部からの問い合わせを無効にしています",
                         }
                     ),
                 }
@@ -200,8 +204,8 @@ class ContactHandler:
 
     def get_contact_requests(self, event: Dict, context: Any) -> Dict:
         """
-        Get contact requests for a veteran (internal use)
-        Requires authentication
+        社内AI人材候補向けの問い合わせリクエストを取得します（内部利用）。
+        認証が必要です。
         """
         try:
             # This would require authentication in a real implementation
@@ -267,8 +271,8 @@ class ContactHandler:
 
     def process_contact_request(self, event: Dict, context: Any) -> Dict:
         """
-        Process a contact request (approve/decline)
-        Requires veteran authentication
+        問い合わせリクエストを処理します（承認／拒否）。
+        社内AI人材候補の認証が必要です。
         """
         try:
             user = event.get("user")
@@ -378,7 +382,8 @@ class ContactHandler:
 
     def get_contact_statistics(self, event: Dict, context: Any) -> Dict:
         """
-        Get contact request statistics (admin only)
+        問い合わせリクエストの統計を取得します（管理者専用）。
+        AI人材発掘・配置マッチングMVPの問い合わせ状況を把握します。
         """
         try:
             user = event.get("user")
@@ -411,7 +416,7 @@ class ContactHandler:
             }
 
     def _is_rate_limited(self, requester_email: str, profile_id: str) -> bool:
-        """Check if requester is rate limited"""
+        """問い合わせ送信者のレート制限をチェックします"""
         try:
             # Get recent requests from this email to this profile
             cutoff_time = datetime.utcnow() - timedelta(hours=24)
@@ -435,8 +440,8 @@ class ContactHandler:
 
     def _detect_spam(self, request_data: Dict) -> float:
         """
-        Detect spam in contact requests using AI
-        Returns spam score between 0.0 and 1.0
+        AIを使用して問い合わせリクエストのスパムを検出します。
+        スパムスコア（0.0〜1.0）を返します。
         """
         try:
             # Use AI to analyze the message for spam indicators
@@ -483,7 +488,7 @@ Score: """
             return 0.0  # Don't block on error
 
     def _simple_spam_detection(self, request_data: Dict) -> float:
-        """Simple keyword-based spam detection fallback"""
+        """シンプルなキーワードベースのスパム検出フォールバック"""
         spam_keywords = [
             "guaranteed income",
             "work from home",
@@ -517,7 +522,7 @@ Score: """
     def _notify_veteran_of_contact_request(
         self, profile: Dict, contact_request: ContactRequest
     ):
-        """Send notification to veteran about new contact request"""
+        """社内AI人材候補に新しい問い合わせリクエストの通知を送信します"""
         try:
             # In a real implementation, this would send an email or push notification
             # For now, we'll just log it
@@ -534,7 +539,7 @@ Score: """
     def _facilitate_contact(
         self, contact_request: ContactRequest, veteran_user: Dict, notes: str
     ):
-        """Facilitate contact between recruiter and veteran"""
+        """AIポジションオーナーと社内AI人材候補間の接触を仲介します"""
         try:
             # In a real implementation, this might:
             # 1. Send veteran's contact info to recruiter
@@ -552,7 +557,7 @@ Score: """
             logger.error(f"Error facilitating contact: {str(e)}")
 
     def _get_cors_headers(self) -> Dict:
-        """Get CORS headers for external API access"""
+        """外部API（問い合わせ機能）アクセス用CORSヘッダーを取得します"""
         return {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
@@ -563,24 +568,24 @@ Score: """
 
 # Lambda function handlers
 def submit_contact_request(event, context):
-    """Lambda handler for contact request submission"""
+    """問い合わせリクエスト送信のLambdaハンドラー"""
     handler = ContactHandler()
     return handler.submit_contact_request(event, context)
 
 
 def get_contact_requests(event, context):
-    """Lambda handler for getting contact requests"""
+    """問い合わせリクエスト取得のLambdaハンドラー"""
     handler = ContactHandler()
     return handler.get_contact_requests(event, context)
 
 
 def process_contact_request(event, context):
-    """Lambda handler for processing contact requests"""
+    """問い合わせリクエスト処理のLambdaハンドラー"""
     handler = ContactHandler()
     return handler.process_contact_request(event, context)
 
 
 def get_contact_statistics(event, context):
-    """Lambda handler for getting contact statistics"""
+    """問い合わせ統計取得のLambdaハンドラー"""
     handler = ContactHandler()
     return handler.get_contact_statistics(event, context)

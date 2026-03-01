@@ -1,5 +1,9 @@
 """
-Application handler for managing job applications and interest expressions
+双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）
+応募ハンドラー - 自薦応募・応募意向管理
+
+社内AI人材候補の自薦応募および応募意向の管理を担当します。
+AIポジション／プロジェクトへの自薦応募プロセスを支援します。
 """
 import json
 import logging
@@ -19,12 +23,12 @@ from ..utils.branding_logger import get_branding_logger
 
 logger = logging.getLogger(__name__)
 
-# Initialize branding logger
+# ブランディングロガーを初期化（双日TI向け自薦応募・応募意向管理）
 branding_logger = get_branding_logger('application_handler')
 
 
 class ApplicationHandler:
-    """Handler for application-related operations"""
+    """社内AI人材候補の自薦応募・応募意向操作を担当するハンドラー"""
 
     def __init__(self):
         self.application_repo = ApplicationRepository()
@@ -33,7 +37,7 @@ class ApplicationHandler:
 
     def submit_application(self, event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         """
-        Submit an application or express interest in an opportunity
+        AIポジション／プロジェクトへの自薦応募または応募意向を送信します。
         Requirements: 3.1, 3.2
         """
         try:
@@ -85,7 +89,7 @@ class ApplicationHandler:
                     "statusCode": 409,
                     "body": json.dumps(
                         {
-                            "error": "You have already applied to this opportunity",
+                            "error": "このAIポジション／プロジェクトには既に自薦応募済みです",
                             "existing_application_id": existing_application.application_id,
                         }
                     ),
@@ -146,7 +150,7 @@ class ApplicationHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Get all applications for the authenticated user
+        認証済み社内AI人材候補の自薦応募一覧を取得します。
         Requirements: 3.3
         """
         try:
@@ -213,7 +217,7 @@ class ApplicationHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Get detailed information about a specific application
+        特定の自薦応募の詳細情報を取得します。
         Requirements: 3.3
         """
         try:
@@ -268,7 +272,7 @@ class ApplicationHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Withdraw an application
+        自薦応募を取り下げます。
         Requirements: 3.4
         """
         try:
@@ -323,7 +327,7 @@ class ApplicationHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Update application status (admin/reviewer only)
+        自薦応募のステータスを更新します（管理者／レビュアー専用）。
         Requirements: 3.3, 3.4
         """
         try:
@@ -401,7 +405,7 @@ class ApplicationHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Get all applications for a specific opportunity (admin only)
+        特定のAIポジション／プロジェクトへの自薦応募一覧を取得します（管理者専用）。
         Requirements: 3.3
         """
         try:
@@ -471,7 +475,7 @@ class ApplicationHandler:
         event_type: str,
     ) -> None:
         """
-        Send notifications to relevant stakeholders
+        自薦応募に関係するステークホルダーに通知を送信します。
         Requirements: 3.2, 3.4
         """
         try:
@@ -522,7 +526,7 @@ class ApplicationHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Get application status history
+        自薦応募のステータス履歴を取得します。
         Requirements: 3.3
         """
         try:
@@ -582,7 +586,7 @@ class ApplicationHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Send a communication message for an application
+        自薦応募に関するコミュニケーションメッセージを送信します。
         Requirements: 3.3, 3.4
         """
         try:
@@ -665,7 +669,7 @@ class ApplicationHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Get all communications for an application
+        自薦応募に関するすべてのコミュニケーションを取得します。
         Requirements: 3.3
         """
         try:
@@ -717,7 +721,7 @@ class ApplicationHandler:
         self, event: Dict[str, Any], context: Any
     ) -> Dict[str, Any]:
         """
-        Update application status with workflow validation
+        ワークフローバリデーション付きで自薦応募のステータスを更新します。
         Requirements: 3.3, 3.4
         """
         try:
@@ -786,68 +790,68 @@ class ApplicationHandler:
 
 # Lambda function handlers
 def submit_application(event, context):
-    """Lambda handler for submitting applications"""
+    """自薦応募送信のLambdaハンドラー"""
     handler = ApplicationHandler()
     return handler.submit_application(event, context)
 
 
 def get_user_applications(event, context):
-    """Lambda handler for getting user applications"""
+    """社内AI人材候補の自薦応募一覧取得のLambdaハンドラー"""
     handler = ApplicationHandler()
     return handler.get_user_applications(event, context)
 
 
 def get_application_details(event, context):
-    """Lambda handler for getting application details"""
+    """自薦応募詳細取得のLambdaハンドラー"""
     handler = ApplicationHandler()
     return handler.get_application_details(event, context)
 
 
 def withdraw_application(event, context):
-    """Lambda handler for withdrawing applications"""
+    """自薦応募取り下げのLambdaハンドラー"""
     handler = ApplicationHandler()
     return handler.withdraw_application(event, context)
 
 
 def update_application_status(event, context):
-    """Lambda handler for updating application status"""
+    """自薦応募ステータス更新のLambdaハンドラー"""
     handler = ApplicationHandler()
     return handler.update_application_status(event, context)
 
 
 def get_applications_for_opportunity(event, context):
-    """Lambda handler for getting applications for an opportunity"""
+    """AIポジション／プロジェクトへの自薦応募一覧取得のLambdaハンドラー"""
     handler = ApplicationHandler()
     return handler.get_applications_for_opportunity(event, context)
 
 
 # Lambda function handlers
 def get_application_history(event, context):
-    """Lambda handler for getting application history"""
+    """自薦応募履歴取得のLambdaハンドラー"""
     handler = ApplicationHandler()
     return handler.get_application_history(event, context)
 
 
 def send_application_message(event, context):
-    """Lambda handler for sending application messages"""
+    """自薦応募メッセージ送信のLambdaハンドラー"""
     handler = ApplicationHandler()
     return handler.send_application_message(event, context)
 
 
 def get_application_communications(event, context):
-    """Lambda handler for getting application communications"""
+    """自薦応募コミュニケーション取得のLambdaハンドラー"""
     handler = ApplicationHandler()
     return handler.get_application_communications(event, context)
 
 
 def update_application_status_with_workflow(event, context):
-    """Lambda handler for updating application status with workflow"""
+    """ワークフローバリデーション付き自薦応募ステータス更新のLambdaハンドラー"""
     handler = ApplicationHandler()
     return handler.update_application_status_with_workflow(event, context)
 
 
 def handler(event, context):
-    """Main Lambda handler that routes requests based on HTTP method and path"""
+    """自薦応募操作のメインLambdaハンドラー（HTTPメソッドとパスに基づいてルーティング）"""
     
     # CORS headers to include in all responses
     cors_headers = {

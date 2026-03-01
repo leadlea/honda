@@ -1,12 +1,13 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { AuthProvider } from '../../contexts/AuthContext';
+import '@testing-library/jest-dom';
 import RecommendationsList from './RecommendationsList';
 
 // Mock the recommendation service
+const mockGetRecommendations = jest.fn().mockResolvedValue([]);
 jest.mock('../../services/recommendationService', () => ({
   RecommendationService: {
-    getRecommendations: jest.fn().mockResolvedValue([]),
+    getRecommendations: (...args: any[]) => mockGetRecommendations(...args),
     markRecommendationAsViewed: jest.fn().mockResolvedValue(undefined),
     dismissRecommendation: jest.fn().mockResolvedValue(undefined),
     applyToOpportunity: jest.fn().mockResolvedValue({ application_id: 'test-app-id' }),
@@ -27,17 +28,8 @@ const mockUser = {
   updated_at: '2024-01-01T00:00:00Z',
 };
 
-const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return (
-    <AuthProvider>
-      {children}
-    </AuthProvider>
-  );
-};
-
 // Mock useAuth hook
 jest.mock('../../contexts/AuthContext', () => ({
-  ...jest.requireActual('../../contexts/AuthContext'),
   useAuth: () => ({
     user: mockUser,
     isAuthenticated: true,
@@ -50,38 +42,30 @@ jest.mock('../../contexts/AuthContext', () => ({
 
 describe('RecommendationsList', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockGetRecommendations.mockResolvedValue([]);
   });
 
-  test('renders recommendations header', async () => {
-    render(
-      <MockAuthProvider>
-        <RecommendationsList />
-      </MockAuthProvider>
-    );
+  test('shows loading state initially', () => {
+    render(<RecommendationsList />);
 
-    expect(screen.getByText('Recommended Opportunities')).toBeInTheDocument();
-    expect(screen.getByText('AI-powered recommendations based on your profile and preferences')).toBeInTheDocument();
+    // The component shows loading state first with Japanese text
+    expect(screen.getByText(/AIポジション／プロジェクト レコメンドを読み込み中/)).toBeInTheDocument();
   });
 
-  test('shows loading state initially', async () => {
-    render(
-      <MockAuthProvider>
-        <RecommendationsList />
-      </MockAuthProvider>
-    );
+  test('renders recommendations header after loading', async () => {
+    render(<RecommendationsList />);
 
-    expect(screen.getByText('Loading your personalized recommendations...')).toBeInTheDocument();
+    // Wait for loading to complete - the header should appear
+    const header = await screen.findByText('AIポジション／プロジェクト レコメンド');
+    expect(header).toBeInTheDocument();
   });
 
-  test('renders filter and sort controls', async () => {
-    render(
-      <MockAuthProvider>
-        <RecommendationsList />
-      </MockAuthProvider>
-    );
+  test('renders filter and sort controls after loading', async () => {
+    render(<RecommendationsList />);
 
-    expect(screen.getByText('Filter by source:')).toBeInTheDocument();
-    expect(screen.getByText('Sort by:')).toBeInTheDocument();
+    // Wait for loading to complete and check for Japanese filter/sort labels
+    const filterLabel = await screen.findByText('ソースでフィルター:');
+    expect(filterLabel).toBeInTheDocument();
+    expect(screen.getByText('並び順:')).toBeInTheDocument();
   });
 });

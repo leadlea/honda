@@ -75,14 +75,14 @@ class TermMappingServiceImpl implements TermMappingService {
   validateTermConsistency(): boolean {
     try {
       const requiredTerms = [
-        'Honda Veteran Talent Bank',
-        'ベテラン',
+        '製造業プラチナアドバイザリー',
+        '登録人材',
         '問診',
-        'ベテランプロフィール',
-        '推薦機会',
-        '応募',
-        '興味表明',
-        'ベテラン検索'
+        'スキルポートフォリオ',
+        '参画機会レコメンド',
+        '参画申請',
+        '参画意向',
+        '登録人材検索'
       ];
 
       const requiredLabels = [
@@ -90,9 +90,13 @@ class TermMappingServiceImpl implements TermMappingService {
         'dashboard_title',
         'navigation_talent',
         'navigation_questionnaire',
+        'navigation_recommendations',
+        'navigation_applications',
         'profile_section',
+        'questionnaire_section',
         'recommendations_section',
-        'applications_section'
+        'applications_section',
+        'search_section'
       ];
 
       // Check legacy term mappings

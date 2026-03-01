@@ -1,6 +1,6 @@
 """
-Functional Behavior Invariance Tests for Manufacturing Platinum Advisory
-製造業プラチナアドバイザリー 機能的動作不変性テスト
+Functional Behavior Invariance Tests for AI人材発掘・配置マッチングMVP（AI CoE支援）
+AI人材発掘・配置マッチングMVP（AI CoE支援） 機能的動作不変性テスト
 
 This test suite ensures that core functionality remains unchanged after branding updates.
 ブランディング更新後もコア機能が変更されないことを確認します。

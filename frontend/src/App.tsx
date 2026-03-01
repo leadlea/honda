@@ -13,7 +13,7 @@ import Verified from './components/Verified';
 import Questionnaire from './components/questionnaire/Questionnaire'; // ← 追加
 import './config/amplify';
 import './App.css';
-import './styles/theme.css'; // ← 製造業プラチナアドバイザリーテーマを追加
+import './styles/theme.css'; // ← AI人材発掘・配置マッチングMVP（AI CoE支援）テーマを追加
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();

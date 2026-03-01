@@ -1,6 +1,9 @@
 """
-Lambda handler for AI matching and recommendation operations.
-Handles profile-opportunity matching, recommendation generation, and match analysis.
+双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）
+マッチングハンドラー - AIポジション／プロジェクト レコメンド操作
+
+社内AI人材候補とAIポジションのマッチング・レコメンド生成・マッチ分析を担当します。
+AI内製化を前進させるための適材配置を支援します。
 """
 
 import asyncio
@@ -22,20 +25,20 @@ from ..utils.branding_logger import get_branding_logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# Initialize branding logger
+# ブランディングロガーを初期化（双日TI向けAIポジション／プロジェクト レコメンド）
 branding_logger = get_branding_logger('matching_handler')
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
-    Main Lambda handler for matching operations.
+    AIポジション／プロジェクト レコメンド操作のメインLambdaハンドラー。
 
     Args:
-        event: Lambda event containing HTTP request data
-        context: Lambda context object
+        event: HTTPリクエストデータを含むLambdaイベント
+        context: Lambdaコンテキストオブジェクト
 
     Returns:
-        HTTP response dictionary
+        HTTPレスポンス辞書
     """
     try:
         # Extract HTTP method and path
@@ -89,7 +92,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 def handle_get_recommendations(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
-    Handle GET /recommendations/{user_id} - Get recommendations for a user.
+    GET /recommendations/{user_id} - 社内AI人材候補向けAIポジション／プロジェクト レコメンドを取得します。
     """
     try:
         # Get user data from API Gateway authorizer context
@@ -216,7 +219,8 @@ def handle_generate_recommendations(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
     """
-    Handle POST /recommendations/{user_id}/generate - Generate new recommendations for a user.
+    POST /recommendations/{user_id}/generate - 社内AI人材候補向けに新しいAIポジション／プロジェクト レコメンドを生成します。
+    AI内製化を前進させるための適材配置レコメンドを提供します。
     """
     try:
         # Verify authentication
@@ -346,15 +350,15 @@ def handle_refresh_recommendations(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
     """
-    Handle POST /recommendations/{user_id}/refresh - Refresh recommendations for a user.
+    POST /recommendations/{user_id}/refresh - 社内AI人材候補向けAIポジション／プロジェクト レコメンドを更新します。
     """
-    # This is essentially the same as generate_recommendations
+    # レコメンド生成と同等の処理
     return handle_generate_recommendations(event, context)
 
 
 def handle_get_match_analysis(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
-    Handle GET /match-analysis/{user_id}/{opportunity_id} - Get detailed match analysis.
+    GET /match-analysis/{user_id}/{opportunity_id} - 社内AI人材候補とAIポジションの詳細マッチ分析を取得します。
     """
     try:
         # Verify authentication
@@ -446,7 +450,8 @@ def handle_get_match_analysis(event: Dict[str, Any], context: Any) -> Dict[str, 
 
 def handle_analyze_match(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
-    Handle POST /match-analysis - Analyze match between veteran and opportunity.
+    POST /match-analysis - 社内AI人材候補とAIポジションのマッチを分析します。
+    AI内製化を前進させるための適材配置分析を提供します。
     """
     try:
         # Verify authentication
@@ -575,7 +580,7 @@ def handle_batch_generate_recommendations(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
     """
-    Handle POST /batch-recommendations - Generate recommendations for multiple users.
+    POST /batch-recommendations - 複数の社内AI人材候補向けにAIポジション／プロジェクト レコメンドを一括生成します。
     """
     try:
         # Verify authentication
@@ -717,7 +722,7 @@ def handle_recommendation_feedback(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
     """
-    Handle POST /recommendations/{user_id}/feedback - Record feedback for a recommendation.
+    POST /recommendations/{user_id}/feedback - AIポジション／プロジェクト レコメンドへのフィードバックを記録します。
     """
     try:
         # Verify authentication
@@ -889,7 +894,7 @@ def handle_get_recommendation_statistics(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
     """
-    Handle GET /recommendations/{user_id}/statistics - Get recommendation statistics for a user.
+    GET /recommendations/{user_id}/statistics - 社内AI人材候補向けAIポジション／プロジェクト レコメンド統計を取得します。
     """
     try:
         # Verify authentication
@@ -1012,7 +1017,7 @@ def handle_get_recommendation_history(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
     """
-    Handle GET /recommendations/{user_id}/history - Get recommendation history for a user.
+    GET /recommendations/{user_id}/history - 社内AI人材候補向けAIポジション／プロジェクト レコメンド履歴を取得します。
     """
     try:
         # Verify authentication
@@ -1128,7 +1133,7 @@ def handle_get_recommendation_insights(
     event: Dict[str, Any], context: Any
 ) -> Dict[str, Any]:
     """
-    Handle GET /recommendations/{user_id}/insights - Get recommendation insights for a user.
+    GET /recommendations/{user_id}/insights - 社内AI人材候補向けAIポジション／プロジェクト レコメンドのインサイトを取得します。
     """
     try:
         # Verify authentication

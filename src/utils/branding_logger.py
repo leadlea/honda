@@ -1,6 +1,6 @@
 """
-Branding Logger for Manufacturing Platinum Advisory platform.
-Provides centralized logging with consistent terminology.
+Branding Logger for 双日テックイノベーション：AI人材発掘・配置マッチングMVP（AI CoE支援）platform.
+Provides centralized logging with consistent terminology for AI CoE support operations.
 """
 
 import logging
@@ -10,7 +10,7 @@ from ..config.message_config import message_config
 
 
 class BrandingLogger:
-    """Centralized logger with branding-consistent terminology."""
+    """Centralized logger with branding-consistent terminology for 双日TI AI人材発掘・配置マッチングMVP."""
     
     def __init__(self, name: str = __name__):
         """Initialize branding logger with specified name."""
@@ -137,7 +137,7 @@ class BrandingLogger:
     
     def log_security_event(self, event_type: str, user_id: Optional[str], details: str) -> None:
         """Log security-related event."""
-        user_info = f"登録人材ID: {user_id}" if user_id else "匿名ユーザー"
+        user_info = f"社内AI人材候補ID: {user_id}" if user_id else "匿名ユーザー"
         message = f"セキュリティイベント: {event_type} - {user_info} - {details}"
         self.logger.warning(message)
     
@@ -148,12 +148,12 @@ class BrandingLogger:
     
     def log_business_event(self, event_type: str, user_id: str, details: Dict[str, Any]) -> None:
         """Log business-related event."""
-        message = f"ビジネスイベント: {event_type} - 登録人材ID: {user_id} - {details}"
+        message = f"ビジネスイベント: {event_type} - 社内AI人材候補ID: {user_id} - {details}"
         self.logger.info(message)
 
 
 # Global instance for easy access
-branding_logger = BrandingLogger('manufacturing_platinum_advisory')
+branding_logger = BrandingLogger('ai_talent_matching_mvp')
 
 
 def get_branding_logger(name: str = None) -> BrandingLogger:

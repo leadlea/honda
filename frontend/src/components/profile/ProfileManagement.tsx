@@ -87,7 +87,7 @@ const ProfileManagement: React.FC = () => {
   };
 
   const removeSkill = (index: number) => {
-    if (window.confirm('このスキルを削除してもよろしいですか？')) {
+    if (window.confirm('このAIスキルを削除してもよろしいですか？')) {
       const updatedSkills = (profile?.skills || []).filter((_, i) => i !== index);
       
       const updatedProfile = {
@@ -153,9 +153,9 @@ const ProfileManagement: React.FC = () => {
   const renderSkillsTab = () => (
     <div className="tab-content">
       <div className="tab-header">
-        <h3>スキル管理</h3>
+        <h3>AIスキル管理</h3>
         <button onClick={addSkill} className="btn btn-primary">
-          スキルを追加
+          AIスキルを追加
         </button>
       </div>
 
@@ -165,7 +165,7 @@ const ProfileManagement: React.FC = () => {
             <div className="skill-form">
               <div className="form-row">
                 <div className="form-group">
-                  <label>スキル名</label>
+                  <label>AIスキル名</label>
                   <input
                     type="text"
                     value={skill.name}
@@ -223,7 +223,7 @@ const ProfileManagement: React.FC = () => {
         
         {(profile?.skills || []).length === 0 && (
           <div className="empty-state">
-            <p>まだスキルが登録されていません。「スキルを追加」ボタンから追加してください。</p>
+            <p>まだAIスキルが登録されていません。「AIスキルを追加」ボタンから追加してください。</p>
           </div>
         )}
       </div>
@@ -233,7 +233,7 @@ const ProfileManagement: React.FC = () => {
   const renderExperienceTab = () => (
     <div className="tab-content">
       <div className="tab-header">
-        <h3>経験管理</h3>
+        <h3>経験・実績管理</h3>
         <button onClick={addExperience} className="btn btn-primary">
           経験を追加
         </button>
@@ -413,7 +413,7 @@ const ProfileManagement: React.FC = () => {
     <div className="profile-management-container">
       <div className="profile-header">
         <h1>{termMappingService.getLocalizedTerm('profile_section')}</h1>
-        <p>あなたの詳細{termMappingService.getLocalizedTerm('skill_portfolio')}を編集・管理できます</p>
+        <p>あなたの{termMappingService.getLocalizedTerm('skill_portfolio')}を編集・管理できます</p>
         {hasUnsavedChanges && (
           <div className="unsaved-changes-notice">
             <span>⚠️ 未保存の変更があります</span>
@@ -438,13 +438,13 @@ const ProfileManagement: React.FC = () => {
           className={`tab-button ${activeTab === 'skills' ? 'active' : ''}`}
           onClick={() => setActiveTab('skills')}
         >
-          スキル
+          AIスキル
         </button>
         <button 
           className={`tab-button ${activeTab === 'experience' ? 'active' : ''}`}
           onClick={() => setActiveTab('experience')}
         >
-          経験
+          経験・実績
         </button>
         <button 
           className={`tab-button ${activeTab === 'preferences' ? 'active' : ''}`}

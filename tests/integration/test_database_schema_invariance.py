@@ -1,6 +1,6 @@
 """
-Database Schema Invariance Tests for Manufacturing Platinum Advisory
-製造業プラチナアドバイザリー データベーススキーマ不変性テスト
+Database Schema Invariance Tests for AI人材発掘・配置マッチングMVP（AI CoE支援）
+AI人材発掘・配置マッチングMVP（AI CoE支援） データベーススキーマ不変性テスト
 
 This test suite ensures that the branding update does not modify database schemas.
 ブランディング更新がデータベーススキーマを変更しないことを確認します。
