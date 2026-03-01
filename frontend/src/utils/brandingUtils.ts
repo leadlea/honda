@@ -157,7 +157,7 @@ export function getBrandedMessage(
     });
   }
   
-  return applyTermMapping(message);
+  return message;
 }
 
 /**
