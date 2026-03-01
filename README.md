@@ -1,14 +1,14 @@
-# Honda ベテラン人材マッチングシステム
+# 双日テックイノベーション AI人材発掘・配置マッチングMVP（AI CoE支援）
 
-AI を活用したベテラン人材マッチングシステム。経験豊富な Honda 社員が、インテリジェントなアンケート、プロフィール管理、スマートレコメンデーションを通じて新しいキャリア機会を見つけることを支援します。
+AI を活用した社内AI人材発掘・配置マッチングシステム。双日テックイノベーションの社内AI人材候補が、AIスキル棚卸し（セルフ診断）、AIスキルポートフォリオ管理、AIポジション／プロジェクト レコメンドを通じて最適なAIポジションを見つけることを支援します。
 
 ## 🚀 主な機能
 
-- **AI 生成アンケート**: AWS Bedrock Claude Sonnet 4 を使用したパーソナライズされたアンケート
-- **スマートプロフィール管理**: 動的なビジネスタイトル生成とスキル評価
-- **インテリジェントマッチング**: 社内外の機会に対する AI 駆動のレコメンデーションエンジン
-- **プライバシー制御**: プロフィール共有のための詳細な可視性設定
-- **外部プラットフォーム**: 外部リクルーター向けの Honda ベテランバンク
+- **AI生成アンケート（AIスキル棚卸し）**: AWS Bedrock Claude Sonnet 4 を使用したパーソナライズされたAIスキル棚卸し（セルフ診断）
+- **AIスキルポートフォリオ管理**: 動的なビジネスタイトル生成とAIスキル評価
+- **インテリジェントマッチング**: 社内AIポジション／プロジェクトに対するAI駆動のレコメンデーションエンジン
+- **プライバシー制御**: AIスキルポートフォリオ共有のための詳細な可視性設定
+- **社内AI人材候補検索**: 外部担当者向けの社内AI人材候補検索プラットフォーム
 - **ロールベースアクセス**: Cognito と RBAC による安全な認証
 
 ## 🏗️ アーキテクチャ
@@ -29,8 +29,8 @@ AI を活用したベテラン人材マッチングシステム。経験豊富�
 ```mermaid
 graph TB
     subgraph "ユーザー"
-        U1[Honda社員<br/>ベテラン]
-        U2[外部リクルーター<br/>企業]
+        U1[双日TI社員<br/>社内AI人材候補]
+        U2[AI CoE担当者<br/>配置担当]
     end
 
     subgraph "フロントエンド層"
@@ -46,11 +46,11 @@ graph TB
 
     subgraph "ビジネスロジック層"
         L1[認証ハンドラー<br/>Lambda]
-        L2[プロフィール管理<br/>Lambda]
-        L3[アンケート処理<br/>Lambda]
+        L2[AIスキルポートフォリオ管理<br/>Lambda]
+        L3[AIスキル棚卸し処理<br/>Lambda]
         L4[マッチング処理<br/>Lambda]
-        L5[推薦エンジン<br/>Lambda]
-        L6[外部検索<br/>Lambda]
+        L5[レコメンドエンジン<br/>Lambda]
+        L6[社内AI人材候補検索<br/>Lambda]
     end
 
     subgraph "AI・機械学習"
@@ -60,10 +60,10 @@ graph TB
 
     subgraph "データ層"
         DB1[(ユーザー情報<br/>DynamoDB)]
-        DB2[(プロフィール<br/>DynamoDB)]
-        DB3[(アンケート<br/>DynamoDB)]
-        DB4[(推薦結果<br/>DynamoDB)]
-        DB5[(求人情報<br/>DynamoDB)]
+        DB2[(AIスキルポートフォリオ<br/>DynamoDB)]
+        DB3[(AIスキル棚卸し<br/>DynamoDB)]
+        DB4[(レコメンド結果<br/>DynamoDB)]
+        DB5[(AIポジション情報<br/>DynamoDB)]
         DB6[(公開プロフィール<br/>DynamoDB)]
     end
 
@@ -73,32 +73,23 @@ graph TB
         IAM[IAM<br/>アクセス制御]
     end
 
-    %% ユーザーフロー
     U1 --> CF
     U2 --> CF
     CF --> S3
     S3 --> WEB
     WEB --> AG
-
-    %% API認証フロー
     AG --> AUTH
     AUTH --> L1
-
-    %% ビジネスロジックフロー
     AG --> L2
     AG --> L3
     AG --> L4
     AG --> L5
     AG --> L6
-
-    %% AI統合
     L3 --> BR
     L4 --> BR
     L5 --> BR
     BR --> AI
     AI --> BR
-
-    %% データアクセス
     L1 --> DB1
     L2 --> DB2
     L3 --> DB3
@@ -106,8 +97,6 @@ graph TB
     L5 --> DB4
     L6 --> DB6
     L4 --> DB5
-
-    %% セキュリティ統合
     DB1 --> KMS
     DB2 --> KMS
     DB3 --> KMS
@@ -119,7 +108,6 @@ graph TB
     L6 --> CW
     AG --> IAM
 
-    %% スタイリング
     classDef userClass fill:#e1f5fe
     classDef frontendClass fill:#f3e5f5
     classDef apiClass fill:#e8f5e8
@@ -141,7 +129,7 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant U as Honda社員
+    participant U as 社内AI人材候補
     participant W as Webアプリ
     participant A as API Gateway
     participant C as Cognito
@@ -157,79 +145,73 @@ sequenceDiagram
     A->>W: 認証成功
     W->>U: ダッシュボード表示
 
-    Note over U,D: AIアンケート生成フロー
-    U->>W: アンケート開始
-    W->>A: アンケート生成要求
+    Note over U,D: AIスキル棚卸し生成フロー
+    U->>W: AIスキル棚卸し開始
+    W->>A: 棚卸し生成要求
     A->>L: questionnaire_handler
     L->>D: ユーザー情報取得
     D->>L: プロフィールデータ
     L->>B: AI質問生成要求
     B->>L: パーソナライズ質問
-    L->>D: アンケート保存
-    L->>A: 生成されたアンケート
-    A->>W: アンケート表示
+    L->>D: 棚卸し結果保存
+    L->>A: 生成された棚卸し
+    A->>W: 棚卸し表示
     W->>U: 質問回答画面
 
-    Note over U,D: マッチング・推薦フロー
-    U->>W: 推薦要求
+    Note over U,D: マッチング・レコメンドフロー
+    U->>W: レコメンド要求
     W->>A: マッチング要求
     A->>L: matching_handler
     L->>D: ユーザー回答取得
     L->>B: AI分析・マッチング
-    B->>L: 推薦結果
-    L->>D: 推薦結果保存
-    L->>A: 推薦リスト
-    A->>W: 推薦表示
-    W->>U: キャリア機会提示
+    B->>L: レコメンド結果
+    L->>D: レコメンド結果保存
+    L->>A: レコメンドリスト
+    A->>W: レコメンド表示
+    W->>U: AIポジション提示
 ```
 
-### 外部プラットフォーム連携図
+### 社内AI人材候補検索連携図
 
 ```mermaid
 flowchart TD
-    subgraph External["🌐 外部ユーザー"]
-        REC["👤 リクルーター"]
-        CORP["🏢 企業担当者"]
-        HEAD["🎯 ヘッドハンター"]
+    subgraph External["🌐 配置担当者"]
+        REC["👤 AI CoE担当者"]
+        CORP["🏢 部門責任者"]
+        HEAD["🎯 プロジェクトリーダー"]
     end
 
-    subgraph Platform["🏛️ Honda ベテランバンク"]
-        EP["📱 外部プラットフォーム"]
-        PS["🔍 公開検索機能"]
-        PF["📋 プロフィール表示"]
+    subgraph Platform["🏛️ 社内AI人材候補検索"]
+        EP["📱 検索プラットフォーム"]
+        PS["🔍 社内AI人材候補検索機能"]
+        PF["📋 AIスキルポートフォリオ表示"]
         CF["📧 コンタクトフォーム"]
     end
 
     subgraph Internal["🏠 内部システム"]
-        IS["💼 社員向けシステム"]
+        IS["💼 社内AI人材候補向けシステム"]
         PM["🔒 プライバシー管理"]
         PP["⚙️ 公開設定制御"]
     end
 
     subgraph Data["💾 データ層"]
-        PUB[("📊 公開プロフィール<br/>DynamoDB")]
+        PUB[("📊 公開AIスキルポートフォリオ<br/>DynamoDB")]
         PRIV[("🔐 プライベート情報<br/>暗号化済み")]
     end
 
-    %% 外部アクセスフロー
     REC --> EP
     CORP --> EP
     HEAD --> EP
     EP --> PS
     PS --> PF
     PF --> CF
-
-    %% 内部制御フロー
     IS --> PM
     PM --> PP
     PP --> PUB
-
-    %% データ分離
     PUB --> PS
     PRIV --> PM
     PRIV --x PS
 
-    %% スタイリング
     classDef external fill:#ffebee,stroke:#d32f2f,stroke-width:2px;
     classDef platform fill:#e3f2fd,stroke:#1976d2,stroke-width:2px;
     classDef internal fill:#f1f8e9,stroke:#388e3c,stroke-width:2px;
@@ -350,7 +332,7 @@ bandit -r src/
 ## 📁 プロジェクト構造
 
 ```
-honda-veteran-talent-matching/
+ai-talent-matching-mvp/
 ├── .github/workflows/          # GitHub Actions CI/CD
 ├── .kiro/specs/               # 機能仕様書
 ├── src/                       # Python バックエンドソース
@@ -451,14 +433,19 @@ BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
 - [x] 東京リージョンへの完全移行
 - [x] CI/CD パイプラインの構築
 - [x] フロントエンドデプロイメントの自動化
+- [x] 双日TI向け用語統一リブランディング完了
 - [ ] 多言語サポート（日本語/英語）
 - [ ] 高度な AI 分析ダッシュボード
 - [ ] モバイルアプリケーション
-- [ ] 外部求人サイトとの統合
+- [ ] 社内AIポジション管理機能の拡充
 - [ ] リアルタイム通知
-- [ ] ビデオ面接スケジューリング
+- [ ] AIスキル成長トラッキング
 
 ## 🎉 最新の更新
+
+### v1.1.0 - 2026年3月
+- ✅ 双日TI向け用語統一リブランディング完了
+- ✅ 全画面・全APIで新用語（「社内AI人材候補」「AIスキル棚卸し（セルフ診断）」「AIポジション／プロジェクト レコメンド」「自薦応募」等）に統一
 
 ### v1.0.0 - 2025年1月
 - ✅ 東京リージョン (ap-northeast-1) への完全移行完了
@@ -467,21 +454,22 @@ BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
 - ✅ AWS Bedrock Claude Sonnet 統合
 - ✅ セキュリティ強化とパフォーマンス最適化
 
+---
 
 ## 本リポジトリの位置づけ / About This Repository
 
 本リポジトリは、合同会社Lead lea（以下「Lead lea」）が開発した  
 PoC／MVP 用プロダクトのソースコードを管理するものです。
 
-本リポジトリは、{{CLIENT_NAME}}（以下「クライアント」）における  
+本リポジトリは、双日テックイノベーション株式会社（以下「クライアント」）における  
 **社内検証・PoC・社内デモ用途**での利用を目的として提供しているものであり、  
 いかなる企業の正式な受託開発成果物として提供されるものではありません。
 
 This repository stores the source code of a proof-of-concept (PoC) / MVP product  
-developed by Lead lea LLC (“Lead lea”).
+developed by Lead lea LLC ("Lead lea").
 
 It is provided solely for **internal evaluation, PoC, and internal demo use**  
-within {{CLIENT_NAME}} (the “Client”),  
+within Sojitz Techno Innovation Co., Ltd. (the "Client"),  
 and is **not** delivered as an official outsourcing deliverable of any company.
 
 ---
@@ -500,7 +488,7 @@ shall remain the exclusive property of Lead lea.
 ## 利用条件 / Terms of Use
 
 - 利用可能範囲：  
-  - {{CLIENT_NAME}} の社内における利用（PoC、技術検証、社内デモ等）に限ります。  
+  - 双日テックイノベーション株式会社の社内における利用（PoC、技術検証、社内デモ等）に限ります。  
 
 - 提供形態：  
   - 本リポジトリは **AS IS（現状有姿）** で提供されるものであり、  
@@ -511,10 +499,10 @@ shall remain the exclusive property of Lead lea.
     事前に Lead lea との協議・書面による合意が必要です。
 
 - Permitted scope of use:  
-  - Internal use within {{CLIENT_NAME}} (PoC, technical evaluation, internal demos, etc.) only.  
+  - Internal use within Sojitz Techno Innovation Co., Ltd. (PoC, technical evaluation, internal demos, etc.) only.  
 
 - Mode of provision:  
-  - This repository is provided **“AS IS”**, and Lead lea does not assume any obligation  
+  - This repository is provided **"AS IS"**, and Lead lea does not assume any obligation  
     for warranties, performance guarantees, or ongoing maintenance.  
 
 - Restrictions:  
