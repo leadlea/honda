@@ -113,7 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       <div className="dashboard-header">
         <h1>{getWelcomeMessage()}</h1>
         <p className="dashboard-subtitle">
-          {user.role === 'veteran' && applyBrandingTone('あなたのAIスキルを活かした最適なAIポジションを見つけましょう', 'empowering_collaborative')}
+          {user.role === 'veteran' && applyBrandingTone('あなたのAIスキルを活かした最適なAIポジションを見つけましょう', 'trustworthy_internal')}
           {user.role === 'external_recruiter' && getBrandedMessage('search', 'subtitle')}
           {user.role === 'admin' && 'システムの管理と監視を行いましょう'}
         </p>
